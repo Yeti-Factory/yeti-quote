@@ -12,7 +12,7 @@ import { Plus, Search } from "lucide-react";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/dossiers")({
+export const Route = createFileRoute("/_authenticated/dossiers/")({
   component: DossiersList,
 });
 

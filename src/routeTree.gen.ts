@@ -12,10 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedDossiersIndexRouteImport } from './routes/_authenticated/dossiers.index'
+import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients.index'
 import { Route as AuthenticatedDossiersNewRouteImport } from './routes/_authenticated/dossiers.new'
 import { Route as AuthenticatedDossiersIdRouteImport } from './routes/_authenticated/dossiers.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
@@ -34,19 +34,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDossiersRoute = AuthenticatedDossiersRouteImport.update({
-  id: '/dossiers',
-  path: '/dossiers',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -54,44 +44,56 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDossiersIndexRoute =
+  AuthenticatedDossiersIndexRouteImport.update({
+    id: '/dossiers/',
+    path: '/dossiers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedClientsIndexRoute =
+  AuthenticatedClientsIndexRouteImport.update({
+    id: '/clients/',
+    path: '/clients/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDossiersNewRoute =
   AuthenticatedDossiersNewRouteImport.update({
-    id: '/new',
-    path: '/new',
-    getParentRoute: () => AuthenticatedDossiersRoute,
+    id: '/dossiers/new',
+    path: '/dossiers/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDossiersIdRoute = AuthenticatedDossiersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedDossiersRoute,
+  id: '/dossiers/$id',
+  path: '/dossiers/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedClientsRoute,
+  id: '/clients/$id',
+  path: '/clients/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/dossiers': typeof AuthenticatedDossiersRouteWithChildren
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/clients/': typeof AuthenticatedClientsIndexRoute
+  '/dossiers/': typeof AuthenticatedDossiersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/dossiers': typeof AuthenticatedDossiersRouteWithChildren
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/clients': typeof AuthenticatedClientsIndexRoute
+  '/dossiers': typeof AuthenticatedDossiersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -99,12 +101,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/dossiers': typeof AuthenticatedDossiersRouteWithChildren
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/_authenticated/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
+  '/_authenticated/dossiers/': typeof AuthenticatedDossiersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -112,35 +114,35 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
-    | '/clients'
     | '/dashboard'
-    | '/dossiers'
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
+    | '/clients/'
+    | '/dossiers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/admin'
-    | '/clients'
     | '/dashboard'
-    | '/dossiers'
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
+    | '/clients'
+    | '/dossiers'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
-    | '/_authenticated/clients'
     | '/_authenticated/dashboard'
-    | '/_authenticated/dossiers'
     | '/_authenticated/clients/$id'
     | '/_authenticated/dossiers/$id'
     | '/_authenticated/dossiers/new'
+    | '/_authenticated/clients/'
+    | '/_authenticated/dossiers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -172,25 +174,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/dossiers': {
-      id: '/_authenticated/dossiers'
-      path: '/dossiers'
-      fullPath: '/dossiers'
-      preLoaderRoute: typeof AuthenticatedDossiersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/clients': {
-      id: '/_authenticated/clients'
-      path: '/clients'
-      fullPath: '/clients'
-      preLoaderRoute: typeof AuthenticatedClientsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -200,68 +188,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dossiers/': {
+      id: '/_authenticated/dossiers/'
+      path: '/dossiers'
+      fullPath: '/dossiers/'
+      preLoaderRoute: typeof AuthenticatedDossiersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clients/': {
+      id: '/_authenticated/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dossiers/new': {
       id: '/_authenticated/dossiers/new'
-      path: '/new'
+      path: '/dossiers/new'
       fullPath: '/dossiers/new'
       preLoaderRoute: typeof AuthenticatedDossiersNewRouteImport
-      parentRoute: typeof AuthenticatedDossiersRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dossiers/$id': {
       id: '/_authenticated/dossiers/$id'
-      path: '/$id'
+      path: '/dossiers/$id'
       fullPath: '/dossiers/$id'
       preLoaderRoute: typeof AuthenticatedDossiersIdRouteImport
-      parentRoute: typeof AuthenticatedDossiersRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clients/$id': {
       id: '/_authenticated/clients/$id'
-      path: '/$id'
+      path: '/clients/$id'
       fullPath: '/clients/$id'
       preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
-      parentRoute: typeof AuthenticatedClientsRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-interface AuthenticatedClientsRouteChildren {
-  AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
-}
-
-const AuthenticatedClientsRouteChildren: AuthenticatedClientsRouteChildren = {
-  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
-}
-
-const AuthenticatedClientsRouteWithChildren =
-  AuthenticatedClientsRoute._addFileChildren(AuthenticatedClientsRouteChildren)
-
-interface AuthenticatedDossiersRouteChildren {
-  AuthenticatedDossiersIdRoute: typeof AuthenticatedDossiersIdRoute
-  AuthenticatedDossiersNewRoute: typeof AuthenticatedDossiersNewRoute
-}
-
-const AuthenticatedDossiersRouteChildren: AuthenticatedDossiersRouteChildren = {
-  AuthenticatedDossiersIdRoute: AuthenticatedDossiersIdRoute,
-  AuthenticatedDossiersNewRoute: AuthenticatedDossiersNewRoute,
-}
-
-const AuthenticatedDossiersRouteWithChildren =
-  AuthenticatedDossiersRoute._addFileChildren(
-    AuthenticatedDossiersRouteChildren,
-  )
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRouteWithChildren
+  AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
+  AuthenticatedDossiersIdRoute: typeof AuthenticatedDossiersIdRoute
+  AuthenticatedDossiersNewRoute: typeof AuthenticatedDossiersNewRoute
+  AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
+  AuthenticatedDossiersIndexRoute: typeof AuthenticatedDossiersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedDossiersRoute: AuthenticatedDossiersRouteWithChildren,
+  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
+  AuthenticatedDossiersIdRoute: AuthenticatedDossiersIdRoute,
+  AuthenticatedDossiersNewRoute: AuthenticatedDossiersNewRoute,
+  AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
+  AuthenticatedDossiersIndexRoute: AuthenticatedDossiersIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -14,7 +14,7 @@ import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/clients")({
+export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
 });
 
