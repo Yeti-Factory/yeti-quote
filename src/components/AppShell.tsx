@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Snowflake className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-sidebar-foreground leading-tight">Yeti Lab</div>
+            <div className="font-semibold text-sidebar-foreground leading-tight">Yeti Factory</div>
             <div className="text-xs text-muted-foreground leading-tight">Yeti Factory</div>
           </div>
         </div>
