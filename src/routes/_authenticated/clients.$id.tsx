@@ -6,7 +6,7 @@ import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClientDialog } from "./clients";
+import { ClientDialog } from "./clients.index";
 import { StatusBadge } from "./dashboard";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
