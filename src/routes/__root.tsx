@@ -77,8 +77,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Yeti Lab — Calcul de prix" },
-      { name: "description", content: "Application interne Yeti Lab / Yeti Factory de calcul de prix client." },
+      { title: "Yeti Factory — Calcul de prix" },
+      { name: "description", content: "Application interne Yeti Factory de calcul de prix client." },
       { name: "robots", content: "noindex,nofollow" },
     ],
     links: [

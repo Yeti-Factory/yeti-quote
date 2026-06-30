@@ -45,7 +45,7 @@ function Dashboard() {
     <div>
       <PageHeader
         title="Tableau de bord"
-        subtitle="Vue d'ensemble de l'activité Yeti Lab / Factory."
+        subtitle="Vue d'ensemble de l'activité Yeti Factory."
         actions={
           <Link to="/dossiers/new">
             <Button>

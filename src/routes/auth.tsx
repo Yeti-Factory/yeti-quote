@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Connexion — Yeti Lab" }] }),
+  head: () => ({ meta: [{ title: "Connexion — Yeti Factory" }] }),
   component: AuthPage,
 });
 
@@ -66,7 +66,7 @@ function AuthPage() {
             <Snowflake className="w-5 h-5" />
           </div>
           <div>
-            <div className="font-semibold leading-tight">Yeti Lab / Yeti Factory</div>
+            <div className="font-semibold leading-tight">Yeti Factory - calcul prix</div>
             <div className="text-xs text-muted-foreground leading-tight">
               Calcul de prix interne
             </div>
