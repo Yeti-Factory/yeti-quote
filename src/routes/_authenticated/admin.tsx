@@ -144,7 +144,6 @@ function UsersPanel() {
   }
 
   return (
-
     <div className="mt-4 space-y-4">
       <CreateUserForm />
       <Card className="p-0 overflow-hidden">
@@ -154,12 +153,8 @@ function UsersPanel() {
               <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
                 Utilisateur
               </th>
-              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
-                Email
-              </th>
-              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
-                Rôles
-              </th>
+              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Email</th>
+              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Rôles</th>
               <th className="text-right px-4 py-2 text-xs uppercase text-muted-foreground">
                 Action
               </th>
@@ -298,4 +293,3 @@ function CreateUserForm() {
     </Card>
   );
 }
-

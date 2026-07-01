@@ -44,10 +44,7 @@ export const createUserFn = createServerFn({ method: "POST" })
     // Upsert profile (handle_new_user trigger already inserts one; keep name in sync)
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .upsert(
-        { id: newUserId, email: data.email, full_name: data.fullName },
-        { onConflict: "id" },
-      );
+      .upsert({ id: newUserId, email: data.email, full_name: data.fullName }, { onConflict: "id" });
     if (profileErr) throw new Error(profileErr.message);
 
     if (data.isAdmin) {

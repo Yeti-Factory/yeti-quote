@@ -20,9 +20,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Connexion — Yeti Factory" }] }),
   validateSearch: (raw: Record<string, unknown>): AuthSearch => {
     const allowed: AuthMode[] = ["login", "forgot", "reset-password", "change-password"];
-    const mode = typeof raw.mode === "string" && (allowed as string[]).includes(raw.mode)
-      ? (raw.mode as AuthMode)
-      : undefined;
+    const mode =
+      typeof raw.mode === "string" && (allowed as string[]).includes(raw.mode)
+        ? (raw.mode as AuthMode)
+        : undefined;
     const redirectTo = typeof raw.redirect === "string" ? raw.redirect : undefined;
     return { mode, redirect: redirectTo };
   },
