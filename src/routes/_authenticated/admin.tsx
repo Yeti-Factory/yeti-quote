@@ -47,7 +47,8 @@ function CoefsPanel() {
     queryKey: ["admin_defaults"],
     queryFn: async () => {
       const { data } = await supabase.from("app_defaults").select("*").order("key");
-      return data ?? [];
+      // Kits est masqué de l'UI (conservé en base pour compat legacy).
+      return (data ?? []).filter((d: any) => d.key !== "kits");
     },
   });
   const [edits, setEdits] = useState<Record<string, string>>({});
