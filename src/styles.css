@@ -143,3 +143,116 @@
     color: var(--color-foreground);
   }
 }
+
+/* Print-only vs screen-only helpers */
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .screen-only,
+  .no-print,
+  aside,
+  nav {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .print-sheet {
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      sans-serif;
+    font-size: 10pt;
+    color: #000;
+  }
+  .print-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+  .print-sheet th,
+  .print-sheet td {
+    border: 0.5pt solid #666;
+    padding: 3pt 5pt;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .print-sheet thead th {
+    background: #e5e5e5 !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 8pt;
+  }
+  .print-sheet .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .print-sheet .strong {
+    font-weight: 700;
+  }
+  .print-sheet .total-row {
+    background: #f2f2f2 !important;
+    font-weight: 700;
+  }
+  .print-sheet h1 {
+    font-size: 14pt;
+    margin: 0;
+  }
+  .print-sheet h2 {
+    font-size: 11pt;
+    margin: 8pt 0 4pt;
+    border-bottom: 0.75pt solid #333;
+    padding-bottom: 2pt;
+  }
+  .print-sheet .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8pt;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 6pt;
+  }
+  .print-sheet .header img {
+    height: 42pt;
+    width: auto;
+  }
+  .print-sheet .meta {
+    text-align: right;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  .print-sheet .alert {
+    color: #b00;
+    font-weight: 700;
+    margin-top: 6pt;
+  }
+  .print-sheet .params-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3pt 12pt;
+    font-size: 9pt;
+  }
+  .print-sheet section {
+    page-break-inside: avoid;
+  }
+}
