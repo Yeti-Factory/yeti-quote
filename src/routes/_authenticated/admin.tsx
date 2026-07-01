@@ -144,7 +144,11 @@ function UsersPanel() {
   }
 
   return (
-    <Card className="p-0 overflow-hidden mt-4">
+  return (
+    <div className="mt-4 space-y-4">
+      <CreateUserForm />
+      <Card className="p-0 overflow-hidden">
+
       <table className="w-full text-sm">
         <thead className="bg-muted/50 border-b">
           <tr>
