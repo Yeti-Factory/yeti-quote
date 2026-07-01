@@ -150,11 +150,10 @@ function DossierDetail() {
 
   async function duplicate() {
     if (!dossier) return;
-    const { data: ref } = await supabase.rpc("next_dossier_reference");
     const { data, error } = await supabase
       .from("dossiers")
       .insert({
-        reference: (ref as unknown as string) ?? `${dossier.reference}-copie`,
+        reference: "",
         objet: `${dossier.objet} (copie)`,
         client_id: dossier.client_id,
         contact: dossier.contact,

@@ -41,12 +41,7 @@ function NewDossier() {
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    supabase.rpc("next_dossier_reference").then(({ data }) => {
-      if (data && !reference) setReference(data as unknown as string);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Reference is generated automatically server-side (BEFORE INSERT trigger) when left empty.
 
   async function create() {
     if (!clientId) return toast.error("Sélectionnez un client.");
