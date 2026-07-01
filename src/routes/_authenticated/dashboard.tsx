@@ -17,12 +17,16 @@ function Dashboard() {
     queryKey: ["dash-stats"],
     queryFn: async () => {
       const [dossiers, clients, valides] = await Promise.all([
-        supabase.from("dossiers").select("id", { count: "exact", head: true }),
+        supabase
+          .from("dossiers")
+          .select("id", { count: "exact", head: true })
+          .neq("type", "kits"),
         supabase.from("clients").select("id", { count: "exact", head: true }),
         supabase
           .from("dossiers")
           .select("id", { count: "exact", head: true })
-          .eq("statut", "valide"),
+          .eq("statut", "valide")
+          .neq("type", "kits"),
       ]);
       return {
         dossiers: dossiers.count ?? 0,
@@ -38,6 +42,7 @@ function Dashboard() {
       const { data } = await supabase
         .from("dossiers")
         .select("id, reference, objet, type, statut, updated_at, client_id, clients(entreprise)")
+        .neq("type", "kits")
         .order("updated_at", { ascending: false })
         .limit(8);
       return data ?? [];
