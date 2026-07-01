@@ -17,10 +17,7 @@ function Dashboard() {
     queryKey: ["dash-stats"],
     queryFn: async () => {
       const [dossiers, clients, valides] = await Promise.all([
-        supabase
-          .from("dossiers")
-          .select("id", { count: "exact", head: true })
-          .neq("type", "kits"),
+        supabase.from("dossiers").select("id", { count: "exact", head: true }).neq("type", "kits"),
         supabase.from("clients").select("id", { count: "exact", head: true }),
         supabase
           .from("dossiers")
