@@ -33,7 +33,7 @@ function ClientDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const isAdmin = useIsAdmin(user?.id);
+  const { isAdmin } = useIsAdmin(user?.id);
   const [edit, setEdit] = useState(false);
 
   const { data: client } = useQuery({
