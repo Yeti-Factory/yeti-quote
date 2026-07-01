@@ -14,12 +14,15 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// Inscription publique désactivée : l'app est interne (www.yeti-lab.fr).
+// Les nouveaux comptes doivent être créés par un administrateur via le
+// panneau Administration → Utilisateurs (ou directement en base).
+const ALLOW_PUBLIC_SIGNUP = false;
+
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -32,24 +35,10 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("Connexion réussie");
-        navigate({ to: "/dashboard", replace: true });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { full_name: fullName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Compte créé. Vous pouvez vous connecter.");
-        setMode("signin");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success("Connexion réussie");
+      navigate({ to: "/dashboard", replace: true });
     } catch (err: any) {
       toast.error(err.message ?? "Erreur");
     } finally {
@@ -64,26 +53,11 @@ function AuthPage() {
           <img src="/yeti-logo.png" alt="Yeti Factory" className="h-16 w-auto object-contain mb-3" />
           <div className="text-sm text-muted-foreground">Calcul de prix interne</div>
         </div>
-        <h1 className="text-xl font-semibold mb-1">
-          {mode === "signin" ? "Connexion" : "Créer un compte"}
-        </h1>
+        <h1 className="text-xl font-semibold mb-1">Connexion</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          {mode === "signin"
-            ? "Accédez à votre tableau de bord."
-            : "Le premier compte créé sera administrateur."}
+          Accès réservé aux utilisateurs Yeti Factory.
         </p>
         <form onSubmit={submit} className="space-y-3">
-          {mode === "signup" && (
-            <div>
-              <Label htmlFor="name">Nom complet</Label>
-              <Input
-                id="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
-          )}
           <div>
             <Label htmlFor="email">Email</Label>
             <Input
@@ -104,20 +78,18 @@ function AuthPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              autoComplete="current-password"
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "…" : mode === "signin" ? "Se connecter" : "Créer mon compte"}
+            {busy ? "…" : "Se connecter"}
           </Button>
         </form>
-        <button
-          className="text-sm text-muted-foreground hover:text-foreground mt-4 w-full text-center"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          type="button"
-        >
-          {mode === "signin" ? "Créer un compte" : "J'ai déjà un compte"}
-        </button>
+        {!ALLOW_PUBLIC_SIGNUP && (
+          <p className="text-xs text-muted-foreground mt-4 text-center">
+            Pas encore de compte ? Contactez un administrateur.
+          </p>
+        )}
       </Card>
       <Toaster />
     </div>
