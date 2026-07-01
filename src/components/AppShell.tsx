@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FolderKanban, LogOut, Shield, Snowflake } from "lucide-react";
+import { LayoutDashboard, Users, FolderKanban, LogOut, Shield } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
@@ -37,13 +37,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/30 flex">
       <aside className="w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
-        <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-2">
-          <div className="w-8 h-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
-            <Snowflake className="w-4 h-4" />
-          </div>
+        <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-3">
+          <img src="/yeti-logo.png" alt="Yeti Factory" className="h-8 w-auto object-contain" />
           <div>
-            <div className="font-semibold text-sidebar-foreground leading-tight">Yeti Factory</div>
-            <div className="text-xs text-muted-foreground leading-tight">Yeti Factory</div>
+            <div className="text-xs uppercase tracking-wider text-sidebar-foreground/60 leading-tight">
+              Calcul de prix
+            </div>
           </div>
         </div>
         <nav className="flex-1 px-2 py-3 space-y-0.5">
