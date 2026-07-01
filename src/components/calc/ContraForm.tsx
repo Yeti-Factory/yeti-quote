@@ -21,6 +21,7 @@ export function ContraForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
+          defaultMargePct={value.params.coef_contra_pct}
         />
       </Card>
       <Card className="p-4 space-y-4">
@@ -29,18 +30,21 @@ export function ContraForm({
           lines={value.achatsContra}
           onChange={(l) => onChange({ ...value, achatsContra: l })}
           field="prixUnitaire"
+          defaultMargePct={value.params.coef_contra_pct}
         />
         <LinesTable
           title="Forfaits Contra (divisés par la quantité)"
           lines={value.forfaitsContra}
           onChange={(l) => onChange({ ...value, forfaitsContra: l })}
           field="montantGlobal"
+          defaultMargePct={value.params.coef_contra_pct}
         />
         <LinesTable
           title="Achats autres fournisseurs (prix unitaire)"
           lines={value.achatsAutres}
           onChange={(l) => onChange({ ...value, achatsAutres: l })}
           field="prixUnitaire"
+          defaultMargePct={value.params.coef_autres_pct}
         />
       </Card>
       <Card className="p-4 grid grid-cols-2 gap-4">

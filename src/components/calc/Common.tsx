@@ -11,12 +11,14 @@ import type { Quantite, LineItem, LineForfait } from "@/lib/calculs/types";
 export function QuantitesRow({
   quantites,
   onChange,
+  defaultMargePct,
 }: {
   quantites: Quantite[];
   onChange: (v: Quantite[]) => void;
+  defaultMargePct?: number;
 }) {
   function add() {
-    onChange([...quantites, { qty: 0, margePct: null }]);
+    onChange([...quantites, { qty: 0, margePct: defaultMargePct ?? null }]);
   }
   function remove(i: number) {
     onChange(quantites.filter((_, idx) => idx !== i));
@@ -64,7 +66,7 @@ export function QuantitesRow({
                 type="number"
                 step="0.01"
                 placeholder="Marge %"
-                value={q.margePct ?? ""}
+                value={q.margePct ?? defaultMargePct ?? ""}
                 onChange={(e) =>
                   updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
                 }
@@ -89,11 +91,13 @@ export function LinesTable({
   lines,
   onChange,
   field,
+  defaultMargePct,
 }: {
   title: string;
   lines: (LineItem | LineForfait)[];
   onChange: (lines: any[]) => void;
   field: "prixUnitaire" | "montantGlobal";
+  defaultMargePct?: number;
 }) {
   function update(i: number, key: string, value: any) {
     const next = lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l));
@@ -107,7 +111,12 @@ export function LinesTable({
           type="button"
           size="sm"
           variant="ghost"
-          onClick={() => onChange([...lines, { libelle: "", [field]: 0, margePct: null }])}
+          onClick={() =>
+            onChange([
+              ...lines,
+              { libelle: "", [field]: 0, margePct: defaultMargePct ?? null },
+            ])
+          }
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
         </Button>
@@ -147,12 +156,13 @@ export function LinesTable({
               <Input
                 type="number"
                 step="0.01"
-                value={l.margePct ?? ""}
-                placeholder="défaut"
+                value={l.margePct ?? defaultMargePct ?? ""}
+                placeholder="marge %"
                 onChange={(e) =>
                   update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
                 }
               />
+
               <Button
                 size="icon"
                 variant="ghost"

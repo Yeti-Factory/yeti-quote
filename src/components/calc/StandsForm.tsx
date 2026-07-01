@@ -27,6 +27,7 @@ export function StandsForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
+          defaultMargePct={value.params.coef_marge_pct}
         />
       </Card>
 
@@ -54,8 +55,8 @@ export function StandsForm({
                   type="number"
                   step="0.01"
                   className="h-8"
-                  placeholder={`défaut ${value.params.coef_marge_pct}`}
-                  value={sec.margePct ?? ""}
+                  placeholder="Marge groupe %"
+                  value={sec.margePct ?? value.params.coef_marge_pct ?? ""}
                   onChange={(e) => {
                     const next = [...value.sections];
                     next[si] = {
@@ -157,7 +158,7 @@ export function StandsForm({
             ...value,
             sections: [
               ...value.sections,
-              { libelle: "Nouvelle section", lignes: [], margePct: null },
+              { libelle: "Nouvelle section", lignes: [], margePct: value.params.coef_marge_pct },
             ],
           })
         }
