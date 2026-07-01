@@ -22,14 +22,18 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminPage() {
-  const { user } = useAuth();
-  const isAdmin = useIsAdmin(user?.id);
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: roleLoading } = useIsAdmin(user?.id);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading || roleLoading) return;
     if (user && !isAdmin) navigate({ to: "/dashboard", replace: true });
-  }, [user, isAdmin, navigate]);
+  }, [user, isAdmin, authLoading, roleLoading, navigate]);
 
+  if (authLoading || roleLoading) {
+    return <div className="p-8 text-sm text-muted-foreground">Chargement…</div>;
+  }
   if (!isAdmin) return null;
 
   return (

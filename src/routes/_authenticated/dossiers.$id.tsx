@@ -92,7 +92,7 @@ function DossierDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const isAdmin = useIsAdmin(user?.id);
+  const { isAdmin } = useIsAdmin(user?.id);
 
   const { data: dossier } = useQuery({
     queryKey: ["dossier", id],

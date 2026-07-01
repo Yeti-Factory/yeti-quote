@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = useIsAdmin(user?.id);
+  const { isAdmin } = useIsAdmin(user?.id);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [fullName, setFullName] = useState<string>("");
 
