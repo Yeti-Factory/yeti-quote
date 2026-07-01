@@ -66,7 +66,6 @@ function DossiersList() {
               <SelectItem value="all">Tous les types</SelectItem>
               <SelectItem value="standard">Standard</SelectItem>
               <SelectItem value="contra">Contra</SelectItem>
-              <SelectItem value="kits">Kits</SelectItem>
               <SelectItem value="stands">Stands</SelectItem>
             </SelectContent>
           </Select>
