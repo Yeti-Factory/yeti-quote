@@ -35,22 +35,23 @@ export const Route = createFileRoute("/_authenticated/dossiers/$id")({
 function defaultPayload(type: string, params: any) {
   if (type === "standard") {
     return {
-      quantites: [100, 250, 500, 1000, 2000],
-      achatsPrincipaux: [{ libelle: "", prixUnitaire: 0 }],
-      achatsAnnexes: [{ libelle: "", montantGlobal: 0 }],
+      quantites: [],
+      achatsPrincipaux: [{ libelle: "", prixUnitaire: 0, margePct: null }],
+      achatsAnnexes: [{ libelle: "", montantGlobal: 0, margePct: null }],
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
   if (type === "contra") {
     return {
-      quantites: [100, 250, 500, 1000, 2000],
-      achatsContra: [{ libelle: "", prixUnitaire: 0 }],
-      forfaitsContra: [{ libelle: "", montantGlobal: 0 }],
-      achatsAutres: [{ libelle: "", prixUnitaire: 0 }],
+      quantites: [],
+      achatsContra: [{ libelle: "", prixUnitaire: 0, margePct: null }],
+      forfaitsContra: [{ libelle: "", montantGlobal: 0, margePct: null }],
+      achatsAutres: [{ libelle: "", prixUnitaire: 0, margePct: null }],
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
   if (type === "kits") {
+    // Kits type is hidden but kept for legacy dossiers.
     return {
       variantes: [
         { libelle: "V1", nbKits: 0 },
@@ -62,8 +63,8 @@ function defaultPayload(type: string, params: any) {
   }
   // stands
   return {
-    quantites: [1, 0, 0, 0, 0],
-    sections: STANDS_SECTIONS_DEFAUT.map((l) => ({ libelle: l, lignes: [] })),
+    quantites: [{ qty: 1, margePct: null }],
+    sections: STANDS_SECTIONS_DEFAUT.map((l) => ({ libelle: l, lignes: [], margePct: null })),
     params: { ...STANDS_DEFAULTS, ...(params ?? {}) },
   } satisfies StandsInput;
 }

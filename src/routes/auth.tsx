@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Snowflake } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -61,16 +60,9 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md p-8">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
-            <Snowflake className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-semibold leading-tight">Yeti Factory - calcul prix</div>
-            <div className="text-xs text-muted-foreground leading-tight">
-              Calcul de prix interne
-            </div>
-          </div>
+        <div className="flex flex-col items-center mb-6">
+          <img src="/yeti-logo.png" alt="Yeti Factory" className="h-16 w-auto object-contain mb-3" />
+          <div className="text-sm text-muted-foreground">Calcul de prix interne</div>
         </div>
         <h1 className="text-xl font-semibold mb-1">
           {mode === "signin" ? "Connexion" : "Créer un compte"}

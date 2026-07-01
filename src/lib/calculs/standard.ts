@@ -1,4 +1,5 @@
-import type { LineItem, LineForfait, QuantityResult, CalcOutput } from "./types";
+import type { LineItem, LineForfait, QuantityResult, CalcOutput, Quantite } from "./types";
+import { normalizeQuantites, resolveMargePct } from "./types";
 
 export type StandardParams = {
   coef_marge_pct: number;
@@ -11,7 +12,7 @@ export type StandardParams = {
 };
 
 export type StandardInput = {
-  quantites: number[];
+  quantites: Quantite[];
   achatsPrincipaux: LineItem[];
   achatsAnnexes: LineForfait[];
   params: StandardParams;
@@ -28,14 +29,16 @@ export const STANDARD_DEFAULTS: StandardParams = {
 };
 
 export function calculerStandard(input: StandardInput): CalcOutput {
-  const { quantites, achatsPrincipaux, achatsAnnexes, params } = input;
+  const { achatsPrincipaux, achatsAnnexes, params } = input;
+  const quantites = normalizeQuantites(input.quantites);
   const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
   const sumAnnexesGlobal = achatsAnnexes.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
 
-  const scenarios: QuantityResult[] = quantites.map((q) => {
-    const Q = Number(q) || 0;
-    const annexesUnit = Q > 0 ? sumAnnexesGlobal / Q : 0;
-    const baseAchatUnit = sumPrincipaux + annexesUnit;
+  const scenarios: QuantityResult[] = quantites.map((quant) => {
+    const Q = Number(quant.qty) || 0;
+    const mq = quant.margePct;
+    const annexesUnitTotal = Q > 0 ? sumAnnexesGlobal / Q : 0;
+    const baseAchatUnit = sumPrincipaux + annexesUnitTotal;
 
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
@@ -48,7 +51,23 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     }
 
     const prixUnitaireAchat = baseAchatUnit + commSourcingUnit;
-    const prixVenteNetUnit = prixUnitaireAchat * (1 + params.coef_marge_pct / 100);
+
+    // Per-line PV using effective margin (line > quantity > default).
+    let pvUnit = 0;
+    for (const l of achatsPrincipaux) {
+      const m = resolveMargePct(l.margePct, mq, params.coef_marge_pct);
+      pvUnit += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+    }
+    for (const f of achatsAnnexes) {
+      const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
+      const m = resolveMargePct(f.margePct, mq, params.coef_marge_pct);
+      pvUnit += share * (1 + m / 100);
+    }
+    // Sourcing commission → default/quantity margin
+    const mSourcing = resolveMargePct(null, mq, params.coef_marge_pct);
+    pvUnit += commSourcingUnit * (1 + mSourcing / 100);
+
+    const prixVenteNetUnit = pvUnit;
     const achatsTotal = prixUnitaireAchat * Q;
     const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
     const budgetNet = prixVenteNetUnit * Q;

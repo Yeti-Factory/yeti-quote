@@ -1,4 +1,5 @@
-import type { LineItem, LineForfait, QuantityResult, CalcOutput } from "./types";
+import type { LineItem, LineForfait, QuantityResult, CalcOutput, Quantite } from "./types";
+import { normalizeQuantites, resolveMargePct } from "./types";
 
 export type ContraParams = {
   coef_contra_pct: number;
@@ -11,7 +12,7 @@ export type ContraParams = {
 };
 
 export type ContraInput = {
-  quantites: number[];
+  quantites: Quantite[];
   achatsContra: LineItem[];
   forfaitsContra: LineForfait[];
   achatsAutres: LineItem[];
@@ -29,14 +30,17 @@ export const CONTRA_DEFAULTS: ContraParams = {
 };
 
 export function calculerContra(input: ContraInput): CalcOutput {
-  const { quantites, achatsContra, forfaitsContra, achatsAutres, params } = input;
+  const { achatsContra, forfaitsContra, achatsAutres, params } = input;
+  const quantites = normalizeQuantites(input.quantites);
   const sumContraUnit = achatsContra.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
   const sumContraForfait = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
   const sumAutresUnit = achatsAutres.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
 
-  const scenarios: QuantityResult[] = quantites.map((q) => {
-    const Q = Number(q) || 0;
-    const contraUnit = sumContraUnit + (Q > 0 ? sumContraForfait / Q : 0);
+  const scenarios: QuantityResult[] = quantites.map((quant) => {
+    const Q = Number(quant.qty) || 0;
+    const mq = quant.margePct;
+    const forfaitUnit = Q > 0 ? sumContraForfait / Q : 0;
+    const contraUnit = sumContraUnit + forfaitUnit;
 
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
@@ -49,8 +53,27 @@ export function calculerContra(input: ContraInput): CalcOutput {
     }
     const autresUnit = sumAutresUnit + commSourcingUnit;
 
-    const pvUnitContra = contraUnit * (1 + params.coef_contra_pct / 100);
-    const pvUnitAutres = autresUnit * (1 + params.coef_autres_pct / 100);
+    // Per-line PV: priority line > quantity > family default
+    let pvUnitContra = 0;
+    for (const l of achatsContra) {
+      const m = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
+      pvUnitContra += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+    }
+    for (const f of forfaitsContra) {
+      const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
+      const m = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
+      pvUnitContra += share * (1 + m / 100);
+    }
+
+    let pvUnitAutres = 0;
+    for (const l of achatsAutres) {
+      const m = resolveMargePct(l.margePct, mq, params.coef_autres_pct);
+      pvUnitAutres += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+    }
+    // Sourcing commission uses quantity/default (autres family default)
+    const mSourcing = resolveMargePct(null, mq, params.coef_autres_pct);
+    pvUnitAutres += commSourcingUnit * (1 + mSourcing / 100);
+
     const prixVenteNetUnit = pvUnitContra + pvUnitAutres;
 
     const prixUnitaireAchat = contraUnit + autresUnit;

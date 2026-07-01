@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, Trash2 } from "lucide-react";
 import { QuantitesRow } from "@/components/calc/Common";
+import { fmtEUR, fmtPct } from "@/lib/format";
 import type { StandsInput, StandsParams } from "@/lib/calculs/stands";
+import { calculerStands } from "@/lib/calculs/stands";
 
 export function StandsForm({
   value,
@@ -16,114 +18,225 @@ export function StandsForm({
   function setParams(p: Partial<StandsParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
+
+  const out = calculerStands(value);
+
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <QuantitesRow quantites={value.quantites} onChange={(q) => onChange({ ...value, quantites: q })} />
+        <QuantitesRow
+          quantites={value.quantites}
+          onChange={(q) => onChange({ ...value, quantites: q })}
+        />
       </Card>
 
-      {value.sections.map((sec, si) => (
-        <Card key={si} className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <Input
-              value={sec.libelle}
-              className="max-w-xs font-medium"
-              onChange={(e) => {
-                const next = [...value.sections];
-                next[si] = { ...sec, libelle: e.target.value };
-                onChange({ ...value, sections: next });
-              }}
-            />
-            <div className="flex gap-1">
-              <Button
-                size="sm" variant="ghost"
-                onClick={() => {
+      {value.sections.map((sec, si) => {
+        const groupe = out.extra.groupes[si];
+        return (
+          <Card key={si} className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_140px_auto] gap-3 items-center mb-3">
+              <Input
+                value={sec.libelle}
+                className="font-medium"
+                onChange={(e) => {
                   const next = [...value.sections];
-                  next[si] = { ...sec, lignes: [...sec.lignes, { libelle: "", prixUnitaire: 0 }] };
+                  next[si] = { ...sec, libelle: e.target.value };
                   onChange({ ...value, sections: next });
                 }}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" /> Ligne
-              </Button>
-              <Button
-                size="sm" variant="ghost" className="text-destructive"
-                onClick={() => onChange({ ...value, sections: value.sections.filter((_, i) => i !== si) })}
-              >
-                Supprimer section
-              </Button>
-            </div>
-          </div>
-          <div className="border rounded-md divide-y">
-            {sec.lignes.length === 0 && (
-              <div className="px-3 py-3 text-xs text-muted-foreground text-center">Aucune ligne.</div>
-            )}
-            {sec.lignes.map((l, li) => (
-              <div key={li} className="grid grid-cols-[1fr_140px_36px] gap-2 px-2 py-1.5 items-center">
+              />
+              <div>
+                <div className="text-[10px] uppercase text-muted-foreground">Achat</div>
+                <div className="font-medium tabular-nums">{fmtEUR(groupe?.achatTotal ?? 0)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-muted-foreground">Marge groupe %</div>
                 <Input
-                  value={l.libelle}
-                  placeholder="Libellé"
+                  type="number"
+                  step="0.01"
+                  className="h-8"
+                  placeholder={`défaut ${value.params.coef_marge_pct}`}
+                  value={sec.margePct ?? ""}
                   onChange={(e) => {
                     const next = [...value.sections];
-                    const lignes = [...sec.lignes];
-                    lignes[li] = { ...l, libelle: e.target.value };
-                    next[si] = { ...sec, lignes };
+                    next[si] = {
+                      ...sec,
+                      margePct: e.target.value === "" ? null : Number(e.target.value),
+                    };
                     onChange({ ...value, sections: next });
                   }}
                 />
-                <Input
-                  type="number" step="0.01"
-                  value={l.prixUnitaire || ""}
-                  placeholder="Prix achat"
-                  onChange={(e) => {
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-muted-foreground">Prix vente</div>
+                <div className="font-semibold tabular-nums">{fmtEUR(groupe?.pvTotal ?? 0)}</div>
+              </div>
+              <div className="flex gap-1 justify-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
                     const next = [...value.sections];
-                    const lignes = [...sec.lignes];
-                    lignes[li] = { ...l, prixUnitaire: Number(e.target.value) || 0 };
-                    next[si] = { ...sec, lignes };
+                    next[si] = { ...sec, lignes: [...sec.lignes, { libelle: "", prixUnitaire: 0 }] };
                     onChange({ ...value, sections: next });
                   }}
-                />
-                <Button size="icon" variant="ghost" onClick={() => {
-                  const next = [...value.sections];
-                  next[si] = { ...sec, lignes: sec.lignes.filter((_, i) => i !== li) };
-                  onChange({ ...value, sections: next });
-                }}>
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Ligne
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  onClick={() =>
+                    onChange({ ...value, sections: value.sections.filter((_, i) => i !== si) })
+                  }
+                >
+                  Suppr.
                 </Button>
               </div>
-            ))}
-          </div>
-        </Card>
-      ))}
+            </div>
+            <div className="border rounded-md divide-y">
+              {sec.lignes.length === 0 && (
+                <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+                  Aucune ligne.
+                </div>
+              )}
+              {sec.lignes.map((l, li) => (
+                <div key={li} className="grid grid-cols-[1fr_140px_36px] gap-2 px-2 py-1.5 items-center">
+                  <Input
+                    value={l.libelle}
+                    placeholder="Libellé"
+                    onChange={(e) => {
+                      const next = [...value.sections];
+                      const lignes = [...sec.lignes];
+                      lignes[li] = { ...l, libelle: e.target.value };
+                      next[si] = { ...sec, lignes };
+                      onChange({ ...value, sections: next });
+                    }}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={l.prixUnitaire || ""}
+                    placeholder="Prix achat"
+                    onChange={(e) => {
+                      const next = [...value.sections];
+                      const lignes = [...sec.lignes];
+                      lignes[li] = { ...l, prixUnitaire: Number(e.target.value) || 0 };
+                      next[si] = { ...sec, lignes };
+                      onChange({ ...value, sections: next });
+                    }}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      const next = [...value.sections];
+                      next[si] = { ...sec, lignes: sec.lignes.filter((_, i) => i !== li) };
+                      onChange({ ...value, sections: next });
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })}
 
       <Button
         variant="outline"
         onClick={() =>
-          onChange({ ...value, sections: [...value.sections, { libelle: "Nouvelle section", lignes: [] }] })
+          onChange({
+            ...value,
+            sections: [
+              ...value.sections,
+              { libelle: "Nouvelle section", lignes: [], margePct: null },
+            ],
+          })
         }
       >
         <Plus className="w-4 h-4 mr-1.5" /> Ajouter une section
       </Button>
 
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold">Totaux stand</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase text-muted-foreground border-b">
+              <tr>
+                <th className="text-left px-2 py-1.5">Groupe</th>
+                <th className="text-right px-2 py-1.5">Achat</th>
+                <th className="text-right px-2 py-1.5">Marge</th>
+                <th className="text-right px-2 py-1.5">Prix vente</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {out.extra.groupes.map((g, i) => (
+                <tr key={i}>
+                  <td className="px-2 py-1.5">{g.libelle}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{fmtPct(g.margePct / 100)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+                    {fmtEUR(g.pvTotal)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-primary/5 font-semibold">
+                <td className="px-2 py-2">Total stand</td>
+                <td className="px-2 py-2 text-right tabular-nums">
+                  {fmtEUR(out.extra.totalAchatGroupes)}
+                </td>
+                <td />
+                <td className="px-2 py-2 text-right tabular-nums">
+                  {fmtEUR(out.extra.totalPvGroupes)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       <Card className="p-4 grid grid-cols-2 gap-4">
         <div>
-          <Label>Coefficient de marge (%)</Label>
-          <Input type="number" step="0.01" value={value.params.coef_marge_pct}
-            onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })} />
+          <Label>Coefficient de marge par défaut (%)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={value.params.coef_marge_pct}
+            onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
+          />
         </div>
         <div>
           <Label>Marge créa supplémentaire (%)</Label>
-          <Input type="number" step="0.01" value={value.params.marge_crea_pct}
-            onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })} />
+          <Input
+            type="number"
+            step="0.01"
+            value={value.params.marge_crea_pct}
+            onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })}
+          />
         </div>
         <div>
           <Label>Frais fixes (%)</Label>
-          <Input type="number" step="0.01" value={value.params.frais_fixes_pct}
-            onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })} />
+          <Input
+            type="number"
+            step="0.01"
+            value={value.params.frais_fixes_pct}
+            onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
+          />
         </div>
         <div>
           <Label>Comm. rapporteur (% du PV)</Label>
-          <Input type="number" step="0.01" value={value.params.commission_rapporteur_pct}
-            onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })} />
+          <Input
+            type="number"
+            step="0.01"
+            value={value.params.commission_rapporteur_pct}
+            onChange={(e) =>
+              setParams({ commission_rapporteur_pct: Number(e.target.value) })
+            }
+          />
         </div>
       </Card>
     </div>

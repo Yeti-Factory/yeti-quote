@@ -37,7 +37,7 @@ function NewDossier() {
 
   const [clientId, setClientId] = useState<string>(search.client ?? "");
   const [objet, setObjet] = useState("");
-  const [type, setType] = useState<"standard" | "contra" | "kits" | "stands">("standard");
+  const [type, setType] = useState<"standard" | "contra" | "stands">("standard");
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -104,7 +104,6 @@ function NewDossier() {
             <SelectContent>
               <SelectItem value="standard">Standard (TdP)</SelectItem>
               <SelectItem value="contra">Contra</SelectItem>
-              <SelectItem value="kits">Kits</SelectItem>
               <SelectItem value="stands">Stands</SelectItem>
             </SelectContent>
           </Select>
