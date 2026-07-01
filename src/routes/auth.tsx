@@ -378,7 +378,3 @@ function NewPasswordForm({ origin }: { origin: "reset" | "change" }) {
     </>
   );
 }
-
-export function requireAuthRedirect(href: string) {
-  throw redirect({ to: "/auth", search: { redirect: href } });
-}
