@@ -79,7 +79,7 @@ export function StandsForm({
                     const next = [...value.sections];
                     next[si] = {
                       ...sec,
-                      lignes: [...sec.lignes, { libelle: "", prixUnitaire: 0 }],
+                      lignes: [...sec.lignes, { fournisseur: "", libelle: "", prixUnitaire: 0 }],
                     };
                     onChange({ ...value, sections: next });
                   }}
@@ -98,54 +98,74 @@ export function StandsForm({
                 </Button>
               </div>
             </div>
-            <div className="border rounded-md divide-y">
+            <div className="border rounded-md">
+              <div className="grid grid-cols-[160px_1fr_140px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+                <div>Fournisseur</div>
+                <div>Libellé</div>
+                <div className="text-right">Prix achat</div>
+                <div />
+              </div>
               {sec.lignes.length === 0 && (
                 <div className="px-3 py-3 text-xs text-muted-foreground text-center">
                   Aucune ligne.
                 </div>
               )}
-              {sec.lignes.map((l, li) => (
-                <div
-                  key={li}
-                  className="grid grid-cols-[1fr_140px_36px] gap-2 px-2 py-1.5 items-center"
-                >
-                  <Input
-                    value={l.libelle}
-                    placeholder="Libellé"
-                    onChange={(e) => {
-                      const next = [...value.sections];
-                      const lignes = [...sec.lignes];
-                      lignes[li] = { ...l, libelle: e.target.value };
-                      next[si] = { ...sec, lignes };
-                      onChange({ ...value, sections: next });
-                    }}
-                  />
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={l.prixUnitaire || ""}
-                    placeholder="Prix achat"
-                    onChange={(e) => {
-                      const next = [...value.sections];
-                      const lignes = [...sec.lignes];
-                      lignes[li] = { ...l, prixUnitaire: Number(e.target.value) || 0 };
-                      next[si] = { ...sec, lignes };
-                      onChange({ ...value, sections: next });
-                    }}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      const next = [...value.sections];
-                      next[si] = { ...sec, lignes: sec.lignes.filter((_, i) => i !== li) };
-                      onChange({ ...value, sections: next });
-                    }}
+              <div className="divide-y">
+                {sec.lignes.map((l, li) => (
+                  <div
+                    key={li}
+                    className="grid grid-cols-[160px_1fr_140px_36px] gap-2 px-2 py-1.5 items-center"
                   >
-                    <Trash2 className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              ))}
+                    <Input
+                      value={l.fournisseur ?? ""}
+                      placeholder="Fournisseur"
+                      maxLength={20}
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, fournisseur: e.target.value };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
+                    <Input
+                      value={l.libelle}
+                      placeholder="Libellé"
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, libelle: e.target.value };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={l.prixUnitaire || ""}
+                      placeholder="Prix achat"
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, prixUnitaire: Number(e.target.value) || 0 };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        const next = [...value.sections];
+                        next[si] = { ...sec, lignes: sec.lignes.filter((_, i) => i !== li) };
+                        onChange({ ...value, sections: next });
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </Card>
         );
