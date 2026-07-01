@@ -80,6 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Yeti Factory — Calcul de prix" },
       { name: "description", content: "Application interne Yeti Factory de calcul de prix client." },
       { name: "robots", content: "noindex,nofollow" },
+      { property: "og:title", content: "Yeti Factory — Calcul de prix" },
+      { name: "twitter:title", content: "Yeti Factory — Calcul de prix" },
+      { property: "og:description", content: "Application interne Yeti Factory de calcul de prix client." },
+      { name: "twitter:description", content: "Application interne Yeti Factory de calcul de prix client." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2df4a3ca-6b43-4eb9-ba2d-651dfe5095ae/id-preview-8e55715b--99ad5ef6-1b72-4b78-8db0-9fafb03af847.lovable.app-1782841052959.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2df4a3ca-6b43-4eb9-ba2d-651dfe5095ae/id-preview-8e55715b--99ad5ef6-1b72-4b78-8db0-9fafb03af847.lovable.app-1782841052959.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       {
