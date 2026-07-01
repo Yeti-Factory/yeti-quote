@@ -21,6 +21,7 @@ export function StandardForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
+          defaultMargePct={value.params.coef_marge_pct}
         />
       </Card>
       <Card className="p-4 space-y-4">
@@ -29,12 +30,14 @@ export function StandardForm({
           lines={value.achatsPrincipaux}
           onChange={(l) => onChange({ ...value, achatsPrincipaux: l })}
           field="prixUnitaire"
+          defaultMargePct={value.params.coef_marge_pct}
         />
         <LinesTable
           title="Achats annexes (forfait global, divisé par la quantité)"
           lines={value.achatsAnnexes}
           onChange={(l) => onChange({ ...value, achatsAnnexes: l })}
           field="montantGlobal"
+          defaultMargePct={value.params.coef_marge_pct}
         />
       </Card>
       <Card className="p-4 grid grid-cols-2 gap-4">
