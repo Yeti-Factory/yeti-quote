@@ -112,10 +112,7 @@ export function LinesTable({
           size="sm"
           variant="ghost"
           onClick={() =>
-            onChange([
-              ...lines,
-              { libelle: "", [field]: 0, margePct: defaultMargePct ?? null },
-            ])
+            onChange([...lines, { libelle: "", [field]: 0, margePct: defaultMargePct ?? null }])
           }
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
