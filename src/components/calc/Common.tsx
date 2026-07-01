@@ -112,14 +112,18 @@ export function LinesTable({
           size="sm"
           variant="ghost"
           onClick={() =>
-            onChange([...lines, { libelle: "", [field]: 0, margePct: defaultMargePct ?? null }])
+            onChange([
+              ...lines,
+              { fournisseur: "", libelle: "", [field]: 0, margePct: defaultMargePct ?? null },
+            ])
           }
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
         </Button>
       </div>
       <div className="border rounded-md">
-        <div className="grid grid-cols-[1fr_140px_120px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+          <div>Fournisseur</div>
           <div>Libellé</div>
           <div className="text-right">
             {field === "prixUnitaire" ? "Prix unitaire" : "Montant global"}
@@ -134,8 +138,14 @@ export function LinesTable({
           {lines.map((l: any, i) => (
             <div
               key={i}
-              className="grid grid-cols-[1fr_140px_120px_36px] gap-2 px-2 py-1.5 items-center"
+              className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-2 py-1.5 items-center"
             >
+              <Input
+                value={l.fournisseur ?? ""}
+                placeholder="Fournisseur"
+                maxLength={20}
+                onChange={(e) => update(i, "fournisseur", e.target.value)}
+              />
               <Input
                 value={l.libelle}
                 placeholder="Libellé"

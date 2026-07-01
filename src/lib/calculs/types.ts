@@ -29,6 +29,7 @@ export function normalizeQuantites(input: unknown): Quantite[] {
 }
 
 export type LineItem = {
+  fournisseur?: string;
   libelle: string;
   prixUnitaire: number;
   /** Optional per-line margin (%). Overrides quantity + default margin. */
@@ -36,6 +37,7 @@ export type LineItem = {
 };
 
 export type LineForfait = {
+  fournisseur?: string;
   libelle: string;
   montantGlobal: number; // divided by quantité
   /** Optional per-line margin (%). Overrides quantity + default margin. */

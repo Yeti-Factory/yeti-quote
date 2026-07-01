@@ -9,6 +9,7 @@ export type StandsParams = {
 };
 
 export type StandsSectionLine = {
+  fournisseur?: string;
   libelle: string;
   prixUnitaire: number; // achat unitaire
 };
