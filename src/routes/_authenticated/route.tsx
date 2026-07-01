@@ -16,9 +16,14 @@ function AuthenticatedLayout() {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) {
         navigate({ to: "/auth", replace: true });
-      } else {
-        setReady(true);
+        return;
       }
+      const meta = (data.session.user.user_metadata ?? {}) as { must_change_password?: boolean };
+      if (meta.must_change_password) {
+        navigate({ to: "/auth", search: { mode: "change-password" }, replace: true });
+        return;
+      }
+      setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!s) navigate({ to: "/auth", replace: true });

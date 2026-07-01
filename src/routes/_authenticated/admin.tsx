@@ -1,15 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { createUserFn } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
@@ -138,42 +144,152 @@ function UsersPanel() {
   }
 
   return (
-    <Card className="p-0 overflow-hidden mt-4">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 border-b">
-          <tr>
-            <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
-              Utilisateur
-            </th>
-            <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Email</th>
-            <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Rôles</th>
-            <th className="text-right px-4 py-2 text-xs uppercase text-muted-foreground">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {(data ?? []).map((u: any) => {
-            const isAdmin = u.roles.includes("admin");
-            return (
-              <tr key={u.id}>
-                <td className="px-4 py-2">{u.full_name || "—"}</td>
-                <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
-                <td className="px-4 py-2">
-                  {u.roles.map((r: string) => (
-                    <Badge key={r} variant="outline" className="mr-1">
-                      {r}
-                    </Badge>
-                  ))}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
-                    {isAdmin ? "Retirer admin" : "Promouvoir admin"}
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="mt-4 space-y-4">
+      <CreateUserForm />
+      <Card className="p-0 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
+                Utilisateur
+              </th>
+              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Email</th>
+              <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Rôles</th>
+              <th className="text-right px-4 py-2 text-xs uppercase text-muted-foreground">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {(data ?? []).map((u: any) => {
+              const isAdmin = u.roles.includes("admin");
+              return (
+                <tr key={u.id}>
+                  <td className="px-4 py-2">{u.full_name || "—"}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
+                  <td className="px-4 py-2">
+                    {u.roles.map((r: string) => (
+                      <Badge key={r} variant="outline" className="mr-1">
+                        {r}
+                      </Badge>
+                    ))}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
+                      {isAdmin ? "Retirer admin" : "Promouvoir admin"}
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function CreateUserForm() {
+  const qc = useQueryClient();
+  const createUser = useServerFn(createUserFn);
+  const [fullName, setFullName] = useState("Anne Bousseau");
+  const [email, setEmail] = useState("a.bousseau@yeti-factory.com");
+  const [password, setPassword] = useState("");
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [mustChange, setMustChange] = useState(true);
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < 8) return toast.error("Mot de passe : 8 caractères minimum");
+    setBusy(true);
+    try {
+      await createUser({
+        data: {
+          email,
+          password,
+          fullName,
+          isAdmin,
+          mustChangePassword: mustChange,
+        },
+      });
+      toast.success("Utilisateur créé");
+      setPassword("");
+      qc.invalidateQueries({ queryKey: ["admin_users"] });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="p-4">
+      <h3 className="font-semibold mb-3">Créer un utilisateur</h3>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="cu-name">Nom</Label>
+          <Input
+            id="cu-name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="cu-email">Email</Label>
+          <Input
+            id="cu-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label htmlFor="cu-pw">Mot de passe provisoire</Label>
+          <div className="relative">
+            <Input
+              id="cu-pw"
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className="pr-10"
+              placeholder="Saisir un mot de passe provisoire"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((s) => !s)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              aria-label={showPw ? "Masquer" : "Afficher"}
+              tabIndex={-1}
+            >
+              {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between border rounded-md px-3 py-2">
+          <Label htmlFor="cu-admin" className="cursor-pointer">
+            Admin
+          </Label>
+          <Switch id="cu-admin" checked={isAdmin} onCheckedChange={setIsAdmin} />
+        </div>
+        <div className="flex items-center justify-between border rounded-md px-3 py-2">
+          <Label htmlFor="cu-change" className="cursor-pointer">
+            Changer au login
+          </Label>
+          <Switch id="cu-change" checked={mustChange} onCheckedChange={setMustChange} />
+        </div>
+        <div className="md:col-span-2 flex justify-end">
+          <Button type="submit" disabled={busy}>
+            {busy ? "…" : "Créer l'utilisateur"}
+          </Button>
+        </div>
+      </form>
     </Card>
   );
 }
