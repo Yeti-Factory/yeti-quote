@@ -11,12 +11,14 @@ import type { Quantite, LineItem, LineForfait } from "@/lib/calculs/types";
 export function QuantitesRow({
   quantites,
   onChange,
+  defaultMargePct,
 }: {
   quantites: Quantite[];
   onChange: (v: Quantite[]) => void;
+  defaultMargePct?: number;
 }) {
   function add() {
-    onChange([...quantites, { qty: 0, margePct: null }]);
+    onChange([...quantites, { qty: 0, margePct: defaultMargePct ?? null }]);
   }
   function remove(i: number) {
     onChange(quantites.filter((_, idx) => idx !== i));
@@ -64,7 +66,7 @@ export function QuantitesRow({
                 type="number"
                 step="0.01"
                 placeholder="Marge %"
-                value={q.margePct ?? ""}
+                value={q.margePct ?? defaultMargePct ?? ""}
                 onChange={(e) =>
                   updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
                 }
