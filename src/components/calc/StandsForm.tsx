@@ -158,7 +158,7 @@ export function StandsForm({
             ...value,
             sections: [
               ...value.sections,
-              { libelle: "Nouvelle section", lignes: [], margePct: null },
+              { libelle: "Nouvelle section", lignes: [], margePct: value.params.coef_marge_pct },
             ],
           })
         }
