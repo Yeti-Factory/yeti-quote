@@ -53,7 +53,13 @@ function Header({ meta }: { meta: Meta }) {
   );
 }
 
-function QuantitesTable({ quantites, defaultMargePct }: { quantites: Quantite[]; defaultMargePct: number }) {
+function QuantitesTable({
+  quantites,
+  defaultMargePct,
+}: {
+  quantites: Quantite[];
+  defaultMargePct: number;
+}) {
   const qs = normalizeQuantites(quantites);
   if (qs.length === 0) return null;
   return (
@@ -221,7 +227,9 @@ function ResultsTable({ output }: { output: any }) {
           ))}
         </tbody>
       </table>
-      {alert && <div className="alert">Attention : marge insuffisante sur au moins un scénario.</div>}
+      {alert && (
+        <div className="alert">Attention : marge insuffisante sur au moins un scénario.</div>
+      )}
     </section>
   );
 }
@@ -315,7 +323,11 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
         return (
           <section key={si}>
             <h2>
-              {sec.libelle} — Marge groupe {(g?.margePct ?? p.coef_marge_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
+              {sec.libelle} — Marge groupe{" "}
+              {(g?.margePct ?? p.coef_marge_pct).toLocaleString("fr-FR", {
+                maximumFractionDigits: 2,
+              })}{" "}
+              %
             </h2>
             <table>
               <thead>
