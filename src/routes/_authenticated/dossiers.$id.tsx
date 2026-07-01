@@ -35,6 +35,7 @@ import { ContraForm } from "@/components/calc/ContraForm";
 import { KitsForm } from "@/components/calc/KitsForm";
 import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
+import { PrintableDossier } from "@/components/calc/PrintableDossier";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
