@@ -23,3 +23,15 @@
 #
 
 # Rebuild automatique : activer le webhook GitHub dans Coolify.
+
+#
+
+# NOTE : le script `npm run build:node` utilise la syntaxe shell POSIX
+
+# (`NITRO_PRESET=node-server vite build`) et ne fonctionne donc que sous
+
+# Linux/macOS ou dans le conteneur Docker. Sous Windows, utiliser WSL,
+
+# Docker Desktop, ou exécuter `set NITRO_PRESET=node-server && vite build`
+
+# (cmd) / `$env:NITRO_PRESET="node-server"; vite build` (PowerShell).

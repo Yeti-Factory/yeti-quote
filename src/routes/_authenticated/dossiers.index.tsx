@@ -33,6 +33,7 @@ function DossiersList() {
       let req = supabase
         .from("dossiers")
         .select("id, reference, objet, type, statut, updated_at, clients(entreprise)")
+        .neq("type", "kits")
         .order("updated_at", { ascending: false });
       if (type !== "all") req = req.eq("type", type as any);
       if (statut !== "all") req = req.eq("statut", statut as any);
