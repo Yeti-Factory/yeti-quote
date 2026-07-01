@@ -6,7 +6,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search } from "lucide-react";
 import { StatusBadge } from "./dashboard";
@@ -61,7 +67,9 @@ function DossiersList() {
             className="border-0 focus-visible:ring-0 shadow-none px-0 flex-1"
           />
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les types</SelectItem>
               <SelectItem value="standard">Standard</SelectItem>
@@ -70,7 +78,9 @@ function DossiersList() {
             </SelectContent>
           </Select>
           <Select value={statut} onValueChange={setStatut}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous statuts</SelectItem>
               <SelectItem value="brouillon">Brouillon</SelectItem>
@@ -86,7 +96,12 @@ function DossiersList() {
             </div>
           )}
           {(dossiers ?? []).map((d: any) => (
-            <Link key={d.id} to="/dossiers/$id" params={{ id: d.id }} className="flex items-center px-5 py-3 hover:bg-muted/40">
+            <Link
+              key={d.id}
+              to="/dossiers/$id"
+              params={{ id: d.id }}
+              className="flex items-center px-5 py-3 hover:bg-muted/40"
+            >
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">{d.objet || "(Sans objet)"}</div>
                 <div className="text-xs text-muted-foreground truncate">
@@ -94,9 +109,13 @@ function DossiersList() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="capitalize">{d.type}</Badge>
+                <Badge variant="outline" className="capitalize">
+                  {d.type}
+                </Badge>
                 <StatusBadge statut={d.statut} />
-                <span className="text-xs text-muted-foreground w-24 text-right">{fmtDate(d.updated_at)}</span>
+                <span className="text-xs text-muted-foreground w-24 text-right">
+                  {fmtDate(d.updated_at)}
+                </span>
               </div>
             </Link>
           ))}

@@ -68,7 +68,10 @@ function ClientDetail() {
 
   return (
     <div>
-      <Link to="/clients" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3">
+      <Link
+        to="/clients"
+        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
+      >
         <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux clients
       </Link>
       <PageHeader
@@ -135,15 +138,24 @@ function ClientDetail() {
             </div>
           )}
           {(dossiers ?? []).map((d: any) => (
-            <Link key={d.id} to="/dossiers/$id" params={{ id: d.id }} className="flex items-center px-5 py-3 hover:bg-muted/40">
+            <Link
+              key={d.id}
+              to="/dossiers/$id"
+              params={{ id: d.id }}
+              className="flex items-center px-5 py-3 hover:bg-muted/40"
+            >
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm">{d.objet || "(Sans objet)"}</div>
                 <div className="text-xs text-muted-foreground">{d.reference}</div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="capitalize">{d.type}</Badge>
+                <Badge variant="outline" className="capitalize">
+                  {d.type}
+                </Badge>
                 <StatusBadge statut={d.statut} />
-                <span className="text-xs text-muted-foreground w-24 text-right">{fmtDate(d.updated_at)}</span>
+                <span className="text-xs text-muted-foreground w-24 text-right">
+                  {fmtDate(d.updated_at)}
+                </span>
               </div>
             </Link>
           ))}

@@ -50,7 +50,11 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-6">
-          <img src="/yeti-logo.png" alt="Yeti Factory" className="h-16 w-auto object-contain mb-3" />
+          <img
+            src="/yeti-logo.png"
+            alt="Yeti Factory"
+            className="h-16 w-auto object-contain mb-3"
+          />
           <div className="text-sm text-muted-foreground">Calcul de prix interne</div>
         </div>
         <h1 className="text-xl font-semibold mb-1">Connexion</h1>

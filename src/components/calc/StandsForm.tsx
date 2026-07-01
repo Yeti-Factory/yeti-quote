@@ -76,7 +76,10 @@ export function StandsForm({
                   variant="ghost"
                   onClick={() => {
                     const next = [...value.sections];
-                    next[si] = { ...sec, lignes: [...sec.lignes, { libelle: "", prixUnitaire: 0 }] };
+                    next[si] = {
+                      ...sec,
+                      lignes: [...sec.lignes, { libelle: "", prixUnitaire: 0 }],
+                    };
                     onChange({ ...value, sections: next });
                   }}
                 >
@@ -101,7 +104,10 @@ export function StandsForm({
                 </div>
               )}
               {sec.lignes.map((l, li) => (
-                <div key={li} className="grid grid-cols-[1fr_140px_36px] gap-2 px-2 py-1.5 items-center">
+                <div
+                  key={li}
+                  className="grid grid-cols-[1fr_140px_36px] gap-2 px-2 py-1.5 items-center"
+                >
                   <Input
                     value={l.libelle}
                     placeholder="Libellé"
@@ -178,7 +184,9 @@ export function StandsForm({
                 <tr key={i}>
                   <td className="px-2 py-1.5">{g.libelle}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{fmtPct(g.margePct / 100)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    {fmtPct(g.margePct / 100)}
+                  </td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-medium">
                     {fmtEUR(g.pvTotal)}
                   </td>
@@ -233,9 +241,7 @@ export function StandsForm({
             type="number"
             step="0.01"
             value={value.params.commission_rapporteur_pct}
-            onChange={(e) =>
-              setParams({ commission_rapporteur_pct: Number(e.target.value) })
-            }
+            onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
           />
         </div>
       </Card>
