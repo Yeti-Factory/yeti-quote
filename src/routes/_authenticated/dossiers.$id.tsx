@@ -203,124 +203,141 @@ function DossierDetail() {
   if (!dossier || !payload) return <div className="text-sm text-muted-foreground">Chargement…</div>;
 
   return (
-    <div>
-      <Link
-        to="/dossiers"
-        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3 print:hidden"
-      >
-        <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux dossiers
-      </Link>
-      <PageHeader
-        title={meta.objet || "(Sans objet)"}
-        subtitle={`${meta.reference} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
-        actions={
-          <div className="flex gap-2 print:hidden">
-            <Button variant="outline" onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-1.5" />
-              Imprimer
-            </Button>
-            <Button variant="outline" onClick={duplicate}>
-              <Copy className="w-4 h-4 mr-1.5" />
-              Dupliquer
-            </Button>
-            {isAdmin && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" className="text-destructive">
-                    <Trash2 className="w-4 h-4 mr-1.5" />
-                    Supprimer
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Supprimer ce dossier ?</AlertDialogTitle>
-                    <AlertDialogDescription>Action irréversible.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={del}>Supprimer</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <Button onClick={() => save()}>
-              <Save className="w-4 h-4 mr-1.5" />
-              Enregistrer
-            </Button>
-            {meta.statut !== "valide" && (
-              <Button variant="default" onClick={() => save("valide")}>
-                Valider
+    <>
+      <div className="screen-only">
+        <Link
+          to="/dossiers"
+          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux dossiers
+        </Link>
+        <PageHeader
+          title={meta.objet || "(Sans objet)"}
+          subtitle={`${meta.reference} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="w-4 h-4 mr-1.5" />
+                Imprimer / PDF
               </Button>
-            )}
-            {meta.statut !== "archive" && (
-              <Button variant="outline" onClick={() => save("archive")}>
-                Archiver
+              <Button variant="outline" onClick={duplicate}>
+                <Copy className="w-4 h-4 mr-1.5" />
+                Dupliquer
               </Button>
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="text-destructive">
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      Supprimer
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Supprimer ce dossier ?</AlertDialogTitle>
+                      <AlertDialogDescription>Action irréversible.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={del}>Supprimer</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              <Button onClick={() => save()}>
+                <Save className="w-4 h-4 mr-1.5" />
+                Enregistrer
+              </Button>
+              {meta.statut !== "valide" && (
+                <Button variant="default" onClick={() => save("valide")}>
+                  Valider
+                </Button>
+              )}
+              {meta.statut !== "archive" && (
+                <Button variant="outline" onClick={() => save("archive")}>
+                  Archiver
+                </Button>
+              )}
+            </div>
+          }
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          <Card className="p-4 space-y-3 lg:col-span-1">
+            <div>
+              <Label>Référence</Label>
+              <Input
+                value={meta.reference}
+                onChange={(e) => setMeta({ ...meta, reference: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Objet</Label>
+              <Input
+                value={meta.objet}
+                onChange={(e) => setMeta({ ...meta, objet: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Statut</Label>
+              <Select
+                value={meta.statut}
+                onValueChange={(v) => setMeta({ ...meta, statut: v as any })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="brouillon">Brouillon</SelectItem>
+                  <SelectItem value="valide">Validé</SelectItem>
+                  <SelectItem value="archive">Archivé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Note / lien dossier OneDrive</Label>
+              <Textarea
+                rows={3}
+                value={meta.onedrive_note}
+                onChange={(e) => setMeta({ ...meta, onedrive_note: e.target.value })}
+              />
+            </div>
+          </Card>
+
+          <div className="lg:col-span-2 space-y-4">
+            {dossier.type === "standard" && <StandardForm value={payload} onChange={setPayload} />}
+            {dossier.type === "contra" && <ContraForm value={payload} onChange={setPayload} />}
+            {dossier.type === "kits" && output && (
+              <KitsForm value={payload} onChange={setPayload} output={output as any} />
             )}
+            {dossier.type === "stands" && <StandsForm value={payload} onChange={setPayload} />}
           </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 print:hidden">
-        <Card className="p-4 space-y-3 lg:col-span-1">
-          <div>
-            <Label>Référence</Label>
-            <Input
-              value={meta.reference}
-              onChange={(e) => setMeta({ ...meta, reference: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Objet</Label>
-            <Input
-              value={meta.objet}
-              onChange={(e) => setMeta({ ...meta, objet: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Statut</Label>
-            <Select
-              value={meta.statut}
-              onValueChange={(v) => setMeta({ ...meta, statut: v as any })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="brouillon">Brouillon</SelectItem>
-                <SelectItem value="valide">Validé</SelectItem>
-                <SelectItem value="archive">Archivé</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Note / lien dossier OneDrive</Label>
-            <Textarea
-              rows={3}
-              value={meta.onedrive_note}
-              onChange={(e) => setMeta({ ...meta, onedrive_note: e.target.value })}
-            />
-          </div>
-        </Card>
-
-        <div className="lg:col-span-2 space-y-4">
-          {dossier.type === "standard" && <StandardForm value={payload} onChange={setPayload} />}
-          {dossier.type === "contra" && <ContraForm value={payload} onChange={setPayload} />}
-          {dossier.type === "kits" && output && (
-            <KitsForm value={payload} onChange={setPayload} output={output as any} />
-          )}
-          {dossier.type === "stands" && <StandsForm value={payload} onChange={setPayload} />}
         </div>
+
+        <h2 className="text-lg font-semibold mb-2">Résultats</h2>
+        {dossier.type !== "kits" && output && <ResultsPanel output={output as any} />}
+        {dossier.type === "kits" && (
+          <Card className="p-4 text-sm text-muted-foreground">
+            Voir le récapitulatif dans le formulaire ci-dessus (totaux et PV par élément calculés en
+            temps réel).
+          </Card>
+        )}
       </div>
 
-      <h2 className="text-lg font-semibold mb-2">Résultats</h2>
-      {dossier.type !== "kits" && output && <ResultsPanel output={output as any} />}
-      {dossier.type === "kits" && (
-        <Card className="p-4 text-sm text-muted-foreground">
-          Voir le récapitulatif dans le formulaire ci-dessus (totaux et PV par élément calculés en
-          temps réel).
-        </Card>
+      {dossier.type !== "kits" && (
+        <PrintableDossier
+          meta={{
+            reference: meta.reference,
+            objet: meta.objet,
+            clientName: dossier.clients?.entreprise ?? "",
+            userName: user?.email ?? "",
+            type: dossier.type,
+            onedriveNote: meta.onedrive_note,
+          }}
+          type={dossier.type}
+          payload={payload}
+        />
       )}
-    </div>
+    </>
   );
 }
