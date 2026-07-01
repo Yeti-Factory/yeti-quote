@@ -144,7 +144,7 @@ function UsersPanel() {
   }
 
   return (
-  return (
+
     <div className="mt-4 space-y-4">
       <CreateUserForm />
       <Card className="p-0 overflow-hidden">
