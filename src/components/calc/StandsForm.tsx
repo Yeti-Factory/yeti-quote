@@ -27,6 +27,7 @@ export function StandsForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
+          defaultMargePct={value.params.coef_marge_pct}
         />
       </Card>
 
