@@ -34,8 +34,12 @@ function AdminPage() {
           <TabsTrigger value="coefs">Coefficients par défaut</TabsTrigger>
           <TabsTrigger value="users">Utilisateurs</TabsTrigger>
         </TabsList>
-        <TabsContent value="coefs"><CoefsPanel /></TabsContent>
-        <TabsContent value="users"><UsersPanel /></TabsContent>
+        <TabsContent value="coefs">
+          <CoefsPanel />
+        </TabsContent>
+        <TabsContent value="users">
+          <UsersPanel />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -47,7 +51,8 @@ function CoefsPanel() {
     queryKey: ["admin_defaults"],
     queryFn: async () => {
       const { data } = await supabase.from("app_defaults").select("*").order("key");
-      return data ?? [];
+      // Kits est masqué de l'UI (conservé en base pour compat legacy).
+      return (data ?? []).filter((d: any) => d.key !== "kits");
     },
   });
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -79,7 +84,9 @@ function CoefsPanel() {
         <Card key={d.key} className="p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold capitalize">{d.key}</h3>
-            <Button size="sm" onClick={() => save(d.key)}>Enregistrer</Button>
+            <Button size="sm" onClick={() => save(d.key)}>
+              Enregistrer
+            </Button>
           </div>
           <Textarea
             value={edits[d.key] ?? ""}
@@ -114,10 +121,16 @@ function UsersPanel() {
 
   async function toggleAdmin(userId: string, isAdmin: boolean) {
     if (isAdmin) {
-      const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "admin");
       if (error) return toast.error(error.message);
     } else {
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "admin" });
       if (error) return toast.error(error.message);
     }
     toast.success("Rôle mis à jour");
@@ -129,7 +142,9 @@ function UsersPanel() {
       <table className="w-full text-sm">
         <thead className="bg-muted/50 border-b">
           <tr>
-            <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Utilisateur</th>
+            <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">
+              Utilisateur
+            </th>
             <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Email</th>
             <th className="text-left px-4 py-2 text-xs uppercase text-muted-foreground">Rôles</th>
             <th className="text-right px-4 py-2 text-xs uppercase text-muted-foreground">Action</th>
@@ -144,7 +159,9 @@ function UsersPanel() {
                 <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-2">
                   {u.roles.map((r: string) => (
-                    <Badge key={r} variant="outline" className="mr-1">{r}</Badge>
+                    <Badge key={r} variant="outline" className="mr-1">
+                      {r}
+                    </Badge>
                   ))}
                 </td>
                 <td className="px-4 py-2 text-right">

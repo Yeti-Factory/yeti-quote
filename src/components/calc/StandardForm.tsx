@@ -18,7 +18,10 @@ export function StandardForm({
   return (
     <div className="space-y-4">
       <Card className="p-4 space-y-4">
-        <QuantitesRow quantites={value.quantites} onChange={(q) => onChange({ ...value, quantites: q })} />
+        <QuantitesRow
+          quantites={value.quantites}
+          onChange={(q) => onChange({ ...value, quantites: q })}
+        />
       </Card>
       <Card className="p-4 space-y-4">
         <LinesTable
@@ -38,7 +41,8 @@ export function StandardForm({
         <div>
           <Label>Coefficient de marge (%)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.coef_marge_pct}
             onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
           />
@@ -46,7 +50,8 @@ export function StandardForm({
         <div>
           <Label>Frais fixes (%)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.frais_fixes_pct}
             onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
           />
@@ -64,7 +69,8 @@ export function StandardForm({
         <div>
           <Label>Commission rapporteur (% du PV)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.commission_rapporteur_pct}
             onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
           />
@@ -72,7 +78,8 @@ export function StandardForm({
         <div>
           <Label>Comm. sourcing (%)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.commission_sourcing_pct}
             onChange={(e) => setParams({ commission_sourcing_pct: Number(e.target.value) })}
           />
@@ -80,7 +87,8 @@ export function StandardForm({
         <div>
           <Label>Minimum comm. sourcing (€)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.commission_sourcing_min_eur}
             onChange={(e) => setParams({ commission_sourcing_min_eur: Number(e.target.value) })}
           />
@@ -88,7 +96,8 @@ export function StandardForm({
         <div>
           <Label>Seuil alerte marge (%)</Label>
           <Input
-            type="number" step="0.01"
+            type="number"
+            step="0.01"
             value={value.params.seuil_alerte_marge_pct}
             onChange={(e) => setParams({ seuil_alerte_marge_pct: Number(e.target.value) })}
           />

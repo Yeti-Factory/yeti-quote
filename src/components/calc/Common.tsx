@@ -48,15 +48,8 @@ export function QuantitesRow({
           {quantites.map((q, i) => (
             <div key={i} className="border rounded-md p-2 space-y-1.5 w-40">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase text-muted-foreground">
-                  Col. {i + 1}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => remove(i)}
-                >
+                <span className="text-xs uppercase text-muted-foreground">Col. {i + 1}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => remove(i)}>
                   <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                 </Button>
               </div>
@@ -65,9 +58,7 @@ export function QuantitesRow({
                 min={0}
                 placeholder="Quantité"
                 value={q.qty || ""}
-                onChange={(e) =>
-                  updateQty(i, e.target.value === "" ? 0 : Number(e.target.value))
-                }
+                onChange={(e) => updateQty(i, e.target.value === "" ? 0 : Number(e.target.value))}
               />
               <Input
                 type="number"
@@ -116,9 +107,7 @@ export function LinesTable({
           type="button"
           size="sm"
           variant="ghost"
-          onClick={() =>
-            onChange([...lines, { libelle: "", [field]: 0, margePct: null }])
-          }
+          onClick={() => onChange([...lines, { libelle: "", [field]: 0, margePct: null }])}
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
         </Button>
@@ -133,9 +122,7 @@ export function LinesTable({
           <div />
         </div>
         {lines.length === 0 && (
-          <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-            Aucune ligne.
-          </div>
+          <div className="px-3 py-4 text-xs text-muted-foreground text-center">Aucune ligne.</div>
         )}
         <div className="divide-y">
           {lines.map((l: any, i) => (

@@ -9,12 +9,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Copy, Save, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import { StandardForm } from "@/components/calc/StandardForm";
@@ -26,7 +39,12 @@ import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
 import { calculerKits, KITS_DEFAULTS, type KitsInput } from "@/lib/calculs/kits";
-import { calculerStands, STANDS_DEFAULTS, STANDS_SECTIONS_DEFAUT, type StandsInput } from "@/lib/calculs/stands";
+import {
+  calculerStands,
+  STANDS_DEFAULTS,
+  STANDS_SECTIONS_DEFAUT,
+  type StandsInput,
+} from "@/lib/calculs/stands";
 
 export const Route = createFileRoute("/_authenticated/dossiers/$id")({
   component: DossierDetail,
@@ -186,7 +204,10 @@ function DossierDetail() {
 
   return (
     <div>
-      <Link to="/dossiers" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3 print:hidden">
+      <Link
+        to="/dossiers"
+        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3 print:hidden"
+      >
         <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux dossiers
       </Link>
       <PageHeader
@@ -194,12 +215,21 @@ function DossierDetail() {
         subtitle={`${meta.reference} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
         actions={
           <div className="flex gap-2 print:hidden">
-            <Button variant="outline" onClick={() => window.print()}><Printer className="w-4 h-4 mr-1.5" />Imprimer</Button>
-            <Button variant="outline" onClick={duplicate}><Copy className="w-4 h-4 mr-1.5" />Dupliquer</Button>
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-1.5" />
+              Imprimer
+            </Button>
+            <Button variant="outline" onClick={duplicate}>
+              <Copy className="w-4 h-4 mr-1.5" />
+              Dupliquer
+            </Button>
             {isAdmin && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" className="text-destructive"><Trash2 className="w-4 h-4 mr-1.5" />Supprimer</Button>
+                  <Button variant="outline" className="text-destructive">
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Supprimer
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -213,12 +243,19 @@ function DossierDetail() {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button onClick={() => save()}><Save className="w-4 h-4 mr-1.5" />Enregistrer</Button>
+            <Button onClick={() => save()}>
+              <Save className="w-4 h-4 mr-1.5" />
+              Enregistrer
+            </Button>
             {meta.statut !== "valide" && (
-              <Button variant="default" onClick={() => save("valide")}>Valider</Button>
+              <Button variant="default" onClick={() => save("valide")}>
+                Valider
+              </Button>
             )}
             {meta.statut !== "archive" && (
-              <Button variant="outline" onClick={() => save("archive")}>Archiver</Button>
+              <Button variant="outline" onClick={() => save("archive")}>
+                Archiver
+              </Button>
             )}
           </div>
         }
@@ -228,16 +265,27 @@ function DossierDetail() {
         <Card className="p-4 space-y-3 lg:col-span-1">
           <div>
             <Label>Référence</Label>
-            <Input value={meta.reference} onChange={(e) => setMeta({ ...meta, reference: e.target.value })} />
+            <Input
+              value={meta.reference}
+              onChange={(e) => setMeta({ ...meta, reference: e.target.value })}
+            />
           </div>
           <div>
             <Label>Objet</Label>
-            <Input value={meta.objet} onChange={(e) => setMeta({ ...meta, objet: e.target.value })} />
+            <Input
+              value={meta.objet}
+              onChange={(e) => setMeta({ ...meta, objet: e.target.value })}
+            />
           </div>
           <div>
             <Label>Statut</Label>
-            <Select value={meta.statut} onValueChange={(v) => setMeta({ ...meta, statut: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={meta.statut}
+              onValueChange={(v) => setMeta({ ...meta, statut: v as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="brouillon">Brouillon</SelectItem>
                 <SelectItem value="valide">Validé</SelectItem>
@@ -247,23 +295,21 @@ function DossierDetail() {
           </div>
           <div>
             <Label>Note / lien dossier OneDrive</Label>
-            <Textarea rows={3} value={meta.onedrive_note} onChange={(e) => setMeta({ ...meta, onedrive_note: e.target.value })} />
+            <Textarea
+              rows={3}
+              value={meta.onedrive_note}
+              onChange={(e) => setMeta({ ...meta, onedrive_note: e.target.value })}
+            />
           </div>
         </Card>
 
         <div className="lg:col-span-2 space-y-4">
-          {dossier.type === "standard" && (
-            <StandardForm value={payload} onChange={setPayload} />
-          )}
-          {dossier.type === "contra" && (
-            <ContraForm value={payload} onChange={setPayload} />
-          )}
+          {dossier.type === "standard" && <StandardForm value={payload} onChange={setPayload} />}
+          {dossier.type === "contra" && <ContraForm value={payload} onChange={setPayload} />}
           {dossier.type === "kits" && output && (
             <KitsForm value={payload} onChange={setPayload} output={output as any} />
           )}
-          {dossier.type === "stands" && (
-            <StandsForm value={payload} onChange={setPayload} />
-          )}
+          {dossier.type === "stands" && <StandsForm value={payload} onChange={setPayload} />}
         </div>
       </div>
 
@@ -271,7 +317,8 @@ function DossierDetail() {
       {dossier.type !== "kits" && output && <ResultsPanel output={output as any} />}
       {dossier.type === "kits" && (
         <Card className="p-4 text-sm text-muted-foreground">
-          Voir le récapitulatif dans le formulaire ci-dessus (totaux et PV par élément calculés en temps réel).
+          Voir le récapitulatif dans le formulaire ci-dessus (totaux et PV par élément calculés en
+          temps réel).
         </Card>
       )}
     </div>

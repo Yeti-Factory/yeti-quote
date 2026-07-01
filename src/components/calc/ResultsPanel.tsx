@@ -3,7 +3,12 @@ import { fmtEUR, fmtPct } from "@/lib/format";
 import type { CalcOutput, QuantityResult } from "@/lib/calculs/types";
 import { AlertTriangle } from "lucide-react";
 
-const ROWS: { label: string; key: keyof QuantityResult; fmt?: (v: number) => string; emphasize?: boolean }[] = [
+const ROWS: {
+  label: string;
+  key: keyof QuantityResult;
+  fmt?: (v: number) => string;
+  emphasize?: boolean;
+}[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR },
   { label: "Prix vente net unitaire", key: "prixVenteNetUnit", fmt: fmtEUR },
   { label: "Achats total", key: "achatsTotal", fmt: fmtEUR },
@@ -65,32 +70,43 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
             {scenarios.some((s) => s.margeContra !== undefined) && (
               <>
                 <tr className="border-b">
-                  <td className="px-3 py-2 text-xs uppercase text-muted-foreground" colSpan={scenarios.length + 1}>
+                  <td
+                    className="px-3 py-2 text-xs uppercase text-muted-foreground"
+                    colSpan={scenarios.length + 1}
+                  >
                     Détail Contra
                   </td>
                 </tr>
                 <tr className="border-b">
                   <td className="px-3 py-2">Marge Contra</td>
                   {scenarios.map((s, i) => (
-                    <td key={i} className="px-3 py-2 text-right tabular-nums">{fmtEUR(s.margeContra!)}</td>
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.margeContra!)}
+                    </td>
                   ))}
                 </tr>
                 <tr className="border-b">
                   <td className="px-3 py-2">% Marge Contra</td>
                   {scenarios.map((s, i) => (
-                    <td key={i} className="px-3 py-2 text-right tabular-nums">{fmtPct(s.margeContraPct!)}</td>
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtPct(s.margeContraPct!)}
+                    </td>
                   ))}
                 </tr>
                 <tr className="border-b">
                   <td className="px-3 py-2">Marge Autres fournisseurs</td>
                   {scenarios.map((s, i) => (
-                    <td key={i} className="px-3 py-2 text-right tabular-nums">{fmtEUR(s.margeAutres!)}</td>
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.margeAutres!)}
+                    </td>
                   ))}
                 </tr>
                 <tr>
                   <td className="px-3 py-2">% Marge Autres</td>
                   {scenarios.map((s, i) => (
-                    <td key={i} className="px-3 py-2 text-right tabular-nums">{fmtPct(s.margeAutresPct!)}</td>
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtPct(s.margeAutresPct!)}
+                    </td>
                   ))}
                 </tr>
               </>

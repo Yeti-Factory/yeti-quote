@@ -74,40 +74,40 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   const totalAchatGroupes = groupes.reduce((s, g) => s + g.achatTotal, 0);
   const totalPvGroupes = groupes.reduce((s, g) => s + g.pvTotal, 0);
 
-  const scenarios: QuantityResult[] = (quantites.length ? quantites : [{ qty: 1, margePct: null }]).map(
-    (quant) => {
-      const Q = Number(quant.qty) || 0;
-      const prixUnitaireAchat = totalAchatGroupes;
-      const prixVenteNetUnit = totalPvGroupes;
-      const achatsTotal = prixUnitaireAchat * Q;
-      const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
-      const budgetNet = prixVenteNetUnit * Q;
-      const commRapUnit = prixVenteNetUnit * (params.commission_rapporteur_pct / 100);
-      const commRapTotal = commRapUnit * Q;
-      const totalPrixUnitaire = prixVenteNetUnit + commRapUnit;
-      const totalCA = totalPrixUnitaire * Q;
-      const totalDepenses = achatsTotal + commRapTotal + fraisFixes;
-      const margeNet = totalCA - totalDepenses;
-      const margePct = budgetNet > 0 ? margeNet / budgetNet : 0;
+  const scenarios: QuantityResult[] = (
+    quantites.length ? quantites : [{ qty: 1, margePct: null }]
+  ).map((quant) => {
+    const Q = Number(quant.qty) || 0;
+    const prixUnitaireAchat = totalAchatGroupes;
+    const prixVenteNetUnit = totalPvGroupes;
+    const achatsTotal = prixUnitaireAchat * Q;
+    const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
+    const budgetNet = prixVenteNetUnit * Q;
+    const commRapUnit = prixVenteNetUnit * (params.commission_rapporteur_pct / 100);
+    const commRapTotal = commRapUnit * Q;
+    const totalPrixUnitaire = prixVenteNetUnit + commRapUnit;
+    const totalCA = totalPrixUnitaire * Q;
+    const totalDepenses = achatsTotal + commRapTotal + fraisFixes;
+    const margeNet = totalCA - totalDepenses;
+    const margePct = budgetNet > 0 ? margeNet / budgetNet : 0;
 
-      return {
-        quantite: Q,
-        prixUnitaireAchat,
-        prixVenteNetUnit,
-        achatsTotal,
-        fraisFixes,
-        commissionSourcingUnit: 0,
-        commissionRapporteurUnit: commRapUnit,
-        commissionRapporteurTotal: commRapTotal,
-        totalPrixUnitaire,
-        totalCA,
-        totalDepenses,
-        margeNet,
-        margePct,
-        alerteMarge: margePct < 0.2,
-      };
-    },
-  );
+    return {
+      quantite: Q,
+      prixUnitaireAchat,
+      prixVenteNetUnit,
+      achatsTotal,
+      fraisFixes,
+      commissionSourcingUnit: 0,
+      commissionRapporteurUnit: commRapUnit,
+      commissionRapporteurTotal: commRapTotal,
+      totalPrixUnitaire,
+      totalCA,
+      totalDepenses,
+      margeNet,
+      margePct,
+      alerteMarge: margePct < 0.2,
+    };
+  });
 
   return {
     scenarios,

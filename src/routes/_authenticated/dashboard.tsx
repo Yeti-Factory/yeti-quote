@@ -19,7 +19,10 @@ function Dashboard() {
       const [dossiers, clients, valides] = await Promise.all([
         supabase.from("dossiers").select("id", { count: "exact", head: true }),
         supabase.from("clients").select("id", { count: "exact", head: true }),
-        supabase.from("dossiers").select("id", { count: "exact", head: true }).eq("statut", "valide"),
+        supabase
+          .from("dossiers")
+          .select("id", { count: "exact", head: true })
+          .eq("statut", "valide"),
       ]);
       return {
         dossiers: dossiers.count ?? 0,
@@ -123,5 +126,9 @@ export function StatusBadge({ statut }: { statut: string }) {
     archive: { label: "Archivé", cls: "bg-slate-100 text-slate-700 border-slate-200" },
   };
   const c = map[statut] ?? { label: statut, cls: "" };
-  return <Badge variant="outline" className={c.cls}>{c.label}</Badge>;
+  return (
+    <Badge variant="outline" className={c.cls}>
+      {c.label}
+    </Badge>
+  );
 }

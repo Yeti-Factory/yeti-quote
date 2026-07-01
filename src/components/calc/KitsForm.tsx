@@ -55,13 +55,12 @@ export function KitsForm({
           <div>
             <Label>Marge résiduelle cible (%)</Label>
             <Input
-              type="number" step="0.01"
+              type="number"
+              step="0.01"
               value={value.params.marge_residuelle_cible_pct}
               onChange={(e) => setParams({ marge_residuelle_cible_pct: Number(e.target.value) })}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              PV unitaire = achat / (1 − marge).
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">PV unitaire = achat / (1 − marge).</p>
           </div>
         </div>
       </Card>
@@ -69,11 +68,19 @@ export function KitsForm({
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <Label>Variantes (nombre de kits par variante)</Label>
-          <Button size="sm" variant="ghost" onClick={addVariante} disabled={value.variantes.length >= MAX_VARIANTES}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={addVariante}
+            disabled={value.variantes.length >= MAX_VARIANTES}
+          >
             <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une variante
           </Button>
         </div>
-        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${value.variantes.length}, minmax(0,1fr))` }}>
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${value.variantes.length}, minmax(0,1fr))` }}
+        >
           {value.variantes.map((v, i) => (
             <div key={i} className="border rounded-md p-2 space-y-1.5">
               <div className="flex items-center gap-1">
@@ -86,7 +93,12 @@ export function KitsForm({
                     onChange({ ...value, variantes: next });
                   }}
                 />
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeVariante(i)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => removeVariante(i)}
+                >
                   <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                 </Button>
               </div>
@@ -120,7 +132,9 @@ export function KitsForm({
                 <th className="text-left px-2 py-2 w-[28%]">Élément</th>
                 <th className="text-right px-2 py-2 w-32">Achat unit.</th>
                 {value.variantes.map((v, i) => (
-                  <th key={i} className="text-right px-2 py-2">{v.libelle}</th>
+                  <th key={i} className="text-right px-2 py-2">
+                    {v.libelle}
+                  </th>
                 ))}
                 <th className="text-right px-2 py-2 w-32">PV unit.</th>
                 <th className="text-right px-2 py-2 w-32">Total PV</th>
@@ -144,7 +158,8 @@ export function KitsForm({
                     </td>
                     <td className="px-2 py-1">
                       <Input
-                        type="number" step="0.01"
+                        type="number"
+                        step="0.01"
                         value={el.prixAchatUnit || ""}
                         onChange={(e) => {
                           const next = [...value.elements];
@@ -156,7 +171,8 @@ export function KitsForm({
                     {value.variantes.map((_, vi) => (
                       <td key={vi} className="px-2 py-1">
                         <Input
-                          type="number" min={0}
+                          type="number"
+                          min={0}
                           value={el.qtyParVariante[vi] || ""}
                           onChange={(e) => {
                             const next = [...value.elements];
@@ -169,11 +185,19 @@ export function KitsForm({
                       </td>
                     ))}
                     <td className="px-2 py-1 text-right tabular-nums">{fmtEUR(r?.pvUnit ?? 0)}</td>
-                    <td className="px-2 py-1 text-right tabular-nums font-medium">{fmtEUR(r?.totalPV ?? 0)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums font-medium">
+                      {fmtEUR(r?.totalPV ?? 0)}
+                    </td>
                     <td className="px-2 py-1">
                       <Button
-                        size="icon" variant="ghost"
-                        onClick={() => onChange({ ...value, elements: value.elements.filter((_, idx) => idx !== i) })}
+                        size="icon"
+                        variant="ghost"
+                        onClick={() =>
+                          onChange({
+                            ...value,
+                            elements: value.elements.filter((_, idx) => idx !== i),
+                          })
+                        }
                       >
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>

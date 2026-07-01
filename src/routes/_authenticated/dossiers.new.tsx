@@ -9,7 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 const searchSchema = z.object({ client: z.string().optional() });
@@ -75,7 +81,10 @@ function NewDossier() {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Nouveau dossier" subtitle="Renseignez les informations de base, puis lancez le calcul." />
+      <PageHeader
+        title="Nouveau dossier"
+        subtitle="Renseignez les informations de base, puis lancez le calcul."
+      />
       <Card className="p-6 space-y-4">
         <div>
           <Label>Référence</Label>
@@ -85,22 +94,32 @@ function NewDossier() {
         <div>
           <Label>Client *</Label>
           <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un client…" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionner un client…" />
+            </SelectTrigger>
             <SelectContent>
               {(clients ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.entreprise}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.entreprise}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Objet *</Label>
-          <Input value={objet} onChange={(e) => setObjet(e.target.value)} placeholder="Ex : PLV pour campagne X" />
+          <Input
+            value={objet}
+            onChange={(e) => setObjet(e.target.value)}
+            placeholder="Ex : PLV pour campagne X"
+          />
         </div>
         <div>
           <Label>Type de calcul *</Label>
           <Select value={type} onValueChange={(v) => setType(v as any)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="standard">Standard (TdP)</SelectItem>
               <SelectItem value="contra">Contra</SelectItem>
@@ -109,8 +128,12 @@ function NewDossier() {
           </Select>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => navigate({ to: "/dossiers" })}>Annuler</Button>
-          <Button onClick={create} disabled={busy}>{busy ? "…" : "Créer le dossier"}</Button>
+          <Button variant="outline" onClick={() => navigate({ to: "/dossiers" })}>
+            Annuler
+          </Button>
+          <Button onClick={create} disabled={busy}>
+            {busy ? "…" : "Créer le dossier"}
+          </Button>
         </div>
       </Card>
     </div>
