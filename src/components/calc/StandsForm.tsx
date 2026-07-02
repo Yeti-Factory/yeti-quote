@@ -25,11 +25,7 @@ export function StandsForm({
   return (
     <div className="space-y-4">
       <Card className="p-4 calc-section emphasis">
-        <SectionHeader
-          title="Quantités"
-          tone="orange"
-          icon={<Layers className="w-3.5 h-3.5" />}
-        />
+        <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
@@ -218,9 +214,7 @@ export function StandsForm({
                 <tr key={i} className="hover:bg-accent/40">
                   <td className="px-3 py-2">{g.libelle}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {fmtPct(g.margePct / 100)}
-                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmtPct(g.margePct / 100)}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium">
                     {fmtEUR(g.pvTotal)}
                   </td>
@@ -248,42 +242,42 @@ export function StandsForm({
           icon={<Settings2 className="w-3.5 h-3.5" />}
         />
         <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Coefficient de marge par défaut (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.coef_marge_pct}
-            onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Marge créa supplémentaire (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.marge_crea_pct}
-            onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Frais fixes (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.frais_fixes_pct}
-            onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Comm. rapporteur (% du PV)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.commission_rapporteur_pct}
-            onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
-          />
-        </div>
+          <div>
+            <Label>Coefficient de marge par défaut (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.coef_marge_pct}
+              onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Marge créa supplémentaire (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.marge_crea_pct}
+              onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Frais fixes (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.frais_fixes_pct}
+              onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Comm. rapporteur (% du PV)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.commission_rapporteur_pct}
+              onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
+            />
+          </div>
         </div>
       </Card>
     </div>

@@ -20,11 +20,7 @@ export function StandardForm({
   return (
     <div className="space-y-5">
       <Card className="p-4 calc-section emphasis">
-        <SectionHeader
-          title="Quantités"
-          tone="orange"
-          icon={<Layers className="w-3.5 h-3.5" />}
-        />
+        <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
