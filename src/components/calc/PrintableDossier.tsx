@@ -267,10 +267,7 @@ function ResultsTable({ output }: { output: any }) {
             return (
               <tr key={i} className="total-row">
                 <td className="strong">Qté {s.quantite.toLocaleString("fr-FR")}</td>
-                <td
-                  className="num strong"
-                  style={{ fontSize: "13pt", color: "#E65100" }}
-                >
+                <td className="num strong" style={{ fontSize: "13pt", color: "#E65100" }}>
                   {fmtEUR(s.totalPrixUnitaire)} / u
                 </td>
                 <td

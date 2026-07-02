@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
@@ -123,22 +123,56 @@ function DossierDetail() {
     statut: "brouillon" as "brouillon" | "valide" | "archive",
   });
   const [payload, setPayload] = useState<any>(null);
+  const initialSnapshotRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!dossier) return;
-    setMeta({
+    const nextMeta = {
       reference: dossier.reference,
       objet: dossier.objet,
       onedrive_note: dossier.onedrive_note ?? "",
       statut: dossier.statut,
-    });
+    };
+    setMeta(nextMeta);
     const hasPayload = dossier.payload && Object.keys(dossier.payload).length > 0;
+    let nextPayload: any = null;
     if (hasPayload) {
-      setPayload(dossier.payload);
+      nextPayload = dossier.payload;
     } else if (defaults) {
-      setPayload(defaultPayload(dossier.type, defaults[dossier.type]));
+      nextPayload = defaultPayload(dossier.type, defaults[dossier.type]);
+    }
+    if (nextPayload) {
+      setPayload(nextPayload);
+      initialSnapshotRef.current = JSON.stringify({ meta: nextMeta, payload: nextPayload });
     }
   }, [dossier, defaults]);
+
+  const currentSnapshot = useMemo(
+    () => (payload ? JSON.stringify({ meta, payload }) : null),
+    [meta, payload],
+  );
+  const isDirty =
+    currentSnapshot !== null &&
+    initialSnapshotRef.current !== null &&
+    currentSnapshot !== initialSnapshotRef.current;
+
+  // Warn on tab close / refresh
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Block internal navigation
+  const { proceed, reset, status } = useBlocker({
+    shouldBlockFn: () => isDirty,
+    withResolver: true,
+    enableBeforeUnload: false,
+  });
 
   const output = useMemo(() => {
     if (!dossier || !payload) return null;
@@ -163,7 +197,9 @@ function DossierDetail() {
     const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
     if (error) return toast.error(error.message);
     toast.success(nextStatut === "valide" ? "Dossier validé" : "Enregistré");
-    if (nextStatut) setMeta({ ...meta, statut: nextStatut });
+    const savedMeta = nextStatut ? { ...meta, statut: nextStatut } : meta;
+    if (nextStatut) setMeta(savedMeta);
+    initialSnapshotRef.current = JSON.stringify({ meta: savedMeta, payload });
     qc.invalidateQueries({ queryKey: ["dossier", id] });
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
@@ -206,6 +242,25 @@ function DossierDetail() {
   return (
     <>
       <div className="screen-only">
+        {isDirty && (
+          <div className="sticky top-0 z-40 mb-3 rounded-md border-2 border-primary bg-primary/10 px-4 py-3 shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-primary">Modifications non enregistrées</p>
+                <p className="text-sm text-foreground/80">
+                  Cliquez sur Enregistrer avant de quitter cette page.
+                </p>
+              </div>
+              <Button
+                onClick={() => save()}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Save className="w-4 h-4 mr-1.5" />
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
         <Link
           to="/dossiers"
           className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
@@ -247,9 +302,16 @@ function DossierDetail() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              <Button onClick={() => save()}>
+              <Button
+                onClick={() => save()}
+                className={
+                  isDirty
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg ring-2 ring-primary/40 animate-pulse"
+                    : ""
+                }
+              >
                 <Save className="w-4 h-4 mr-1.5" />
-                Enregistrer
+                {isDirty ? "Enregistrer *" : "Enregistrer"}
               </Button>
               {meta.statut !== "valide" && (
                 <Button variant="default" onClick={() => save("valide")}>
@@ -341,6 +403,27 @@ function DossierDetail() {
           payload={payload}
         />
       )}
+
+      <AlertDialog open={status === "blocked"}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quitter sans enregistrer ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez des modifications non enregistrées. Si vous quittez cette page maintenant,
+              elles seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => reset?.()}>Rester sur la page</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => proceed?.()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Quitter sans enregistrer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
