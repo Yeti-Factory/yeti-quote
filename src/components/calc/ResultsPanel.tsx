@@ -183,10 +183,11 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                     "border-b",
                     groupChanged && "border-t-2 border-t-border/80",
                     r.emphasize && "bg-primary/5 font-semibold",
+                    r.highlight && "bg-primary/15 text-primary",
                     r.key === "margePct" && "border-t-2 border-t-primary/40 bg-primary/10",
                   )}
                 >
-                  <td className="px-3 py-2">{r.label}</td>
+                  <td className={cn("px-3 py-2", r.highlight && "font-bold")}>{r.label}</td>
                   {scenarios.map((s, i) => {
                     const v = s[r.key] as number;
                     const band = marginBand(s.margePct);
@@ -197,6 +198,7 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                         className={cn(
                           "px-3 py-2 text-right tabular-nums",
                           r.emphasize && "font-semibold",
+                          r.highlight && "font-bold text-base",
                           isMarginRow && bandTextClass(band),
                         )}
                       >
