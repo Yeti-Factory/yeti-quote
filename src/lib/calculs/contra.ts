@@ -1,5 +1,5 @@
 import type { LineItem, LineForfait, QuantityResult, CalcOutput, Quantite } from "./types";
-import { normalizeQuantites, resolveMargePct } from "./types";
+import { normalizeQuantites, resolveMargePct, getPrixAchat } from "./types";
 
 export type ContraParams = {
   coef_contra_pct: number;
