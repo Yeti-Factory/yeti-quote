@@ -266,16 +266,25 @@
   }
   .print-sheet h2 {
     font-size: 11pt;
-    margin: 8pt 0 4pt;
-    border-bottom: 0.75pt solid #333;
-    padding-bottom: 2pt;
+    margin: 10pt 0 4pt;
+    padding: 3pt 6pt;
+    background: #1a1a1a !important;
+    color: #fff !important;
+    border-left: 3pt solid #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+  }
+  .print-sheet h2.orange {
+    background: #f59e0b !important;
+    color: #1a1a1a !important;
+    border-left-color: #1a1a1a;
   }
   .print-sheet .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 8pt;
-    border-bottom: 1pt solid #000;
+    border-bottom: 2pt solid #1a1a1a;
     padding-bottom: 6pt;
   }
   .print-sheet .header img {
@@ -291,6 +300,9 @@
     color: #b00;
     font-weight: 700;
     margin-top: 6pt;
+    padding: 4pt 6pt;
+    border: 1.5pt solid #b00;
+    background: #fee !important;
   }
   .print-sheet .params-grid {
     display: grid;
