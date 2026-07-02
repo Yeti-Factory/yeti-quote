@@ -158,15 +158,15 @@ function LineTable({
               <tr key={i}>
                 <td>{l.fournisseur ?? ""}</td>
                 <td>{l.libelle}</td>
-                {isGrid
-                  ? qs.map((_q, qi) => (
-                      <td key={`a${qi}`} className="num">
-                        {fmtEUR(getPrixAchat(l, qi))}
-                      </td>
-                    ))
-                  : (
-                      <td className="num">{fmtEUR(globalAmount)}</td>
-                    )}
+                {isGrid ? (
+                  qs.map((_q, qi) => (
+                    <td key={`a${qi}`} className="num">
+                      {fmtEUR(getPrixAchat(l, qi))}
+                    </td>
+                  ))
+                ) : (
+                  <td className="num">{fmtEUR(globalAmount)}</td>
+                )}
                 <td className="num">
                   {(l.margePct ?? defaultMargePct).toLocaleString("fr-FR", {
                     maximumFractionDigits: 2,
