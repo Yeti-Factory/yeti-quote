@@ -284,6 +284,7 @@ export function StandsForm({
             onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
           />
         </div>
+        </div>
       </Card>
     </div>
   );
