@@ -24,7 +24,12 @@ export function StandsForm({
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card className="p-4 calc-section emphasis">
+        <SectionHeader
+          title="Quantités"
+          tone="orange"
+          icon={<Layers className="w-3.5 h-3.5" />}
+        />
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
