@@ -2,10 +2,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LinesTable, QuantitesRow } from "@/components/calc/Common";
+import { LinesTable, LinesGridTable, QuantitesRow } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
+import type { Quantite } from "@/lib/calculs/types";
+import { syncLinesWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function ContraForm({
   value,
@@ -17,13 +19,21 @@ export function ContraForm({
   function setParams(p: Partial<ContraParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
+  function handleQuantitesChange(newQ: Quantite[]) {
+    onChange({
+      ...value,
+      quantites: newQ,
+      achatsContra: syncLinesWithQuantites(value.quantites, newQ, value.achatsContra),
+      achatsAutres: syncLinesWithQuantites(value.quantites, newQ, value.achatsAutres),
+    });
+  }
   return (
     <div className="space-y-5">
       <Card className="p-4 calc-section emphasis">
         <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
         <QuantitesRow
           quantites={value.quantites}
-          onChange={(q) => onChange({ ...value, quantites: q })}
+          onChange={handleQuantitesChange}
           defaultMargePct={value.params.coef_contra_pct}
         />
       </Card>
@@ -32,15 +42,15 @@ export function ContraForm({
         <div>
           <SectionHeader
             title="Achats chez Contra"
-            subtitle="prix unitaire"
+            subtitle="grille de prix par quantité"
             tone="dark"
             icon={<ShoppingCart className="w-3.5 h-3.5" />}
           />
-          <LinesTable
+          <LinesGridTable
             title="Lignes"
             lines={value.achatsContra}
             onChange={(l) => onChange({ ...value, achatsContra: l })}
-            field="prixUnitaire"
+            quantites={value.quantites}
             defaultMargePct={value.params.coef_contra_pct}
           />
         </div>
@@ -62,15 +72,15 @@ export function ContraForm({
         <div>
           <SectionHeader
             title="Achats autres fournisseurs"
-            subtitle="prix unitaire"
+            subtitle="grille de prix par quantité"
             tone="accent"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
-          <LinesTable
+          <LinesGridTable
             title="Lignes"
             lines={value.achatsAutres}
             onChange={(l) => onChange({ ...value, achatsAutres: l })}
-            field="prixUnitaire"
+            quantites={value.quantites}
             defaultMargePct={value.params.coef_autres_pct}
           />
         </div>

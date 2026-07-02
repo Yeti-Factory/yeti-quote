@@ -1,5 +1,5 @@
 import type { LineItem, LineForfait, QuantityResult, CalcOutput, Quantite } from "./types";
-import { normalizeQuantites, resolveMargePct } from "./types";
+import { normalizeQuantites, resolveMargePct, getPrixAchat } from "./types";
 
 export type ContraParams = {
   coef_contra_pct: number;
@@ -32,13 +32,13 @@ export const CONTRA_DEFAULTS: ContraParams = {
 export function calculerContra(input: ContraInput): CalcOutput {
   const { achatsContra, forfaitsContra, achatsAutres, params } = input;
   const quantites = normalizeQuantites(input.quantites);
-  const sumContraUnit = achatsContra.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
   const sumContraForfait = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
-  const sumAutresUnit = achatsAutres.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
 
-  const scenarios: QuantityResult[] = quantites.map((quant) => {
+  const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
+    const sumContraUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
+    const sumAutresUnit = achatsAutres.reduce((s, l) => s + getPrixAchat(l, qi), 0);
     const forfaitUnit = Q > 0 ? sumContraForfait / Q : 0;
     const contraUnit = sumContraUnit + forfaitUnit;
 
@@ -57,7 +57,7 @@ export function calculerContra(input: ContraInput): CalcOutput {
     let pvUnitContra = 0;
     for (const l of achatsContra) {
       const m = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
-      pvUnitContra += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+      pvUnitContra += getPrixAchat(l, qi) * (1 + m / 100);
     }
     for (const f of forfaitsContra) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
@@ -68,7 +68,7 @@ export function calculerContra(input: ContraInput): CalcOutput {
     let pvUnitAutres = 0;
     for (const l of achatsAutres) {
       const m = resolveMargePct(l.margePct, mq, params.coef_autres_pct);
-      pvUnitAutres += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+      pvUnitAutres += getPrixAchat(l, qi) * (1 + m / 100);
     }
     // Sourcing commission uses quantity/default (autres family default)
     const mSourcing = resolveMargePct(null, mq, params.coef_autres_pct);

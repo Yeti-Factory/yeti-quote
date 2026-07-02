@@ -1,5 +1,10 @@
 import { fmtEUR, fmtPct, fmtDate } from "@/lib/format";
-import { resolveMargePct, normalizeQuantites, type Quantite } from "@/lib/calculs/types";
+import {
+  resolveMargePct,
+  normalizeQuantites,
+  getPrixAchat,
+  type Quantite,
+} from "@/lib/calculs/types";
 import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
@@ -106,23 +111,32 @@ function LineTable({
   defaultMargePct: number;
 }) {
   const qs = normalizeQuantites(quantites);
+  const isGrid = field === "prixUnitaire";
   return (
     <section>
       <h2>{title}</h2>
       <table>
         <thead>
           <tr>
-            <th style={{ width: "14%" }}>Fournisseur</th>
+            <th style={{ width: "12%" }}>Fournisseur</th>
             <th>Libellé</th>
-            <th className="num" style={{ width: "12%" }}>
-              {field === "prixUnitaire" ? "Prix achat U." : "Montant global"}
-            </th>
-            <th className="num" style={{ width: "9%" }}>
+            {isGrid ? (
+              qs.map((q, i) => (
+                <th key={`a${i}`} className="num">
+                  Achat qté {q.qty.toLocaleString("fr-FR")}
+                </th>
+              ))
+            ) : (
+              <th className="num" style={{ width: "12%" }}>
+                Montant global
+              </th>
+            )}
+            <th className="num" style={{ width: "8%" }}>
               Marge %
             </th>
             {qs.map((q, i) => (
-              <th key={i} className="num" style={{ width: "10%" }}>
-                PV Qté {q.qty.toLocaleString("fr-FR")}
+              <th key={`pv${i}`} className="num">
+                PV qté {q.qty.toLocaleString("fr-FR")}
               </th>
             ))}
           </tr>
@@ -130,18 +144,29 @@ function LineTable({
         <tbody>
           {lines.length === 0 && (
             <tr>
-              <td colSpan={4 + qs.length} style={{ textAlign: "center", color: "#666" }}>
+              <td
+                colSpan={3 + qs.length + (isGrid ? qs.length : 1)}
+                style={{ textAlign: "center", color: "#666" }}
+              >
                 Aucune ligne.
               </td>
             </tr>
           )}
           {lines.map((l, i) => {
-            const amount = Number(l[field]) || 0;
+            const globalAmount = Number(l.montantGlobal) || 0;
             return (
               <tr key={i}>
                 <td>{l.fournisseur ?? ""}</td>
                 <td>{l.libelle}</td>
-                <td className="num">{fmtEUR(amount)}</td>
+                {isGrid ? (
+                  qs.map((_q, qi) => (
+                    <td key={`a${qi}`} className="num">
+                      {fmtEUR(getPrixAchat(l, qi))}
+                    </td>
+                  ))
+                ) : (
+                  <td className="num">{fmtEUR(globalAmount)}</td>
+                )}
                 <td className="num">
                   {(l.margePct ?? defaultMargePct).toLocaleString("fr-FR", {
                     maximumFractionDigits: 2,
@@ -150,10 +175,14 @@ function LineTable({
                 </td>
                 {qs.map((q, qi) => {
                   const m = resolveMargePct(l.margePct, q.margePct, defaultMargePct);
-                  const base = field === "montantGlobal" && q.qty > 0 ? amount / q.qty : amount;
+                  const base = isGrid
+                    ? getPrixAchat(l, qi)
+                    : q.qty > 0
+                      ? globalAmount / q.qty
+                      : globalAmount;
                   const pv = base * (1 + m / 100);
                   return (
-                    <td key={qi} className="num">
+                    <td key={`pv${qi}`} className="num">
                       {fmtEUR(pv)}
                     </td>
                   );

@@ -31,7 +31,16 @@ export function normalizeQuantites(input: unknown): Quantite[] {
 export type LineItem = {
   fournisseur?: string;
   libelle: string;
-  prixUnitaire: number;
+  /**
+   * Legacy single unit price. Kept for backward compatibility.
+   * New dossiers use `prixParQuantite` aligned on the quantity columns.
+   */
+  prixUnitaire?: number;
+  /**
+   * Purchase price per quantity column, aligned by index with `quantites`.
+   * Example: quantites [1, 10, 100] → prixParQuantite [100, 80, 45].
+   */
+  prixParQuantite?: number[];
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
 };
@@ -43,6 +52,38 @@ export type LineForfait = {
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
 };
+
+/**
+ * Resolve the purchase unit price for a line at a given quantity index.
+ * Priority: prixParQuantite[i] → legacy prixUnitaire → 0.
+ */
+export function getPrixAchat(line: LineItem, index: number): number {
+  const arr = line.prixParQuantite;
+  if (Array.isArray(arr) && index >= 0 && index < arr.length) {
+    const v = Number(arr[index]);
+    if (Number.isFinite(v)) return v;
+  }
+  const legacy = Number(line.prixUnitaire);
+  return Number.isFinite(legacy) ? legacy : 0;
+}
+
+/**
+ * Ensure a line's `prixParQuantite` has exactly `count` entries.
+ * Missing values are filled with the last known price, or the legacy
+ * `prixUnitaire`, or 0. Extra entries are truncated.
+ */
+export function reshapePrixParQuantite(
+  line: { prixParQuantite?: number[]; prixUnitaire?: number },
+  count: number,
+): number[] {
+  const arr = Array.isArray(line.prixParQuantite) ? line.prixParQuantite.map(Number) : [];
+  const legacy = Number(line.prixUnitaire) || 0;
+  while (arr.length < count) {
+    arr.push(arr.length > 0 ? arr[arr.length - 1] : legacy);
+  }
+  arr.length = count;
+  return arr.map((v) => (Number.isFinite(v) ? v : 0));
+}
 
 export type QuantityResult = {
   quantite: number;
