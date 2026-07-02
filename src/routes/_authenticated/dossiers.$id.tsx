@@ -197,7 +197,9 @@ function DossierDetail() {
     const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
     if (error) return toast.error(error.message);
     toast.success(nextStatut === "valide" ? "Dossier validé" : "Enregistré");
-    if (nextStatut) setMeta({ ...meta, statut: nextStatut });
+    const savedMeta = nextStatut ? { ...meta, statut: nextStatut } : meta;
+    if (nextStatut) setMeta(savedMeta);
+    initialSnapshotRef.current = JSON.stringify({ meta: savedMeta, payload });
     qc.invalidateQueries({ queryKey: ["dossier", id] });
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
