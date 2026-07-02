@@ -106,7 +106,7 @@ export function LinesTable({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <Label>{title}</Label>
+        <Label className="text-sm font-semibold">{title}</Label>
         <Button
           type="button"
           size="sm"
@@ -121,8 +121,8 @@ export function LinesTable({
           <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
         </Button>
       </div>
-      <div className="border rounded-md">
-        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+      <div className="border-2 rounded-md overflow-hidden calc-table">
+        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
           <div>Fournisseur</div>
           <div>Libellé</div>
           <div className="text-right">
@@ -132,13 +132,15 @@ export function LinesTable({
           <div />
         </div>
         {lines.length === 0 && (
-          <div className="px-3 py-4 text-xs text-muted-foreground text-center">Aucune ligne.</div>
+          <div className="px-3 py-5 text-xs text-muted-foreground text-center bg-muted/30">
+            Aucune ligne.
+          </div>
         )}
-        <div className="divide-y">
+        <div>
           {lines.map((l: any, i) => (
             <div
               key={i}
-              className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-2 py-1.5 items-center"
+              className="calc-row grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 items-center border-b last:border-b-0"
             >
               <Input
                 value={l.fournisseur ?? ""}
@@ -156,6 +158,7 @@ export function LinesTable({
                 step="0.01"
                 value={l[field] ?? ""}
                 placeholder="—"
+                className="text-right tabular-nums"
                 onChange={(e) =>
                   update(i, field, e.target.value === "" ? 0 : Number(e.target.value))
                 }
@@ -165,6 +168,7 @@ export function LinesTable({
                 step="0.01"
                 value={l.margePct ?? defaultMargePct ?? ""}
                 placeholder="marge %"
+                className="text-right tabular-nums"
                 onChange={(e) =>
                   update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
                 }
