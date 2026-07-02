@@ -2,10 +2,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LinesTable, QuantitesRow } from "@/components/calc/Common";
+import { LinesTable, LinesGridTable, QuantitesRow } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Settings2 } from "lucide-react";
 import type { StandardInput, StandardParams } from "@/lib/calculs/standard";
+import type { Quantite } from "@/lib/calculs/types";
+import { syncLinesWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function StandardForm({
   value,
@@ -17,13 +19,20 @@ export function StandardForm({
   function setParams(p: Partial<StandardParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
+  function handleQuantitesChange(newQ: Quantite[]) {
+    onChange({
+      ...value,
+      quantites: newQ,
+      achatsPrincipaux: syncLinesWithQuantites(value.quantites, newQ, value.achatsPrincipaux),
+    });
+  }
   return (
     <div className="space-y-5">
       <Card className="p-4 calc-section emphasis">
         <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
         <QuantitesRow
           quantites={value.quantites}
-          onChange={(q) => onChange({ ...value, quantites: q })}
+          onChange={handleQuantitesChange}
           defaultMargePct={value.params.coef_marge_pct}
         />
       </Card>
@@ -32,15 +41,15 @@ export function StandardForm({
         <div>
           <SectionHeader
             title="Achats principaux"
-            subtitle="prix unitaire"
+            subtitle="grille de prix par quantité"
             tone="dark"
             icon={<ShoppingCart className="w-3.5 h-3.5" />}
           />
-          <LinesTable
+          <LinesGridTable
             title="Lignes"
             lines={value.achatsPrincipaux}
             onChange={(l) => onChange({ ...value, achatsPrincipaux: l })}
-            field="prixUnitaire"
+            quantites={value.quantites}
             defaultMargePct={value.params.coef_marge_pct}
           />
         </div>
