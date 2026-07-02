@@ -403,6 +403,27 @@ function DossierDetail() {
           payload={payload}
         />
       )}
+
+      <AlertDialog open={status === "blocked"}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quitter sans enregistrer ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez des modifications non enregistrées. Si vous quittez cette page maintenant,
+              elles seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => reset?.()}>Rester sur la page</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => proceed?.()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Quitter sans enregistrer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
