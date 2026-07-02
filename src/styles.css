@@ -144,6 +144,52 @@
   }
 }
 
+/* ============================================================
+ * Yeti Quote — helpers for calc sheets
+ * ============================================================ */
+
+/* Soft pulsing alert for critical margin warnings (< 20 %). */
+@keyframes yeti-soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 45%, transparent);
+    background-color: color-mix(in oklab, var(--destructive) 12%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--destructive) 0%, transparent);
+    background-color: color-mix(in oklab, var(--destructive) 22%, transparent);
+  }
+}
+.pulse-alert {
+  animation: yeti-soft-pulse 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-alert {
+    animation: none;
+    background-color: color-mix(in oklab, var(--destructive) 18%, transparent);
+  }
+}
+
+/* Airier rows for calc tables + subtle zebra striping */
+.calc-table .calc-row {
+  min-height: 44px;
+}
+.calc-table .calc-row:nth-child(even) {
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+.calc-table .calc-row:hover {
+  background: color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+/* Emphasis card border for important sections */
+.calc-section {
+  border-width: 1px;
+  border-color: var(--border);
+}
+.calc-section.emphasis {
+  border-top: 3px solid var(--primary);
+}
+
 /* Print-only vs screen-only helpers */
 .print-only {
   display: none;
