@@ -287,7 +287,7 @@ function DossierDetail() {
                 onClick={() => save()}
                 className={
                   isDirty
-                    ? "bg-[hsl(var(--yeti-orange))] text-white hover:bg-[hsl(var(--yeti-orange))]/90 shadow-lg ring-2 ring-[hsl(var(--yeti-orange))]/40 animate-pulse"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg ring-2 ring-primary/40 animate-pulse"
                     : ""
                 }
               >
