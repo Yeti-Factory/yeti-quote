@@ -31,12 +31,12 @@ export const STANDARD_DEFAULTS: StandardParams = {
 export function calculerStandard(input: StandardInput): CalcOutput {
   const { achatsPrincipaux, achatsAnnexes, params } = input;
   const quantites = normalizeQuantites(input.quantites);
-  const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + (Number(l.prixUnitaire) || 0), 0);
   const sumAnnexesGlobal = achatsAnnexes.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
 
-  const scenarios: QuantityResult[] = quantites.map((quant) => {
+  const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
+    const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + getPrixAchat(l, qi), 0);
     const annexesUnitTotal = Q > 0 ? sumAnnexesGlobal / Q : 0;
     const baseAchatUnit = sumPrincipaux + annexesUnitTotal;
 
@@ -56,7 +56,7 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     let pvUnit = 0;
     for (const l of achatsPrincipaux) {
       const m = resolveMargePct(l.margePct, mq, params.coef_marge_pct);
-      pvUnit += (Number(l.prixUnitaire) || 0) * (1 + m / 100);
+      pvUnit += getPrixAchat(l, qi) * (1 + m / 100);
     }
     for (const f of achatsAnnexes) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
