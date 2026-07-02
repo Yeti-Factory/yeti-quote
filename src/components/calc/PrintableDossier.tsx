@@ -1,5 +1,10 @@
 import { fmtEUR, fmtPct, fmtDate } from "@/lib/format";
-import { resolveMargePct, normalizeQuantites, type Quantite } from "@/lib/calculs/types";
+import {
+  resolveMargePct,
+  normalizeQuantites,
+  getPrixAchat,
+  type Quantite,
+} from "@/lib/calculs/types";
 import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
