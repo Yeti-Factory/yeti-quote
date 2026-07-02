@@ -69,12 +69,7 @@ export function InstallAppButton() {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full justify-start"
-        onClick={handleClick}
-      >
+      <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleClick}>
         <Download className="w-4 h-4 mr-2" />
         Installer l'application
       </Button>
