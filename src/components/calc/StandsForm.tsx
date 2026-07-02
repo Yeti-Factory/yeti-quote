@@ -40,7 +40,12 @@ export function StandsForm({
       {value.sections.map((sec, si) => {
         const groupe = out.extra.groupes[si];
         return (
-          <Card key={si} className="p-4">
+          <Card key={si} className="p-4 calc-section">
+            <SectionHeader
+              title={`Groupe ${si + 1}`}
+              tone="dark"
+              icon={<LayoutGrid className="w-3.5 h-3.5" />}
+            />
             <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_140px_auto] gap-3 items-center mb-3">
               <Input
                 value={sec.libelle}
