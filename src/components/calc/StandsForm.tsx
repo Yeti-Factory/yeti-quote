@@ -2,8 +2,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Layers, LayoutGrid, Sigma, Settings2 } from "lucide-react";
 import { QuantitesRow } from "@/components/calc/Common";
+import { SectionHeader } from "@/components/calc/SectionHeader";
 import { fmtEUR, fmtPct } from "@/lib/format";
 import type { StandsInput, StandsParams } from "@/lib/calculs/stands";
 import { calculerStands } from "@/lib/calculs/stands";
@@ -23,7 +24,8 @@ export function StandsForm({
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card className="p-4 calc-section emphasis">
+        <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
         <QuantitesRow
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
@@ -34,7 +36,12 @@ export function StandsForm({
       {value.sections.map((sec, si) => {
         const groupe = out.extra.groupes[si];
         return (
-          <Card key={si} className="p-4">
+          <Card key={si} className="p-4 calc-section">
+            <SectionHeader
+              title={`Groupe ${si + 1}`}
+              tone="dark"
+              icon={<LayoutGrid className="w-3.5 h-3.5" />}
+            />
             <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_140px_auto] gap-3 items-center mb-3">
               <Input
                 value={sec.libelle}
@@ -186,40 +193,40 @@ export function StandsForm({
         <Plus className="w-4 h-4 mr-1.5" /> Ajouter une section
       </Button>
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">Totaux stand</h3>
-        </div>
+      <Card className="p-4 calc-section emphasis">
+        <SectionHeader
+          title="Totaux stand"
+          tone="orange"
+          icon={<Sigma className="w-3.5 h-3.5" />}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-muted-foreground border-b">
+            <thead className="text-xs uppercase text-muted-foreground border-b-2">
               <tr>
-                <th className="text-left px-2 py-1.5">Groupe</th>
-                <th className="text-right px-2 py-1.5">Achat</th>
-                <th className="text-right px-2 py-1.5">Marge</th>
-                <th className="text-right px-2 py-1.5">Prix vente</th>
+                <th className="text-left px-3 py-2">Groupe</th>
+                <th className="text-right px-3 py-2">Achat</th>
+                <th className="text-right px-3 py-2">Marge</th>
+                <th className="text-right px-3 py-2">Prix vente</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {out.extra.groupes.map((g, i) => (
-                <tr key={i}>
-                  <td className="px-2 py-1.5">{g.libelle}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
-                    {fmtPct(g.margePct / 100)}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+                <tr key={i} className="hover:bg-accent/40">
+                  <td className="px-3 py-2">{g.libelle}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmtPct(g.margePct / 100)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">
                     {fmtEUR(g.pvTotal)}
                   </td>
                 </tr>
               ))}
-              <tr className="bg-primary/5 font-semibold">
-                <td className="px-2 py-2">Total stand</td>
-                <td className="px-2 py-2 text-right tabular-nums">
+              <tr className="bg-primary/10 font-semibold border-t-2 border-primary/40">
+                <td className="px-3 py-2.5">Total stand</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   {fmtEUR(out.extra.totalAchatGroupes)}
                 </td>
                 <td />
-                <td className="px-2 py-2 text-right tabular-nums">
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   {fmtEUR(out.extra.totalPvGroupes)}
                 </td>
               </tr>
@@ -228,42 +235,49 @@ export function StandsForm({
         </div>
       </Card>
 
-      <Card className="p-4 grid grid-cols-2 gap-4">
-        <div>
-          <Label>Coefficient de marge par défaut (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.coef_marge_pct}
-            onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Marge créa supplémentaire (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.marge_crea_pct}
-            onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Frais fixes (%)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.frais_fixes_pct}
-            onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label>Comm. rapporteur (% du PV)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={value.params.commission_rapporteur_pct}
-            onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
-          />
+      <Card className="p-4 calc-section">
+        <SectionHeader
+          title="Paramètres"
+          tone="muted"
+          icon={<Settings2 className="w-3.5 h-3.5" />}
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Coefficient de marge par défaut (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.coef_marge_pct}
+              onChange={(e) => setParams({ coef_marge_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Marge créa supplémentaire (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.marge_crea_pct}
+              onChange={(e) => setParams({ marge_crea_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Frais fixes (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.frais_fixes_pct}
+              onChange={(e) => setParams({ frais_fixes_pct: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Comm. rapporteur (% du PV)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={value.params.commission_rapporteur_pct}
+              onChange={(e) => setParams({ commission_rapporteur_pct: Number(e.target.value) })}
+            />
+          </div>
         </div>
       </Card>
     </div>

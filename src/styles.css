@@ -144,6 +144,52 @@
   }
 }
 
+/* ============================================================
+ * Yeti Quote — helpers for calc sheets
+ * ============================================================ */
+
+/* Soft pulsing alert for critical margin warnings (< 20 %). */
+@keyframes yeti-soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 45%, transparent);
+    background-color: color-mix(in oklab, var(--destructive) 12%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--destructive) 0%, transparent);
+    background-color: color-mix(in oklab, var(--destructive) 22%, transparent);
+  }
+}
+.pulse-alert {
+  animation: yeti-soft-pulse 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-alert {
+    animation: none;
+    background-color: color-mix(in oklab, var(--destructive) 18%, transparent);
+  }
+}
+
+/* Airier rows for calc tables + subtle zebra striping */
+.calc-table .calc-row {
+  min-height: 44px;
+}
+.calc-table .calc-row:nth-child(even) {
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+.calc-table .calc-row:hover {
+  background: color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+/* Emphasis card border for important sections */
+.calc-section {
+  border-width: 1px;
+  border-color: var(--border);
+}
+.calc-section.emphasis {
+  border-top: 3px solid var(--primary);
+}
+
 /* Print-only vs screen-only helpers */
 .print-only {
   display: none;
@@ -220,16 +266,25 @@
   }
   .print-sheet h2 {
     font-size: 11pt;
-    margin: 8pt 0 4pt;
-    border-bottom: 0.75pt solid #333;
-    padding-bottom: 2pt;
+    margin: 10pt 0 4pt;
+    padding: 3pt 6pt;
+    background: #1a1a1a !important;
+    color: #fff !important;
+    border-left: 3pt solid #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+  }
+  .print-sheet h2.orange {
+    background: #f59e0b !important;
+    color: #1a1a1a !important;
+    border-left-color: #1a1a1a;
   }
   .print-sheet .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 8pt;
-    border-bottom: 1pt solid #000;
+    border-bottom: 2pt solid #1a1a1a;
     padding-bottom: 6pt;
   }
   .print-sheet .header img {
@@ -245,6 +300,9 @@
     color: #b00;
     font-weight: 700;
     margin-top: 6pt;
+    padding: 4pt 6pt;
+    border: 1.5pt solid #b00;
+    background: #fee !important;
   }
   .print-sheet .params-grid {
     display: grid;

@@ -199,10 +199,11 @@ function ResultsTable({ output }: { output: any }) {
     { label: "Marge nette", key: "margeNet", fmt: fmtEUR, strong: true },
     { label: "% Marge", key: "margePct", fmt: fmtPct, strong: true },
   ];
+  const critical = scenarios.filter((s: any) => s.margePct < 0.2).length;
   const alert = scenarios.some((s: any) => s.alerteMarge);
   return (
     <section>
-      <h2>Résultats</h2>
+      <h2 className="orange">Résultats</h2>
       <table>
         <thead>
           <tr>
@@ -219,7 +220,15 @@ function ResultsTable({ output }: { output: any }) {
             <tr key={r.key} className={r.strong ? "total-row" : ""}>
               <td className={r.strong ? "strong" : ""}>{r.label}</td>
               {scenarios.map((s: any, i: number) => (
-                <td key={i} className="num">
+                <td
+                  key={i}
+                  className="num"
+                  style={
+                    (r.key === "margePct" || r.key === "margeNet") && s.margePct < 0.2
+                      ? { color: "#b00", fontWeight: 700 }
+                      : undefined
+                  }
+                >
                   {r.fmt ? r.fmt(s[r.key] as number) : (s[r.key] as number)}
                 </td>
               ))}
@@ -227,7 +236,13 @@ function ResultsTable({ output }: { output: any }) {
           ))}
         </tbody>
       </table>
-      {alert && (
+      {critical > 0 && (
+        <div className="alert">
+          ⚠ Attention : marge résiduelle inférieure à 20 % sur {critical} scénario
+          {critical > 1 ? "s" : ""}.
+        </div>
+      )}
+      {alert && critical === 0 && (
         <div className="alert">Attention : marge insuffisante sur au moins un scénario.</div>
       )}
     </section>
