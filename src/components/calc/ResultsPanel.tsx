@@ -100,9 +100,7 @@ function HeroMetrics({ scenarios }: { scenarios: QuantityResult[] }) {
               )}
             </div>
             <div>
-              <div className="text-[10px] uppercase text-muted-foreground">
-                Prix vente unitaire
-              </div>
+              <div className="text-[10px] uppercase text-muted-foreground">Prix vente unitaire</div>
               <div className="text-3xl font-bold tabular-nums leading-tight">
                 {fmtEUR(s.totalPrixUnitaire)}
                 <span className="text-sm font-medium text-muted-foreground"> / u</span>
