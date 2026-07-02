@@ -79,7 +79,7 @@ function HeroMetrics({ scenarios }: { scenarios: QuantityResult[] }) {
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
                 Qté {s.quantite.toLocaleString("fr-FR")}
               </span>
               {band === "ok" ? (
@@ -91,19 +91,31 @@ function HeroMetrics({ scenarios }: { scenarios: QuantityResult[] }) {
               )}
             </div>
             <div>
-              <div className="text-[10px] uppercase text-muted-foreground">Chiffre d'affaires</div>
-              <div className="text-lg font-bold tabular-nums">{fmtEUR(s.totalCA)}</div>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div>
-                <div className="text-[10px] uppercase text-muted-foreground">Marge nette</div>
-                <div className={cn("text-sm font-semibold tabular-nums", bandTextClass(band))}>
-                  {fmtEUR(s.margeNet)}
-                </div>
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Prix vente unitaire
               </div>
-              <div className={cn("text-2xl font-bold tabular-nums", bandTextClass(band))}>
+              <div className="text-3xl font-bold tabular-nums leading-tight">
+                {fmtEUR(s.totalPrixUnitaire)}
+                <span className="text-sm font-medium text-muted-foreground"> / u</span>
+              </div>
+            </div>
+            <div className="flex items-baseline justify-between pt-1 border-t border-border/50">
+              <div className="text-[11px] uppercase text-muted-foreground">Marge résiduelle</div>
+              <div className={cn("text-xl font-bold tabular-nums", bandTextClass(band))}>
                 {fmtPct(s.margePct)}
               </div>
+            </div>
+            <div className="flex items-baseline justify-between text-[11px]">
+              <span className="text-muted-foreground">Marge nette</span>
+              <span className={cn("font-semibold tabular-nums", bandTextClass(band))}>
+                {fmtEUR(s.margeNet)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between text-[11px]">
+              <span className="text-muted-foreground">CA total</span>
+              <span className="font-medium tabular-nums text-muted-foreground">
+                {fmtEUR(s.totalCA)}
+              </span>
             </div>
             {critical && (
               <div className="text-[10px] font-semibold text-destructive flex items-center gap-1 pt-1 border-t border-destructive/30">
