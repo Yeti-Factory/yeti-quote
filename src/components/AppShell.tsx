@@ -78,8 +78,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
         </nav>
-        <div className="px-3 py-3 border-t border-sidebar-border">
-          <div className="text-xs text-muted-foreground px-1 pb-2 truncate">{fullName}</div>
+        <div className="px-3 py-3 border-t border-sidebar-border space-y-1">
+          <InstallAppButton />
+          <div className="text-xs text-muted-foreground px-1 pt-1 pb-1 truncate">{fullName}</div>
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" /> Déconnexion
           </Button>
