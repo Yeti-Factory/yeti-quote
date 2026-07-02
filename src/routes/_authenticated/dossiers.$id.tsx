@@ -283,9 +283,16 @@ function DossierDetail() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              <Button onClick={() => save()}>
+              <Button
+                onClick={() => save()}
+                className={
+                  isDirty
+                    ? "bg-[hsl(var(--yeti-orange))] text-white hover:bg-[hsl(var(--yeti-orange))]/90 shadow-lg ring-2 ring-[hsl(var(--yeti-orange))]/40 animate-pulse"
+                    : ""
+                }
+              >
                 <Save className="w-4 h-4 mr-1.5" />
-                Enregistrer
+                {isDirty ? "Enregistrer *" : "Enregistrer"}
               </Button>
               {meta.statut !== "valide" && (
                 <Button variant="default" onClick={() => save("valide")}>
