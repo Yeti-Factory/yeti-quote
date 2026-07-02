@@ -10,10 +10,18 @@ const ROWS: {
   key: keyof QuantityResult;
   fmt?: (v: number) => string;
   emphasize?: boolean;
+  highlight?: boolean;
   group?: "cost" | "sale" | "margin";
 }[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR, group: "cost" },
-  { label: "Prix vente net unitaire", key: "prixVenteNetUnit", fmt: fmtEUR, group: "sale" },
+  {
+    label: "Prix vente net unitaire",
+    key: "prixVenteNetUnit",
+    fmt: fmtEUR,
+    emphasize: true,
+    highlight: true,
+    group: "sale",
+  },
   { label: "Achats total", key: "achatsTotal", fmt: fmtEUR, group: "cost" },
   { label: "Frais fixes", key: "fraisFixes", fmt: fmtEUR, group: "cost" },
   { label: "Comm. sourcing /u", key: "commissionSourcingUnit", fmt: fmtEUR, group: "cost" },
@@ -29,9 +37,10 @@ const ROWS: {
     key: "totalPrixUnitaire",
     fmt: fmtEUR,
     emphasize: true,
+    highlight: true,
     group: "sale",
   },
-  { label: "Total CA", key: "totalCA", fmt: fmtEUR, emphasize: true, group: "sale" },
+  { label: "Total CA", key: "totalCA", fmt: fmtEUR, group: "sale" },
   { label: "Total dépenses", key: "totalDepenses", fmt: fmtEUR, group: "cost" },
   { label: "Marge nette", key: "margeNet", fmt: fmtEUR, emphasize: true, group: "margin" },
   { label: "% Marge", key: "margePct", fmt: fmtPct, emphasize: true, group: "margin" },
@@ -79,7 +88,7 @@ function HeroMetrics({ scenarios }: { scenarios: QuantityResult[] }) {
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
                 Qté {s.quantite.toLocaleString("fr-FR")}
               </span>
               {band === "ok" ? (
@@ -91,19 +100,31 @@ function HeroMetrics({ scenarios }: { scenarios: QuantityResult[] }) {
               )}
             </div>
             <div>
-              <div className="text-[10px] uppercase text-muted-foreground">Chiffre d'affaires</div>
-              <div className="text-lg font-bold tabular-nums">{fmtEUR(s.totalCA)}</div>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div>
-                <div className="text-[10px] uppercase text-muted-foreground">Marge nette</div>
-                <div className={cn("text-sm font-semibold tabular-nums", bandTextClass(band))}>
-                  {fmtEUR(s.margeNet)}
-                </div>
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Prix vente unitaire
               </div>
-              <div className={cn("text-2xl font-bold tabular-nums", bandTextClass(band))}>
+              <div className="text-3xl font-bold tabular-nums leading-tight">
+                {fmtEUR(s.totalPrixUnitaire)}
+                <span className="text-sm font-medium text-muted-foreground"> / u</span>
+              </div>
+            </div>
+            <div className="flex items-baseline justify-between pt-1 border-t border-border/50">
+              <div className="text-[11px] uppercase text-muted-foreground">Marge résiduelle</div>
+              <div className={cn("text-xl font-bold tabular-nums", bandTextClass(band))}>
                 {fmtPct(s.margePct)}
               </div>
+            </div>
+            <div className="flex items-baseline justify-between text-[11px]">
+              <span className="text-muted-foreground">Marge nette</span>
+              <span className={cn("font-semibold tabular-nums", bandTextClass(band))}>
+                {fmtEUR(s.margeNet)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between text-[11px]">
+              <span className="text-muted-foreground">CA total</span>
+              <span className="font-medium tabular-nums text-muted-foreground">
+                {fmtEUR(s.totalCA)}
+              </span>
             </div>
             {critical && (
               <div className="text-[10px] font-semibold text-destructive flex items-center gap-1 pt-1 border-t border-destructive/30">
@@ -162,10 +183,11 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                     "border-b",
                     groupChanged && "border-t-2 border-t-border/80",
                     r.emphasize && "bg-primary/5 font-semibold",
+                    r.highlight && "bg-primary/15 text-primary",
                     r.key === "margePct" && "border-t-2 border-t-primary/40 bg-primary/10",
                   )}
                 >
-                  <td className="px-3 py-2">{r.label}</td>
+                  <td className={cn("px-3 py-2", r.highlight && "font-bold")}>{r.label}</td>
                   {scenarios.map((s, i) => {
                     const v = s[r.key] as number;
                     const band = marginBand(s.margePct);
@@ -176,6 +198,7 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                         className={cn(
                           "px-3 py-2 text-right tabular-nums",
                           r.emphasize && "font-semibold",
+                          r.highlight && "font-bold text-base",
                           isMarginRow && bandTextClass(band),
                         )}
                       >
