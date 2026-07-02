@@ -214,15 +214,33 @@ function ParamsBlock({ entries }: { entries: [string, string][] }) {
 function ResultsTable({ output }: { output: any }) {
   const scenarios = (output?.scenarios ?? []).filter((s: any) => s.quantite > 0);
   if (scenarios.length === 0) return null;
-  const rows: { label: string; key: string; fmt?: (v: number) => string; strong?: boolean }[] = [
+  const rows: {
+    label: string;
+    key: string;
+    fmt?: (v: number) => string;
+    strong?: boolean;
+    highlight?: boolean;
+  }[] = [
     { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR },
-    { label: "Prix vente net unitaire", key: "prixVenteNetUnit", fmt: fmtEUR },
+    {
+      label: "Prix vente net unitaire",
+      key: "prixVenteNetUnit",
+      fmt: fmtEUR,
+      strong: true,
+      highlight: true,
+    },
     { label: "Achats total", key: "achatsTotal", fmt: fmtEUR },
     { label: "Frais fixes", key: "fraisFixes", fmt: fmtEUR },
     { label: "Comm. sourcing /u", key: "commissionSourcingUnit", fmt: fmtEUR },
     { label: "Comm. rapporteur /u", key: "commissionRapporteurUnit", fmt: fmtEUR },
     { label: "Comm. rapporteur total", key: "commissionRapporteurTotal", fmt: fmtEUR },
-    { label: "Total prix unitaire", key: "totalPrixUnitaire", fmt: fmtEUR, strong: true },
+    {
+      label: "Total prix unitaire",
+      key: "totalPrixUnitaire",
+      fmt: fmtEUR,
+      strong: true,
+      highlight: true,
+    },
     { label: "Total CA", key: "totalCA", fmt: fmtEUR, strong: true },
     { label: "Total dépenses", key: "totalDepenses", fmt: fmtEUR },
     { label: "Marge nette", key: "margeNet", fmt: fmtEUR, strong: true },
@@ -232,7 +250,49 @@ function ResultsTable({ output }: { output: any }) {
   const alert = scenarios.some((s: any) => s.alerteMarge);
   return (
     <section>
-      <h2 className="orange">Résultats</h2>
+      <h2 className="orange">Résultats — Synthèse prix de vente</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Quantité</th>
+            <th className="num">Prix vente unitaire</th>
+            <th className="num">Marge résiduelle</th>
+            <th className="num">Marge nette</th>
+            <th className="num">CA total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scenarios.map((s: any, i: number) => {
+            const isCritical = s.margePct < 0.2;
+            return (
+              <tr key={i} className="total-row">
+                <td className="strong">Qté {s.quantite.toLocaleString("fr-FR")}</td>
+                <td
+                  className="num strong"
+                  style={{ fontSize: "13pt", color: "#E65100" }}
+                >
+                  {fmtEUR(s.totalPrixUnitaire)} / u
+                </td>
+                <td
+                  className="num strong"
+                  style={isCritical ? { color: "#b00", fontWeight: 700 } : undefined}
+                >
+                  {fmtPct(s.margePct)}
+                </td>
+                <td
+                  className="num"
+                  style={isCritical ? { color: "#b00", fontWeight: 700 } : undefined}
+                >
+                  {fmtEUR(s.margeNet)}
+                </td>
+                <td className="num">{fmtEUR(s.totalCA)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <h2 style={{ marginTop: "8pt" }}>Détail des indicateurs</h2>
       <table>
         <thead>
           <tr>
@@ -246,16 +306,22 @@ function ResultsTable({ output }: { output: any }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.key} className={r.strong ? "total-row" : ""}>
+            <tr
+              key={r.key}
+              className={r.strong ? "total-row" : ""}
+              style={r.highlight ? { background: "#FFF3E0" } : undefined}
+            >
               <td className={r.strong ? "strong" : ""}>{r.label}</td>
               {scenarios.map((s: any, i: number) => (
                 <td
                   key={i}
                   className="num"
                   style={
-                    (r.key === "margePct" || r.key === "margeNet") && s.margePct < 0.2
-                      ? { color: "#b00", fontWeight: 700 }
-                      : undefined
+                    r.highlight
+                      ? { color: "#E65100", fontWeight: 700 }
+                      : (r.key === "margePct" || r.key === "margeNet") && s.margePct < 0.2
+                        ? { color: "#b00", fontWeight: 700 }
+                        : undefined
                   }
                 >
                   {r.fmt ? r.fmt(s[r.key] as number) : (s[r.key] as number)}
