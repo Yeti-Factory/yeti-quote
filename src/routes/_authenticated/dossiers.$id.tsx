@@ -242,6 +242,25 @@ function DossierDetail() {
   return (
     <>
       <div className="screen-only">
+        {isDirty && (
+          <div className="sticky top-0 z-40 mb-3 rounded-md border-2 border-primary bg-primary/10 px-4 py-3 shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-primary">Modifications non enregistrées</p>
+                <p className="text-sm text-foreground/80">
+                  Cliquez sur Enregistrer avant de quitter cette page.
+                </p>
+              </div>
+              <Button
+                onClick={() => save()}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Save className="w-4 h-4 mr-1.5" />
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
         <Link
           to="/dossiers"
           className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
