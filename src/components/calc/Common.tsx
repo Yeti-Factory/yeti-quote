@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
 import type { Quantite, LineItem, LineForfait } from "@/lib/calculs/types";
+import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
  * Dynamic quantity columns with a per-quantity margin (%).
