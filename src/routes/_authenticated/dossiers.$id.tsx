@@ -123,22 +123,56 @@ function DossierDetail() {
     statut: "brouillon" as "brouillon" | "valide" | "archive",
   });
   const [payload, setPayload] = useState<any>(null);
+  const initialSnapshotRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!dossier) return;
-    setMeta({
+    const nextMeta = {
       reference: dossier.reference,
       objet: dossier.objet,
       onedrive_note: dossier.onedrive_note ?? "",
       statut: dossier.statut,
-    });
+    };
+    setMeta(nextMeta);
     const hasPayload = dossier.payload && Object.keys(dossier.payload).length > 0;
+    let nextPayload: any = null;
     if (hasPayload) {
-      setPayload(dossier.payload);
+      nextPayload = dossier.payload;
     } else if (defaults) {
-      setPayload(defaultPayload(dossier.type, defaults[dossier.type]));
+      nextPayload = defaultPayload(dossier.type, defaults[dossier.type]);
+    }
+    if (nextPayload) {
+      setPayload(nextPayload);
+      initialSnapshotRef.current = JSON.stringify({ meta: nextMeta, payload: nextPayload });
     }
   }, [dossier, defaults]);
+
+  const currentSnapshot = useMemo(
+    () => (payload ? JSON.stringify({ meta, payload }) : null),
+    [meta, payload],
+  );
+  const isDirty =
+    currentSnapshot !== null &&
+    initialSnapshotRef.current !== null &&
+    currentSnapshot !== initialSnapshotRef.current;
+
+  // Warn on tab close / refresh
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Block internal navigation
+  const { proceed, reset, status } = useBlocker({
+    shouldBlockFn: () => isDirty,
+    withResolver: true,
+    enableBeforeUnload: false,
+  });
 
   const output = useMemo(() => {
     if (!dossier || !payload) return null;
