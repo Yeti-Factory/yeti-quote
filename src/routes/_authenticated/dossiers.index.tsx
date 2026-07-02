@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
 
@@ -26,6 +39,9 @@ function DossiersList() {
   const [q, setQ] = useState("");
   const [type, setType] = useState<string>("all");
   const [statut, setStatut] = useState<string>("all");
+  const { user } = useAuth();
+  const { isAdmin } = useIsAdmin(user?.id);
+  const qc = useQueryClient();
 
   const { data: dossiers } = useQuery({
     queryKey: ["dossiers", q, type, statut],
@@ -43,6 +59,16 @@ function DossiersList() {
       return data ?? [];
     },
   });
+
+  async function deleteDossier(id: string) {
+    const { error } = await supabase.from("dossiers").delete().eq("id", id);
+    if (error) {
+      toast.error(`Suppression impossible : ${error.message}`);
+      return;
+    }
+    toast.success("Dossier supprimé");
+    qc.invalidateQueries({ queryKey: ["dossiers"] });
+  }
 
   return (
     <div>
@@ -97,28 +123,61 @@ function DossiersList() {
             </div>
           )}
           {(dossiers ?? []).map((d: any) => (
-            <Link
-              key={d.id}
-              to="/dossiers/$id"
-              params={{ id: d.id }}
-              className="flex items-center px-5 py-3 hover:bg-muted/40"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">{d.objet || "(Sans objet)"}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {d.reference} · {d.clients?.entreprise ?? "—"}
+            <div key={d.id} className="flex items-center px-5 py-3 hover:bg-muted/40 group">
+              <Link
+                to="/dossiers/$id"
+                params={{ id: d.id }}
+                className="flex items-center flex-1 min-w-0 gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{d.objet || "(Sans objet)"}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {d.reference} · {d.clients?.entreprise ?? "—"}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="capitalize">
-                  {d.type}
-                </Badge>
-                <StatusBadge statut={d.statut} />
-                <span className="text-xs text-muted-foreground w-24 text-right">
-                  {fmtDate(d.updated_at)}
-                </span>
-              </div>
-            </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="outline" className="capitalize">
+                    {d.type}
+                  </Badge>
+                  <StatusBadge statut={d.statut} />
+                  <span className="text-xs text-muted-foreground w-24 text-right">
+                    {fmtDate(d.updated_at)}
+                  </span>
+                </div>
+              </Link>
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Supprimer le dossier"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Supprimer définitivement ce dossier ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action est irréversible. Le client associé n'est pas supprimé.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteDossier(d.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           ))}
         </div>
       </Card>
