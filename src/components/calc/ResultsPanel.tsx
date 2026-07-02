@@ -10,10 +10,18 @@ const ROWS: {
   key: keyof QuantityResult;
   fmt?: (v: number) => string;
   emphasize?: boolean;
+  highlight?: boolean;
   group?: "cost" | "sale" | "margin";
 }[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR, group: "cost" },
-  { label: "Prix vente net unitaire", key: "prixVenteNetUnit", fmt: fmtEUR, group: "sale" },
+  {
+    label: "Prix vente net unitaire",
+    key: "prixVenteNetUnit",
+    fmt: fmtEUR,
+    emphasize: true,
+    highlight: true,
+    group: "sale",
+  },
   { label: "Achats total", key: "achatsTotal", fmt: fmtEUR, group: "cost" },
   { label: "Frais fixes", key: "fraisFixes", fmt: fmtEUR, group: "cost" },
   { label: "Comm. sourcing /u", key: "commissionSourcingUnit", fmt: fmtEUR, group: "cost" },
@@ -29,9 +37,10 @@ const ROWS: {
     key: "totalPrixUnitaire",
     fmt: fmtEUR,
     emphasize: true,
+    highlight: true,
     group: "sale",
   },
-  { label: "Total CA", key: "totalCA", fmt: fmtEUR, emphasize: true, group: "sale" },
+  { label: "Total CA", key: "totalCA", fmt: fmtEUR, group: "sale" },
   { label: "Total dépenses", key: "totalDepenses", fmt: fmtEUR, group: "cost" },
   { label: "Marge nette", key: "margeNet", fmt: fmtEUR, emphasize: true, group: "margin" },
   { label: "% Marge", key: "margePct", fmt: fmtPct, emphasize: true, group: "margin" },
