@@ -235,8 +235,10 @@ function DossierDetail() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer ce dossier ?</AlertDialogTitle>
-                      <AlertDialogDescription>Action irréversible.</AlertDialogDescription>
+                      <AlertDialogTitle>Supprimer définitivement ce dossier ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action est irréversible. Le client associé n'est pas supprimé.
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
