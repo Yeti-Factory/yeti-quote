@@ -197,40 +197,42 @@ export function StandsForm({
         <Plus className="w-4 h-4 mr-1.5" /> Ajouter une section
       </Button>
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">Totaux stand</h3>
-        </div>
+      <Card className="p-4 calc-section emphasis">
+        <SectionHeader
+          title="Totaux stand"
+          tone="orange"
+          icon={<Sigma className="w-3.5 h-3.5" />}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-muted-foreground border-b">
+            <thead className="text-xs uppercase text-muted-foreground border-b-2">
               <tr>
-                <th className="text-left px-2 py-1.5">Groupe</th>
-                <th className="text-right px-2 py-1.5">Achat</th>
-                <th className="text-right px-2 py-1.5">Marge</th>
-                <th className="text-right px-2 py-1.5">Prix vente</th>
+                <th className="text-left px-3 py-2">Groupe</th>
+                <th className="text-right px-3 py-2">Achat</th>
+                <th className="text-right px-3 py-2">Marge</th>
+                <th className="text-right px-3 py-2">Prix vente</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {out.extra.groupes.map((g, i) => (
-                <tr key={i}>
-                  <td className="px-2 py-1.5">{g.libelle}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
+                <tr key={i} className="hover:bg-accent/40">
+                  <td className="px-3 py-2">{g.libelle}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmtEUR(g.achatTotal)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {fmtPct(g.margePct / 100)}
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">
                     {fmtEUR(g.pvTotal)}
                   </td>
                 </tr>
               ))}
-              <tr className="bg-primary/5 font-semibold">
-                <td className="px-2 py-2">Total stand</td>
-                <td className="px-2 py-2 text-right tabular-nums">
+              <tr className="bg-primary/10 font-semibold border-t-2 border-primary/40">
+                <td className="px-3 py-2.5">Total stand</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   {fmtEUR(out.extra.totalAchatGroupes)}
                 </td>
                 <td />
-                <td className="px-2 py-2 text-right tabular-nums">
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   {fmtEUR(out.extra.totalPvGroupes)}
                 </td>
               </tr>
@@ -239,7 +241,13 @@ export function StandsForm({
         </div>
       </Card>
 
-      <Card className="p-4 grid grid-cols-2 gap-4">
+      <Card className="p-4 calc-section">
+        <SectionHeader
+          title="Paramètres"
+          tone="muted"
+          icon={<Settings2 className="w-3.5 h-3.5" />}
+        />
+        <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Coefficient de marge par défaut (%)</Label>
           <Input
