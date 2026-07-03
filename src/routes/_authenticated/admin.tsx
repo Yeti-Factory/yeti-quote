@@ -192,7 +192,11 @@ function UsersPanel() {
                   <td className="px-4 py-2 text-right">
                     <div className="inline-flex gap-2">
                       <InviteButton userId={u.id} email={u.email} />
-                      <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => toggleAdmin(u.id, isAdmin)}
+                      >
                         {isAdmin ? "Retirer admin" : "Promouvoir admin"}
                       </Button>
                     </div>

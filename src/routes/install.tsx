@@ -68,9 +68,7 @@ function InstallPage() {
     await deferred.prompt();
     const choice = await deferred.userChoice;
     setDeferred(null);
-    setStatus(
-      choice.outcome === "accepted" ? "Installation lancée…" : "Installation annulée.",
-    );
+    setStatus(choice.outcome === "accepted" ? "Installation lancée…" : "Installation annulée.");
   }
 
   const ios = mounted && isIos();
@@ -85,8 +83,8 @@ function InstallPage() {
         <div className="rounded-2xl border border-white/10 bg-neutral-950 p-8 shadow-2xl">
           <h1 className="text-2xl font-bold text-center">Installer Yeti Quote</h1>
           <p className="mt-3 text-sm text-neutral-300 text-center leading-relaxed">
-            Installez l'application sur votre ordinateur ou mobile pour y accéder rapidement,
-            comme une application native.
+            Installez l'application sur votre ordinateur ou mobile pour y accéder rapidement, comme
+            une application native.
           </p>
 
           {installed ? (
@@ -102,7 +100,11 @@ function InstallPage() {
                 <Download className="w-5 h-5 mr-2" />
                 Installer l'application
               </Button>
-              <Button asChild variant="outline" className="w-full h-11 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
+              <Button
+                asChild
+                variant="outline"
+                className="w-full h-11 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
                 <Link to="/">
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Ouvrir Yeti Quote
@@ -111,9 +113,7 @@ function InstallPage() {
             </div>
           )}
 
-          {status && (
-            <p className="mt-4 text-center text-xs text-neutral-400">{status}</p>
-          )}
+          {status && <p className="mt-4 text-center text-xs text-neutral-400">{status}</p>}
 
           <div className="mt-8 border-t border-white/10 pt-6 space-y-4 text-sm text-neutral-300">
             <h2 className="font-semibold text-white">Instructions manuelles</h2>
@@ -142,9 +142,7 @@ function InstallPage() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-neutral-500">
-          Yeti Factory — Yeti Quote
-        </p>
+        <p className="mt-6 text-center text-xs text-neutral-500">Yeti Factory — Yeti Quote</p>
       </div>
     </div>
   );
