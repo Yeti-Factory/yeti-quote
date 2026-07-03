@@ -78,8 +78,9 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     const tpHasMargin = tp.margePct !== null && tp.margePct !== undefined;
     const mTP = tpHasMargin ? Number(tp.margePct) : 0;
     pvUnit += tpUnit * (1 + mTP / 100);
-    // Sourcing commission → billed at cost (no margin).
-    pvUnit += commSourcingUnit;
+    // Sourcing commission → marge par défaut (quantité > défaut) — comportement historique.
+    const mSourcing = resolveMargePct(null, mq, params.coef_marge_pct);
+    pvUnit += commSourcingUnit * (1 + mSourcing / 100);
 
     const prixVenteNetUnit = pvUnit;
     const achatsTotal = prixUnitaireAchat * Q;
