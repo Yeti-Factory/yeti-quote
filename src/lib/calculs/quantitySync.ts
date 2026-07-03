@@ -1,5 +1,5 @@
-import type { LineItem, Quantite } from "@/lib/calculs/types";
-import { reshapePrixParQuantite } from "@/lib/calculs/types";
+import type { LineItem, Quantite, TransportPackaging } from "@/lib/calculs/types";
+import { reshapePrixParQuantite, normalizeTransportPackaging } from "@/lib/calculs/types";
 
 /**
  * Sync each line's `prixParQuantite` when the quantities array changes.
