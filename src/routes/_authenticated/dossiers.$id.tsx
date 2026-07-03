@@ -176,7 +176,8 @@ function DossierDetail() {
           let unit = 0;
           for (const l of nextPayload.achatsAutres) {
             const perQ = Array.isArray(l?.prixParQuantite) ? Number(l.prixParQuantite[i]) : NaN;
-            unit += Number.isFinite(perQ) && perQ > 0 ? perQ : Number(l?.prixAchat) || 0;
+            const fallback = Number(l?.prixAchat) || Number(l?.prixUnitaire) || 0;
+            unit += Number.isFinite(perQ) && perQ > 0 ? perQ : fallback;
           }
           if (unit > 0) {
             hasLegacy = true;
