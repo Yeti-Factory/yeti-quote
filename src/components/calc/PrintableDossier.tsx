@@ -549,28 +549,30 @@ function ContraPrint({ payload }: { payload: ContraInput }) {
     <>
       <QuantitesTable quantites={payload.quantites} defaultMargePct={p.coef_contra_pct} />
       <LineTable
-        title="Achats CHEZ CONTRA"
+        title="Achats CHEZ CONTRA (prix brut transmis)"
         lines={payload.achatsContra}
         field="prixUnitaire"
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
       <LineTable
-        title="Forfaits Contra"
+        title="Forfaits Contra (montants bruts)"
         lines={payload.forfaitsContra}
         field="montantGlobal"
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
-        defaultMargePct={p.coef_autres_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
+      <BonCommandeContraTable output={output} coefPct={p.coef_contra_pct} />
       <ParamsBlock
         entries={[
-          ["Coef. Contra", `${p.coef_contra_pct} %`],
-          ["Coef. Autres", `${p.coef_autres_pct} %`],
+          ["Coef. Contra (markup Contra + cible Yeti)", `${p.coef_contra_pct} %`],
           ["Frais fixes", `${p.frais_fixes_pct} %`],
           ["Commission sourcing", p.commission_sourcing ? "Oui" : "Non"],
           ["Sourcing %", `${p.commission_sourcing_pct} %`],
