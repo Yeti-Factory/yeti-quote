@@ -12,9 +12,7 @@ const isLovablePreview =
   hostname.endsWith(".beta.lovable.dev");
 
 function isWorkboxCacheForThisRegistration(name) {
-  const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(
-    name,
-  );
+  const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
   return hasWorkboxBucket && name.endsWith(self.registration.scope);
 }
 
