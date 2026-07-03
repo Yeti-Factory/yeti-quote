@@ -250,7 +250,7 @@ function TransportPackagingTable({
   );
 }
 
-
+function ParamsBlock({ entries }: { entries: [string, string][] }) {
   return (
     <section>
       <h2>Paramètres utilisés</h2>
