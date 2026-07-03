@@ -123,7 +123,7 @@ Installer : ${installUrl}
       throw new Error(`Envoi email échoué (${res.status}): ${body.slice(0, 200)}`);
     }
 
-    return { ok: true, email: profile.email };
+    return { ok: true, email: profile.email, installUrl };
   });
 
 function escapeHtml(s: string) {
