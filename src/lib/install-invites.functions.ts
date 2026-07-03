@@ -53,10 +53,6 @@ export const sendInstallInviteFn = createServerFn({ method: "POST" })
       );
     }
 
-        "Configuration email manquante. Renseigner RESEND_API_KEY, EMAIL_FROM et APP_PUBLIC_URL.",
-      );
-    }
-
     // Fetch target user email
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error: profileErr } = await supabaseAdmin
