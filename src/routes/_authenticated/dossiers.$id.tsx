@@ -141,10 +141,61 @@ function DossierDetail() {
     } else if (defaults) {
       nextPayload = defaultPayload(dossier.type, defaults[dossier.type]);
     }
-    // Legacy → new: ensure transportPackaging exists for Standard/Contra dossiers.
+    // Legacy → new: migrate achatsAnnexes (Standard) / achatsAutres (Contra)
+    // into transportPackaging. We keep the legacy arrays in the payload so a
+    // banner can be shown until the user re-saves the dossier.
+    let legacyMigrated = false;
     if (nextPayload && (dossier.type === "standard" || dossier.type === "contra")) {
-      const qCount = Array.isArray(nextPayload.quantites) ? nextPayload.quantites.length : 0;
-      if (!nextPayload.transportPackaging) {
+      const qArr: Array<{ qty: number }> = Array.isArray(nextPayload.quantites)
+        ? nextPayload.quantites
+        : [];
+      const qCount = qArr.length;
+      const existingTP = nextPayload.transportPackaging;
+      const tpEmpty =
+        !existingTP ||
+        !Array.isArray(existingTP.montantsGlobaux) ||
+        existingTP.montantsGlobaux.every((v: any) => !Number(v));
+
+      // Per-quantity global amount to inject into T/P.
+      const montants = Array.from({ length: qCount }, () => 0);
+      let hasLegacy = false;
+
+      if (dossier.type === "standard" && Array.isArray(nextPayload.achatsAnnexes)) {
+        const sumForfait = nextPayload.achatsAnnexes.reduce(
+          (s: number, l: any) => s + (Number(l?.montantGlobal) || 0),
+          0,
+        );
+        if (sumForfait > 0) {
+          hasLegacy = true;
+          for (let i = 0; i < qCount; i++) montants[i] += sumForfait;
+        }
+      }
+      if (dossier.type === "contra" && Array.isArray(nextPayload.achatsAutres)) {
+        for (let i = 0; i < qCount; i++) {
+          const Q = Number(qArr[i]?.qty) || 0;
+          let unit = 0;
+          for (const l of nextPayload.achatsAutres) {
+            const perQ = Array.isArray(l?.prixParQuantite) ? Number(l.prixParQuantite[i]) : NaN;
+            unit += Number.isFinite(perQ) && perQ > 0 ? perQ : Number(l?.prixAchat) || 0;
+          }
+          if (unit > 0) {
+            hasLegacy = true;
+            montants[i] += unit * Q;
+          }
+        }
+      }
+
+      if (hasLegacy && tpEmpty) {
+        nextPayload = {
+          ...nextPayload,
+          transportPackaging: {
+            montantsGlobaux: montants,
+            margePct: existingTP?.margePct ?? null,
+          },
+          _legacyMigrated: true,
+        };
+        legacyMigrated = true;
+      } else if (!existingTP) {
         nextPayload = {
           ...nextPayload,
           transportPackaging: {
@@ -152,6 +203,14 @@ function DossierDetail() {
             margePct: null,
           },
         };
+      }
+      // If T/P already had data AND legacy arrays still exist non-empty, warn.
+      if (
+        !legacyMigrated &&
+        ((Array.isArray(nextPayload.achatsAnnexes) && nextPayload.achatsAnnexes.length > 0) ||
+          (Array.isArray(nextPayload.achatsAutres) && nextPayload.achatsAutres.length > 0))
+      ) {
+        nextPayload = { ...nextPayload, _legacyRemnants: true };
       }
     }
     if (nextPayload) {
