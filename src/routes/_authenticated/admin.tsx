@@ -255,6 +255,7 @@ function InviteButton({ userId, email }: { userId: string; email: string }) {
   );
 }
 
+function CreateUserForm() {
   const qc = useQueryClient();
   const createUser = useServerFn(createUserFn);
   const [fullName, setFullName] = useState("Anne Bousseau");
