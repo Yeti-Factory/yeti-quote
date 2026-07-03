@@ -2,8 +2,10 @@ import { fmtEUR, fmtPct, fmtDate } from "@/lib/format";
 import {
   resolveMargePct,
   normalizeQuantites,
+  normalizeTransportPackaging,
   getPrixAchat,
   type Quantite,
+  type TransportPackaging,
 } from "@/lib/calculs/types";
 import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
