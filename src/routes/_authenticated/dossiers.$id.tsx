@@ -141,6 +141,19 @@ function DossierDetail() {
     } else if (defaults) {
       nextPayload = defaultPayload(dossier.type, defaults[dossier.type]);
     }
+    // Legacy → new: ensure transportPackaging exists for Standard/Contra dossiers.
+    if (nextPayload && (dossier.type === "standard" || dossier.type === "contra")) {
+      const qCount = Array.isArray(nextPayload.quantites) ? nextPayload.quantites.length : 0;
+      if (!nextPayload.transportPackaging) {
+        nextPayload = {
+          ...nextPayload,
+          transportPackaging: {
+            montantsGlobaux: Array.from({ length: qCount }, () => 0),
+            margePct: null,
+          },
+        };
+      }
+    }
     if (nextPayload) {
       setPayload(nextPayload);
       initialSnapshotRef.current = JSON.stringify({ meta: nextMeta, payload: nextPayload });
