@@ -449,11 +449,9 @@ function ContraPrint({ payload }: { payload: ContraInput }) {
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
       />
-      <LineTable
-        title="Achats autres fournisseurs"
-        lines={payload.achatsAutres}
-        field="prixUnitaire"
+      <TransportPackagingTable
         quantites={payload.quantites}
+        transportPackaging={payload.transportPackaging}
         defaultMargePct={p.coef_autres_pct}
       />
       <ParamsBlock
