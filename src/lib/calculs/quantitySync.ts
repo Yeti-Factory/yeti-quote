@@ -36,3 +36,30 @@ export function syncLinesWithQuantites<T extends LineItem>(
   }
   return lines;
 }
+
+/**
+ * Resize the Transport/Packaging `montantsGlobaux` array to match a new
+ * quantities layout while preserving values by column index.
+ */
+export function syncTransportWithQuantites(
+  oldQ: Quantite[],
+  newQ: Quantite[],
+  tp: TransportPackaging | undefined,
+): TransportPackaging {
+  const normalized = normalizeTransportPackaging(tp, oldQ.length);
+  const arr = [...normalized.montantsGlobaux];
+  if (newQ.length > oldQ.length) {
+    while (arr.length < newQ.length) arr.push(0);
+  } else if (newQ.length < oldQ.length) {
+    let removed = oldQ.length - 1;
+    for (let i = 0; i < newQ.length; i++) {
+      if (oldQ[i] !== newQ[i]) {
+        removed = i;
+        break;
+      }
+    }
+    arr.splice(removed, 1);
+  }
+  arr.length = newQ.length;
+  return { ...normalized, montantsGlobaux: arr };
+}
