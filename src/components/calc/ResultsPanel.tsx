@@ -214,33 +214,94 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                 </tr>
               );
             })}
-            {scenarios.some((s) => s.margeContra !== undefined) && (
+            {scenarios.some((s) => s.contraPrixFactureUnit !== undefined) && (
               <>
                 <tr className="border-b bg-muted">
                   <td
                     className="px-3 py-2 text-[11px] uppercase font-semibold tracking-wider text-muted-foreground"
                     colSpan={scenarios.length + 1}
                   >
-                    Détail Contra
+                    Bon de commande Contra
                   </td>
                 </tr>
                 <tr className="border-b">
-                  <td className="px-3 py-2">Marge Contra</td>
+                  <td className="px-3 py-2">Coefficient Contra</td>
                   {scenarios.map((s, i) => (
                     <td key={i} className="px-3 py-2 text-right tabular-nums">
-                      {fmtEUR(s.margeContra!)}
+                      {(s.contraCoefPct ?? 0).toLocaleString("fr-FR", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      %
                     </td>
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="px-3 py-2">% Marge Contra</td>
+                  <td className="px-3 py-2">Prix achat brut Contra /u</td>
                   {scenarios.map((s, i) => (
                     <td key={i} className="px-3 py-2 text-right tabular-nums">
-                      {fmtPct(s.margeContraPct!)}
+                      {fmtEUR(s.contraAchatBrutUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b">
+                  <td className="px-3 py-2">Forfaits Contra /u</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.contraForfaitUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b">
+                  <td className="px-3 py-2">Transport / Packaging /u</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.contraTransportUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b">
+                  <td className="px-3 py-2 font-medium">Base unitaire avant marge Contra</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums font-medium">
+                      {fmtEUR(s.contraBaseUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b bg-primary/10">
+                  <td className="px-3 py-2 font-bold">Prix facturé Contra /u</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums font-bold">
+                      {fmtEUR(s.contraPrixFactureUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b bg-primary/10">
+                  <td className="px-3 py-2 font-bold">Total commande Contra</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums font-bold">
+                      {fmtEUR(s.contraPrixFactureGlobal ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b">
+                  <td className="px-3 py-2">Marge Contra encaissée</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.margeContra ?? 0)}
                     </td>
                   ))}
                 </tr>
               </>
+            )}
+            {scenarios.some((s) => s.transportPackagingSansMarge) && (
+              <tr className="border-b">
+                <td
+                  className="px-3 py-2 text-[11px] italic text-muted-foreground"
+                  colSpan={scenarios.length + 1}
+                >
+                  Transport / Packaging refacturé <strong>sans marge</strong> (au coût).
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

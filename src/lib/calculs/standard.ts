@@ -73,12 +73,13 @@ export function calculerStandard(input: StandardInput): CalcOutput {
       const m = resolveMargePct(l.margePct, mq, params.coef_marge_pct);
       pvUnit += getPrixAchat(l, qi) * (1 + m / 100);
     }
-    // Transport / Packaging: apply margin (line-level margPct on the block, fallback quantity/default).
-    const mTP = resolveMargePct(tp.margePct, mq, params.coef_marge_pct);
+    // Transport / Packaging: margin is OPT-IN. Without an explicit margin, it is
+    // billed to the client at cost (sans marge).
+    const tpHasMargin = tp.margePct !== null && tp.margePct !== undefined;
+    const mTP = tpHasMargin ? Number(tp.margePct) : 0;
     pvUnit += tpUnit * (1 + mTP / 100);
-    // Sourcing commission → default/quantity margin
-    const mSourcing = resolveMargePct(null, mq, params.coef_marge_pct);
-    pvUnit += commSourcingUnit * (1 + mSourcing / 100);
+    // Sourcing commission → billed at cost (no margin).
+    pvUnit += commSourcingUnit;
 
     const prixVenteNetUnit = pvUnit;
     const achatsTotal = prixUnitaireAchat * Q;
@@ -103,6 +104,8 @@ export function calculerStandard(input: StandardInput): CalcOutput {
       commissionRapporteurTotal: commRapTotal,
       transportPackagingUnit: tpUnit,
       transportPackagingGlobal: tpGlobal,
+      transportPackagingSansMarge: !tpHasMargin,
+      transportPackagingMargePct: mTP,
       totalPrixUnitaire,
       totalCA,
       totalDepenses,

@@ -105,15 +105,20 @@ function LineTable({
   field,
   quantites,
   defaultMargePct,
+  contraCoefPct,
 }: {
   title: string;
   lines: any[];
   field: "prixUnitaire" | "montantGlobal";
   quantites: Quantite[];
   defaultMargePct: number;
+  /** If provided (Contra), PV = (base × (1 + contraCoefPct/100)) / (1 - m/100). */
+  contraCoefPct?: number;
 }) {
   const qs = normalizeQuantites(quantites);
   const isGrid = field === "prixUnitaire";
+  const contraFactor = 1 + (contraCoefPct ?? 0) / 100;
+  const isContra = contraCoefPct !== undefined;
   return (
     <section>
       <h2>{title}</h2>
@@ -125,7 +130,7 @@ function LineTable({
             {isGrid ? (
               qs.map((q, i) => (
                 <th key={`a${i}`} className="num">
-                  Achat qté {q.qty.toLocaleString("fr-FR")}
+                  {isContra ? "Achat brut" : "Achat"} qté {q.qty.toLocaleString("fr-FR")}
                 </th>
               ))
             ) : (
@@ -134,7 +139,7 @@ function LineTable({
               </th>
             )}
             <th className="num" style={{ width: "8%" }}>
-              Marge %
+              {isContra ? "Marge Yeti %" : "Marge %"}
             </th>
             {qs.map((q, i) => (
               <th key={`pv${i}`} className="num">
@@ -182,7 +187,9 @@ function LineTable({
                     : q.qty > 0
                       ? globalAmount / q.qty
                       : globalAmount;
-                  const pv = base * (1 + m / 100);
+                  const cost = base * contraFactor;
+                  const mClamp = Math.max(0, Math.min(99, m));
+                  const pv = isContra ? cost / (1 - mClamp / 100) : base * (1 + m / 100);
                   return (
                     <td key={`pv${qi}`} className="num">
                       {fmtEUR(pv)}
@@ -201,29 +208,35 @@ function LineTable({
 function TransportPackagingTable({
   quantites,
   transportPackaging,
-  defaultMargePct,
+  contraCoefPct,
 }: {
   quantites: Quantite[];
   transportPackaging?: TransportPackaging;
-  defaultMargePct: number;
+  /** If provided (Contra), the Contra markup is applied on top of the unit cost. */
+  contraCoefPct?: number;
 }) {
   const qs = normalizeQuantites(quantites);
   if (qs.length === 0) return null;
   const tp = normalizeTransportPackaging(transportPackaging, qs.length);
+  const hasMargin = tp.margePct !== null && tp.margePct !== undefined;
+  const m = hasMargin ? Number(tp.margePct) : 0;
+  const contraFactor = 1 + (contraCoefPct ?? 0) / 100;
   return (
     <section>
       <h2>
-        Transport / Packaging — Marge{" "}
-        {(tp.margePct ?? defaultMargePct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
+        Transport / Packaging —{" "}
+        {hasMargin
+          ? `Marge ${m.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`
+          : "Sans marge (refacturé au coût)"}
       </h2>
       <table>
         <thead>
           <tr>
             <th style={{ width: "16%" }}>Quantité</th>
-            <th className="num" style={{ width: "22%" }}>
+            <th className="num" style={{ width: "20%" }}>
               Montant global
             </th>
-            <th className="num" style={{ width: "22%" }}>
+            <th className="num" style={{ width: "20%" }}>
               Coût unitaire
             </th>
             <th className="num">PV unitaire répercuté</th>
@@ -233,8 +246,8 @@ function TransportPackagingTable({
           {qs.map((q, i) => {
             const g = Number(tp.montantsGlobaux[i]) || 0;
             const unit = q.qty > 0 ? g / q.qty : 0;
-            const m = resolveMargePct(tp.margePct, q.margePct, defaultMargePct);
-            const pv = unit * (1 + m / 100);
+            const cost = unit * contraFactor;
+            const pv = hasMargin ? cost / (1 - Math.min(99, m) / 100) : cost;
             return (
               <tr key={i}>
                 <td>Qté {q.qty.toLocaleString("fr-FR")}</td>
@@ -246,6 +259,92 @@ function TransportPackagingTable({
           })}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: number }) {
+  const scenarios = (output?.scenarios ?? []).filter((s: any) => s.quantite > 0);
+  if (scenarios.length === 0) return null;
+  return (
+    <section>
+      <h2 className="orange">Bon de commande Contra — coefficient {coefPct} %</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Ligne</th>
+            {scenarios.map((s: any, i: number) => (
+              <th key={i} className="num">
+                Qté {s.quantite.toLocaleString("fr-FR")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Prix achat brut Contra /u</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num">
+                {fmtEUR(s.contraAchatBrutUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td>Forfaits Contra /u</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num">
+                {fmtEUR(s.contraForfaitUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td>Transport / Packaging /u</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num">
+                {fmtEUR(s.contraTransportUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr className="total-row">
+            <td className="strong">Base unitaire avant marge Contra</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num strong">
+                {fmtEUR(s.contraBaseUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr className="total-row" style={{ background: "#FFF3E0" }}>
+            <td className="strong">Unit price Contra (facturé)</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num strong" style={{ color: "#E65100", fontWeight: 700 }}>
+                {fmtEUR(s.contraPrixFactureUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr className="total-row" style={{ background: "#FFF3E0" }}>
+            <td className="strong">Global for Contra</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num strong" style={{ color: "#E65100", fontWeight: 700 }}>
+                {fmtEUR(s.contraPrixFactureGlobal ?? 0)}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td>Marge Contra encaissée</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num">
+                {fmtEUR(s.margeContra ?? 0)}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      <div style={{ fontSize: "8pt", color: "#555", marginTop: "3pt" }}>
+        Base unitaire = achat brut + forfaits + Transport / Packaging. Prix facturé Contra = base ×{" "}
+        {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}. Ce prix facturé
+        est le prix d'achat final utilisé par Yeti pour calculer le prix de vente client (marge
+        résiduelle Yeti).
+      </div>
     </section>
   );
 }
@@ -411,7 +510,6 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
-        defaultMargePct={p.coef_marge_pct}
       />
       <ParamsBlock
         entries={[
@@ -436,28 +534,30 @@ function ContraPrint({ payload }: { payload: ContraInput }) {
     <>
       <QuantitesTable quantites={payload.quantites} defaultMargePct={p.coef_contra_pct} />
       <LineTable
-        title="Achats CHEZ CONTRA"
+        title="Achats CHEZ CONTRA (prix brut transmis)"
         lines={payload.achatsContra}
         field="prixUnitaire"
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
       <LineTable
-        title="Forfaits Contra"
+        title="Forfaits Contra (montants bruts)"
         lines={payload.forfaitsContra}
         field="montantGlobal"
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
-        defaultMargePct={p.coef_autres_pct}
+        contraCoefPct={p.coef_contra_pct}
       />
+      <BonCommandeContraTable output={output} coefPct={p.coef_contra_pct} />
       <ParamsBlock
         entries={[
-          ["Coef. Contra", `${p.coef_contra_pct} %`],
-          ["Coef. Autres", `${p.coef_autres_pct} %`],
+          ["Coef. Contra (markup Contra + cible Yeti)", `${p.coef_contra_pct} %`],
           ["Frais fixes", `${p.frais_fixes_pct} %`],
           ["Commission sourcing", p.commission_sourcing ? "Oui" : "Non"],
           ["Sourcing %", `${p.commission_sourcing_pct} %`],

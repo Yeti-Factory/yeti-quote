@@ -375,13 +375,18 @@ export function TransportPackagingBlock({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <Label className="text-sm font-semibold">Transport / Packaging</Label>
-        <div className="w-40">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div>
+          <Label className="text-sm font-semibold">Transport / Packaging</Label>
+          <p className="text-xs text-muted-foreground">
+            Marge optionnelle — laissée vide, T/P est refacturé sans marge.
+          </p>
+        </div>
+        <div className="w-48">
           <Input
             type="number"
             step="0.01"
-            placeholder={`marge % (déf. ${defaultMargePct ?? 0})`}
+            placeholder="Marge % (facultatif)"
             value={value?.margePct ?? ""}
             onChange={(e) =>
               onChange({
@@ -392,6 +397,14 @@ export function TransportPackagingBlock({
             }
             className="text-right tabular-nums"
           />
+          <p className="text-[10px] text-muted-foreground mt-1 text-right">
+            {value?.margePct === null ||
+            value?.margePct === undefined ||
+            value?.margePct === (undefined as any)
+              ? "Sans marge (au coût)"
+              : `Marge ${Number(value.margePct)} %`}
+            {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
+          </p>
         </div>
       </div>
       {qCount === 0 ? (

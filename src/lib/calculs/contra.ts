@@ -14,7 +14,15 @@ import {
 } from "./types";
 
 export type ContraParams = {
+  /**
+   * Coefficient Contra (%) — sert de DOUBLE usage :
+   *  1) taux de marge que Contra applique sur le "Bon de commande Contra"
+   *     (prix facturé Contra = base × (1 + coef/100))
+   *  2) taux de marge résiduelle cible pour Yeti (par défaut, sauf override
+   *     par ligne ou par quantité).
+   */
   coef_contra_pct: number;
+  /** @deprecated ancien coef "Autres". Conservé pour compat, non utilisé. */
   coef_autres_pct: number;
   frais_fixes_pct: number;
   commission_sourcing: boolean;
@@ -25,6 +33,7 @@ export type ContraParams = {
 
 export type ContraInput = {
   quantites: Quantite[];
+  /** Prix d'achat BRUTS transmis par Contra — n'incluent PAS la marge Contra. */
   achatsContra: LineItem[];
   forfaitsContra: LineForfait[];
   transportPackaging?: TransportPackaging;
@@ -43,51 +52,79 @@ export const CONTRA_DEFAULTS: ContraParams = {
   commission_rapporteur_pct: 0,
 };
 
+/** Marge résiduelle : PV = coût / (1 - m/100). Clamp m dans [0, 99]. */
+function pvFromResidual(cost: number, margePct: number): number {
+  const m = Math.max(0, Math.min(99, Number(margePct) || 0));
+  return cost / (1 - m / 100);
+}
+
 export function calculerContra(input: ContraInput): CalcOutput {
   const { achatsContra, forfaitsContra, params } = input;
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
-  const sumContraForfait = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
+  const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
+  const coefContra = params.coef_contra_pct; // markup Contra
+  const contraFactor = 1 + coefContra / 100;
 
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
-    const sumContraUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
-    const forfaitUnit = Q > 0 ? sumContraForfait / Q : 0;
-    const contraUnit = sumContraUnit + forfaitUnit;
+
+    // 1) Bases BRUTES transmises par Contra
+    const rawAchatUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
+    const rawForfaitUnit = Q > 0 ? sumForfaitsGlobal / Q : 0;
     const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
 
+    // 2) Bon de commande Contra — Contra prend sa marge sur (achats + forfaits + TP)
+    const baseUnitContra = rawAchatUnit + rawForfaitUnit + tpUnit;
+    const prixFactureContraUnit = baseUnitContra * contraFactor;
+    const prixFactureContraGlobal = prixFactureContraUnit * Q;
+
+    // 3) Commission sourcing (basée sur le prix facturé Contra)
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
       const pct = params.commission_sourcing_pct / 100;
-      const commTotal = tpUnit * pct * Q;
+      const commTotal = prixFactureContraUnit * pct * Q;
       commSourcingUnit =
         commTotal >= params.commission_sourcing_min_eur
-          ? tpUnit * pct
+          ? prixFactureContraUnit * pct
           : params.commission_sourcing_min_eur / Q;
     }
 
-    // Per-line PV: priority line > quantity > family default
-    let pvUnitContra = 0;
+    // 4) Prix de vente client Yeti — marge RÉSIDUELLE (PV = coût / (1 - m/100)).
+    //    Par ligne : cost_line = raw_line × (1 + coefContra/100)
+    //    puis pv_line = cost_line / (1 - m_yeti/100).
+    let pvUnitAchats = 0;
     for (const l of achatsContra) {
-      const m = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
-      pvUnitContra += getPrixAchat(l, qi) * (1 + m / 100);
+      const raw = getPrixAchat(l, qi);
+      const cost = raw * contraFactor;
+      const mYeti = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
+      pvUnitAchats += pvFromResidual(cost, mYeti);
     }
+    let pvUnitForfaits = 0;
     for (const f of forfaitsContra) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
-      const m = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
-      pvUnitContra += share * (1 + m / 100);
+      const cost = share * contraFactor;
+      const mYeti = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
+      pvUnitForfaits += pvFromResidual(cost, mYeti);
     }
 
-    // Transport / Packaging uses "autres" default margin (or block override).
-    const mTP = resolveMargePct(tp.margePct, mq, params.coef_autres_pct);
-    const pvUnitTP = tpUnit * (1 + mTP / 100);
-    const mSourcing = resolveMargePct(null, mq, params.coef_autres_pct);
-    const pvUnitSourcing = commSourcingUnit * (1 + mSourcing / 100);
+    // Transport / Packaging — Contra prend sa marge, puis Yeti applique sa
+    // propre marge résiduelle SEULEMENT si une marge est explicitement saisie
+    // (sinon T/P est refacturé au coût, sans marge Yeti).
+    const costTP = tpUnit * contraFactor;
+    const tpHasMargin = tp.margePct !== null && tp.margePct !== undefined;
+    const mTP = tpHasMargin ? Number(tp.margePct) : 0;
+    const pvUnitTP = tpHasMargin ? pvFromResidual(costTP, mTP) : costTP;
 
-    const prixVenteNetUnit = pvUnitContra + pvUnitTP + pvUnitSourcing;
-    const prixUnitaireAchat = contraUnit + tpUnit + commSourcingUnit;
+    // Commission sourcing — refacturée au coût.
+    const pvUnitSourcing = commSourcingUnit;
+
+    const prixVenteNetUnit = pvUnitAchats + pvUnitForfaits + pvUnitTP + pvUnitSourcing;
+
+    // Coût réel Yeti = prix facturé Contra + commission sourcing
+    const prixUnitaireAchat = prixFactureContraUnit + commSourcingUnit;
     const achatsTotal = prixUnitaireAchat * Q;
     const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
     const budgetNet = prixVenteNetUnit * Q;
@@ -99,8 +136,8 @@ export function calculerContra(input: ContraInput): CalcOutput {
     const margeNet = totalCA - totalDepenses;
     const margePct = budgetNet > 0 ? margeNet / budgetNet : 0;
 
-    const caContra = pvUnitContra * Q;
-    const achContra = contraUnit * Q;
+    // Marge encaissée par Contra sur cette quantité (indicatif)
+    const margeContra = prixFactureContraGlobal - baseUnitContra * Q;
 
     return {
       quantite: Q,
@@ -113,14 +150,24 @@ export function calculerContra(input: ContraInput): CalcOutput {
       commissionRapporteurTotal: commRapTotal,
       transportPackagingUnit: tpUnit,
       transportPackagingGlobal: tpGlobal,
+      transportPackagingSansMarge: !tpHasMargin,
+      transportPackagingMargePct: mTP,
       totalPrixUnitaire,
       totalCA,
       totalDepenses,
       margeNet,
       margePct,
       alerteMarge: margePct < 0.2,
-      margeContra: caContra - achContra,
-      margeContraPct: caContra > 0 ? (caContra - achContra) / caContra : 0,
+      margeContra,
+      margeContraPct: coefContra / 100,
+      // Bon de commande Contra
+      contraCoefPct: coefContra,
+      contraAchatBrutUnit: rawAchatUnit,
+      contraForfaitUnit: rawForfaitUnit,
+      contraTransportUnit: tpUnit,
+      contraBaseUnit: baseUnitContra,
+      contraPrixFactureUnit: prixFactureContraUnit,
+      contraPrixFactureGlobal: prixFactureContraGlobal,
     };
   });
 
