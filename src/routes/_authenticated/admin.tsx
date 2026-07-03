@@ -219,6 +219,8 @@ function CreateUserForm() {
         },
       });
       toast.success("Utilisateur créé");
+      setFullName("");
+      setEmail("");
       setPassword("");
       qc.invalidateQueries({ queryKey: ["admin_users"] });
     } catch (err: unknown) {
