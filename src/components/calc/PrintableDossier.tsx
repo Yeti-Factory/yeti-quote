@@ -408,11 +408,9 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
         quantites={payload.quantites}
         defaultMargePct={p.coef_marge_pct}
       />
-      <LineTable
-        title="Achats annexes (forfaits globaux)"
-        lines={payload.achatsAnnexes}
-        field="montantGlobal"
+      <TransportPackagingTable
         quantites={payload.quantites}
+        transportPackaging={payload.transportPackaging}
         defaultMargePct={p.coef_marge_pct}
       />
       <ParamsBlock
