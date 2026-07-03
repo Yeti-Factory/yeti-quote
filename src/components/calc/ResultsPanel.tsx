@@ -193,7 +193,8 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                 >
                   <td className={cn("px-3 py-2", r.highlight && "font-bold")}>{r.label}</td>
                   {scenarios.map((s, i) => {
-                    const v = s[r.key] as number;
+                    const raw = s[r.key] as number | undefined;
+                    const v = typeof raw === "number" ? raw : 0;
                     const band = marginBand(s.margePct);
                     const isMarginRow = r.key === "margePct" || r.key === "margeNet";
                     return (
