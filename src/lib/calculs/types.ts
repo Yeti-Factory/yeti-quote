@@ -123,6 +123,10 @@ export type QuantityResult = {
   commissionRapporteurTotal: number;
   transportPackagingUnit?: number;
   transportPackagingGlobal?: number;
+  /** True when Transport / Packaging is billed to the client without any margin. */
+  transportPackagingSansMarge?: boolean;
+  /** Effective margin (%) applied to Transport / Packaging (0 when "sans marge"). */
+  transportPackagingMargePct?: number;
   totalPrixUnitaire: number;
   totalCA: number;
   totalDepenses: number;
@@ -132,6 +136,14 @@ export type QuantityResult = {
   // optional Contra-specific
   margeContra?: number;
   margeContraPct?: number;
+  /** Bon de commande Contra — details visible on screen & PDF. */
+  contraCoefPct?: number;
+  contraAchatBrutUnit?: number;
+  contraForfaitUnit?: number;
+  contraTransportUnit?: number;
+  contraBaseUnit?: number;
+  contraPrixFactureUnit?: number;
+  contraPrixFactureGlobal?: number;
 };
 
 export type CalcOutput = {
