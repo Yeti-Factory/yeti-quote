@@ -205,7 +205,6 @@ function LineTable({
   );
 }
 
-
 function TransportPackagingTable({
   quantites,
   transportPackaging,
@@ -264,13 +263,7 @@ function TransportPackagingTable({
   );
 }
 
-function BonCommandeContraTable({
-  output,
-  coefPct,
-}: {
-  output: any;
-  coefPct: number;
-}) {
+function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: number }) {
   const scenarios = (output?.scenarios ?? []).filter((s: any) => s.quantite > 0);
   if (scenarios.length === 0) return null;
   return (
@@ -323,11 +316,7 @@ function BonCommandeContraTable({
           <tr className="total-row" style={{ background: "#FFF3E0" }}>
             <td className="strong">Unit price Contra (facturé)</td>
             {scenarios.map((s: any, i: number) => (
-              <td
-                key={i}
-                className="num strong"
-                style={{ color: "#E65100", fontWeight: 700 }}
-              >
+              <td key={i} className="num strong" style={{ color: "#E65100", fontWeight: 700 }}>
                 {fmtEUR(s.contraPrixFactureUnit ?? 0)}
               </td>
             ))}
@@ -335,11 +324,7 @@ function BonCommandeContraTable({
           <tr className="total-row" style={{ background: "#FFF3E0" }}>
             <td className="strong">Global for Contra</td>
             {scenarios.map((s: any, i: number) => (
-              <td
-                key={i}
-                className="num strong"
-                style={{ color: "#E65100", fontWeight: 700 }}
-              >
+              <td key={i} className="num strong" style={{ color: "#E65100", fontWeight: 700 }}>
                 {fmtEUR(s.contraPrixFactureGlobal ?? 0)}
               </td>
             ))}
@@ -356,9 +341,9 @@ function BonCommandeContraTable({
       </table>
       <div style={{ fontSize: "8pt", color: "#555", marginTop: "3pt" }}>
         Base unitaire = achat brut + forfaits + Transport / Packaging. Prix facturé Contra = base ×{" "}
-        {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}. Ce prix
-        facturé est le prix d'achat final utilisé par Yeti pour calculer le prix de vente client
-        (marge résiduelle Yeti).
+        {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}. Ce prix facturé
+        est le prix d'achat final utilisé par Yeti pour calculer le prix de vente client (marge
+        résiduelle Yeti).
       </div>
     </section>
   );

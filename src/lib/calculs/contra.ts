@@ -62,10 +62,7 @@ export function calculerContra(input: ContraInput): CalcOutput {
   const { achatsContra, forfaitsContra, params } = input;
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
-  const sumForfaitsGlobal = forfaitsContra.reduce(
-    (s, l) => s + (Number(l.montantGlobal) || 0),
-    0,
-  );
+  const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
   const coefContra = params.coef_contra_pct; // markup Contra
   const contraFactor = 1 + coefContra / 100;
 

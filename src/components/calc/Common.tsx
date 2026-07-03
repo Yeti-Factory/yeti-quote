@@ -398,7 +398,9 @@ export function TransportPackagingBlock({
             className="text-right tabular-nums"
           />
           <p className="text-[10px] text-muted-foreground mt-1 text-right">
-            {value?.margePct === null || value?.margePct === undefined || value?.margePct === (undefined as any)
+            {value?.margePct === null ||
+            value?.margePct === undefined ||
+            value?.margePct === (undefined as any)
               ? "Sans marge (au coût)"
               : `Marge ${Number(value.margePct)} %`}
             {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
