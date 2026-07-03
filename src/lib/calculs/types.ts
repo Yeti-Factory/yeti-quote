@@ -121,8 +121,8 @@ export type QuantityResult = {
   commissionSourcingUnit: number;
   commissionRapporteurUnit: number;
   commissionRapporteurTotal: number;
-  transportPackagingUnit: number;
-  transportPackagingGlobal: number;
+  transportPackagingUnit?: number;
+  transportPackagingGlobal?: number;
   totalPrixUnitaire: number;
   totalCA: number;
   totalDepenses: number;
