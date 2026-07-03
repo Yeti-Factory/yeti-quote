@@ -15,6 +15,12 @@ const ROWS: {
 }[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR, group: "cost" },
   {
+    label: "Transport / Packaging /u",
+    key: "transportPackagingUnit",
+    fmt: fmtEUR,
+    group: "cost",
+  },
+  {
     label: "Prix vente net unitaire",
     key: "prixVenteNetUnit",
     fmt: fmtEUR,
