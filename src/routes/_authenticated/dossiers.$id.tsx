@@ -332,6 +332,7 @@ function DossierDetail() {
               </Button>
             </div>
           </div>
+        )}
         {(payload?._legacyMigrated || payload?._legacyRemnants) && (
           <div className="mb-3 rounded-md border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-sm">
             <p className="font-semibold text-amber-700 dark:text-amber-400">
