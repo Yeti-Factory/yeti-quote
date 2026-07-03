@@ -42,7 +42,9 @@ export function registerServiceWorker() {
     hostname === "lovableproject-dev.com" ||
     hostname.endsWith(".lovableproject-dev.com") ||
     hostname === "beta.lovable.dev" ||
-    hostname.endsWith(".beta.lovable.dev");
+    hostname.endsWith(".beta.lovable.dev") ||
+    hostname === "lovable.app" ||
+    hostname.endsWith(".lovable.app");
   if (isLovablePreview) {
     unregisterAppServiceWorkers();
     return;

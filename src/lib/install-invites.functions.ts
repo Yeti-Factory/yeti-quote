@@ -30,6 +30,29 @@ export const sendInstallInviteFn = createServerFn({ method: "POST" })
       );
     }
 
+    const forbiddenHosts = [
+      "lovable.app",
+      "lovableproject.com",
+      "lovableproject-dev.com",
+      "beta.lovable.dev",
+    ];
+    let publicHost = "";
+    try {
+      publicHost = new URL(APP_PUBLIC_URL).hostname.toLowerCase();
+    } catch {
+      throw new Error(
+        "Domaine d'invitation invalide : configurer APP_PUBLIC_URL=https://yeti-quote.yeti-lab.fr",
+      );
+    }
+    const isForbidden = forbiddenHosts.some(
+      (h) => publicHost === h || publicHost.endsWith("." + h),
+    );
+    if (isForbidden) {
+      throw new Error(
+        "Domaine d'invitation invalide : configurer APP_PUBLIC_URL=https://yeti-quote.yeti-lab.fr",
+      );
+    }
+
     // Fetch target user email
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile, error: profileErr } = await supabaseAdmin
@@ -100,7 +123,7 @@ Installer : ${installUrl}
       throw new Error(`Envoi email échoué (${res.status}): ${body.slice(0, 200)}`);
     }
 
-    return { ok: true, email: profile.email };
+    return { ok: true, email: profile.email, installUrl };
   });
 
 function escapeHtml(s: string) {

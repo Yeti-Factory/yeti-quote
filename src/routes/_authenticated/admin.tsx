@@ -219,8 +219,10 @@ function InviteButton({ userId, email }: { userId: string; email: string }) {
   async function send() {
     setBusy(true);
     try {
-      await sendInvite({ data: { userId } });
-      toast.success("Invitation envoyée");
+      const res = await sendInvite({ data: { userId } });
+      const link =
+        (res as { installUrl?: string })?.installUrl ?? "https://yeti-quote.yeti-lab.fr/install";
+      toast.success(`Lien envoyé : ${link}`);
       setOpen(false);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Envoi échoué");

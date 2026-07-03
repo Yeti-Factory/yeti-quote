@@ -9,7 +9,9 @@ const isLovablePreview =
   hostname === "lovableproject-dev.com" ||
   hostname.endsWith(".lovableproject-dev.com") ||
   hostname === "beta.lovable.dev" ||
-  hostname.endsWith(".beta.lovable.dev");
+  hostname.endsWith(".beta.lovable.dev") ||
+  hostname === "lovable.app" ||
+  hostname.endsWith(".lovable.app");
 
 function isWorkboxCacheForThisRegistration(name) {
   const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
