@@ -207,7 +207,54 @@ function UsersPanel() {
   );
 }
 
-function CreateUserForm() {
+function InviteButton({ userId, email }: { userId: string; email: string }) {
+  const sendInvite = useServerFn(sendInstallInviteFn);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    try {
+      await sendInvite({ data: { userId } });
+      toast.success("Invitation envoyée");
+      setOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Envoi échoué");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        title="Envoyer invitation d'installation"
+      >
+        <MailPlus className="w-4 h-4" />
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Envoyer une invitation d'installation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Envoyer une invitation d'installation à <strong>{email}</strong> ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={send} disabled={busy}>
+              {busy ? "Envoi…" : "Envoyer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
   const qc = useQueryClient();
   const createUser = useServerFn(createUserFn);
   const [fullName, setFullName] = useState("Anne Bousseau");
