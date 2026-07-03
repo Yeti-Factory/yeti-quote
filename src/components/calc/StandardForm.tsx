@@ -2,20 +2,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import {
-  LinesGridTable,
-  QuantitesRow,
-  TransportPackagingBlock,
-} from "@/components/calc/Common";
+import { LinesGridTable, QuantitesRow, TransportPackagingBlock } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Truck, Settings2 } from "lucide-react";
 import type { StandardInput, StandardParams } from "@/lib/calculs/standard";
 import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
 import { normalizeTransportPackaging } from "@/lib/calculs/types";
-import {
-  syncLinesWithQuantites,
-  syncTransportWithQuantites,
-} from "@/lib/calculs/quantitySync";
+import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function StandardForm({
   value,

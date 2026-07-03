@@ -13,10 +13,7 @@ import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
 import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
 import { normalizeTransportPackaging } from "@/lib/calculs/types";
-import {
-  syncLinesWithQuantites,
-  syncTransportWithQuantites,
-} from "@/lib/calculs/quantitySync";
+import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function ContraForm({
   value,

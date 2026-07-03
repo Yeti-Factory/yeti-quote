@@ -2,12 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
-import type {
-  Quantite,
-  LineItem,
-  LineForfait,
-  TransportPackaging,
-} from "@/lib/calculs/types";
+import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
@@ -361,10 +356,7 @@ export function TransportPackagingBlock({
   defaultMargePct?: number;
 }) {
   const qCount = quantites.length;
-  const arr = Array.from(
-    { length: qCount },
-    (_, i) => Number(value?.montantsGlobaux?.[i]) || 0,
-  );
+  const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
 
   function updateMontant(i: number, montant: number) {
     const next = [...arr];
@@ -422,9 +414,7 @@ export function TransportPackagingBlock({
                 key={i}
                 className="calc-row grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 items-center border-b last:border-b-0"
               >
-                <div className="text-sm tabular-nums">
-                  {Q ? Q.toLocaleString("fr-FR") : "—"}
-                </div>
+                <div className="text-sm tabular-nums">{Q ? Q.toLocaleString("fr-FR") : "—"}</div>
                 <Input
                   type="number"
                   step="0.01"
