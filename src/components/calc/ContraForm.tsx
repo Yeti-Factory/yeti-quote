@@ -90,11 +90,7 @@ export function ContraForm({
             tone="accent"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
-          <TransportPackagingBlock
-            quantites={value.quantites}
-            value={tp}
-            onChange={setTP}
-          />
+          <TransportPackagingBlock quantites={value.quantites} value={tp} onChange={setTP} />
         </div>
       </Card>
 
