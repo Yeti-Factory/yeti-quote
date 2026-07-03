@@ -332,6 +332,17 @@ function DossierDetail() {
               </Button>
             </div>
           </div>
+        {(payload?._legacyMigrated || payload?._legacyRemnants) && (
+          <div className="mb-3 rounded-md border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-amber-700 dark:text-amber-400">
+              Dossier legacy migré
+            </p>
+            <p className="text-foreground/80">
+              {payload._legacyMigrated
+                ? "Les anciens blocs « Achats annexes » / « Achats autres » ont été convertis automatiquement dans « Transport / Packaging ». Vérifiez les montants par quantité, ajustez si besoin, puis enregistrez pour valider la migration."
+                : "Ce dossier contient des données legacy (« Achats annexes » / « Achats autres ») qui n'ont pas été migrées car « Transport / Packaging » est déjà renseigné. Vérifiez les montants et enregistrez pour figer la structure."}
+            </p>
+          </div>
         )}
         <Link
           to="/dossiers"
