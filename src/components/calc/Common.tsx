@@ -2,7 +2,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
-import type { Quantite, LineItem, LineForfait } from "@/lib/calculs/types";
+import type {
+  Quantite,
+  LineItem,
+  LineForfait,
+  TransportPackaging,
+} from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
