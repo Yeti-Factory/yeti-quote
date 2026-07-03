@@ -176,7 +176,8 @@ function DossierDetail() {
           let unit = 0;
           for (const l of nextPayload.achatsAutres) {
             const perQ = Array.isArray(l?.prixParQuantite) ? Number(l.prixParQuantite[i]) : NaN;
-            unit += Number.isFinite(perQ) && perQ > 0 ? perQ : Number(l?.prixAchat) || 0;
+            const fallback = Number(l?.prixAchat) || Number(l?.prixUnitaire) || 0;
+            unit += Number.isFinite(perQ) && perQ > 0 ? perQ : fallback;
           }
           if (unit > 0) {
             hasLegacy = true;
@@ -257,21 +258,34 @@ function DossierDetail() {
 
   async function save(nextStatut?: "brouillon" | "valide" | "archive") {
     if (!dossier || !payload || !output) return;
+    // Strip legacy fields once the user validates the migration.
+    const {
+      _legacyMigrated: _lm,
+      _legacyRemnants: _lr,
+      achatsAnnexes: _aa,
+      achatsAutres: _au,
+      ...cleanPayload
+    } = payload;
+    void _lm;
+    void _lr;
+    void _aa;
+    void _au;
     const update: any = {
       reference: meta.reference.trim(),
       objet: meta.objet.trim(),
       onedrive_note: meta.onedrive_note,
       statut: nextStatut ?? meta.statut,
-      payload,
+      payload: cleanPayload,
       results: output,
-      params: payload.params,
+      params: cleanPayload.params,
     };
     const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
     if (error) return toast.error(error.message);
     toast.success(nextStatut === "valide" ? "Dossier validé" : "Enregistré");
     const savedMeta = nextStatut ? { ...meta, statut: nextStatut } : meta;
     if (nextStatut) setMeta(savedMeta);
-    initialSnapshotRef.current = JSON.stringify({ meta: savedMeta, payload });
+    setPayload(cleanPayload);
+    initialSnapshotRef.current = JSON.stringify({ meta: savedMeta, payload: cleanPayload });
     qc.invalidateQueries({ queryKey: ["dossier", id] });
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
