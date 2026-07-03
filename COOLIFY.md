@@ -35,3 +35,15 @@
 # Docker Desktop, ou exécuter `set NITRO_PRESET=node-server && vite build`
 
 # (cmd) / `$env:NITRO_PRESET="node-server"; vite build` (PowerShell).
+
+# ---- Emails / invitations d'installation PWA ----
+
+# Variables runtime supplémentaires (à renseigner dans Coolify → Environment):
+
+# - RESEND_API_KEY : clé API Resend (https://resend.com), server-only.
+
+# - EMAIL_FROM : "Yeti Factory <no-reply@yeti-lab.fr>" (le domaine doit être vérifié dans Resend).
+
+# - APP_PUBLIC_URL : "https://yeti-quote.yeti-lab.fr" (URL publique utilisée dans les liens d'installation).
+
+# Sans ces trois variables, la fonction serveur d'envoi d'invitation retourne une erreur explicite.

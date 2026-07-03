@@ -1,7 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MailPlus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { sendInstallInviteFn } from "@/lib/install-invites.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
@@ -179,9 +190,12 @@ function UsersPanel() {
                     ))}
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
-                      {isAdmin ? "Retirer admin" : "Promouvoir admin"}
-                    </Button>
+                    <div className="inline-flex gap-2">
+                      <InviteButton userId={u.id} email={u.email} />
+                      <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
+                        {isAdmin ? "Retirer admin" : "Promouvoir admin"}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -190,6 +204,54 @@ function UsersPanel() {
         </table>
       </Card>
     </div>
+  );
+}
+
+function InviteButton({ userId, email }: { userId: string; email: string }) {
+  const sendInvite = useServerFn(sendInstallInviteFn);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    try {
+      await sendInvite({ data: { userId } });
+      toast.success("Invitation envoyée");
+      setOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Envoi échoué");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        title="Envoyer invitation d'installation"
+      >
+        <MailPlus className="w-4 h-4" />
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Envoyer une invitation d'installation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Envoyer une invitation d'installation à <strong>{email}</strong> ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={send} disabled={busy}>
+              {busy ? "Envoi…" : "Envoyer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
