@@ -56,7 +56,7 @@ function defaultPayload(type: string, params: any) {
     return {
       quantites: [],
       achatsPrincipaux: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
-      achatsAnnexes: [{ fournisseur: "", libelle: "", montantGlobal: 0, margePct: null }],
+      transportPackaging: { montantsGlobaux: [], margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -65,7 +65,7 @@ function defaultPayload(type: string, params: any) {
       quantites: [],
       achatsContra: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
       forfaitsContra: [{ fournisseur: "", libelle: "", montantGlobal: 0, margePct: null }],
-      achatsAutres: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
+      transportPackaging: { montantsGlobaux: [], margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
