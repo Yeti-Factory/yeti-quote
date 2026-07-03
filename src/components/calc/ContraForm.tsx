@@ -114,15 +114,9 @@ export function ContraForm({
               value={value.params.coef_contra_pct}
               onChange={(e) => setParams({ coef_contra_pct: Number(e.target.value) })}
             />
-          </div>
-          <div>
-            <Label>Coef. Autres (%)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={value.params.coef_autres_pct}
-              onChange={(e) => setParams({ coef_autres_pct: Number(e.target.value) })}
-            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Markup Contra sur le Bon de commande <em>et</em> marge résiduelle cible Yeti.
+            </p>
           </div>
           <div>
             <Label>Frais fixes (%)</Label>
