@@ -4,6 +4,19 @@ export function registerServiceWorker() {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
 
+  const unregisterAppServiceWorkers = () => {
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((registration) => {
+        const scriptUrl =
+          registration.active?.scriptURL ??
+          registration.waiting?.scriptURL ??
+          registration.installing?.scriptURL ??
+          "";
+        if (scriptUrl.endsWith("/sw.js")) registration.unregister();
+      });
+    });
+  };
+
   const { hostname, protocol } = window.location;
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
   const isSecure = protocol === "https:" || isLocalhost;
@@ -16,7 +29,10 @@ export function registerServiceWorker() {
       return true;
     }
   })();
-  if (inIframe) return;
+  if (inIframe) {
+    unregisterAppServiceWorkers();
+    return;
+  }
 
   const isLovablePreview =
     hostname.startsWith("id-preview--") ||
@@ -27,16 +43,18 @@ export function registerServiceWorker() {
     hostname.endsWith(".lovableproject-dev.com") ||
     hostname === "beta.lovable.dev" ||
     hostname.endsWith(".beta.lovable.dev");
-  if (isLovablePreview) return;
+  if (isLovablePreview) {
+    unregisterAppServiceWorkers();
+    return;
+  }
 
-  if (!import.meta.env.PROD) return;
+  if (!import.meta.env.PROD) {
+    unregisterAppServiceWorkers();
+    return;
+  }
 
   if (new URL(window.location.href).searchParams.get("sw") === "off") {
-    navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => {
-        if (r.active?.scriptURL?.endsWith("/sw.js")) r.unregister();
-      });
-    });
+    unregisterAppServiceWorkers();
     return;
   }
 
