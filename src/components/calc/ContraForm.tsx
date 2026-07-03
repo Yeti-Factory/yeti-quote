@@ -94,7 +94,6 @@ export function ContraForm({
             quantites={value.quantites}
             value={tp}
             onChange={setTP}
-            defaultMargePct={value.params.coef_autres_pct}
           />
         </div>
       </Card>
