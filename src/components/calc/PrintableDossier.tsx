@@ -198,7 +198,59 @@ function LineTable({
   );
 }
 
-function ParamsBlock({ entries }: { entries: [string, string][] }) {
+function TransportPackagingTable({
+  quantites,
+  transportPackaging,
+  defaultMargePct,
+}: {
+  quantites: Quantite[];
+  transportPackaging?: TransportPackaging;
+  defaultMargePct: number;
+}) {
+  const qs = normalizeQuantites(quantites);
+  if (qs.length === 0) return null;
+  const tp = normalizeTransportPackaging(transportPackaging, qs.length);
+  return (
+    <section>
+      <h2>
+        Transport / Packaging — Marge{" "}
+        {(tp.margePct ?? defaultMargePct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: "16%" }}>Quantité</th>
+            <th className="num" style={{ width: "22%" }}>
+              Montant global
+            </th>
+            <th className="num" style={{ width: "22%" }}>
+              Coût unitaire
+            </th>
+            <th className="num">PV unitaire répercuté</th>
+          </tr>
+        </thead>
+        <tbody>
+          {qs.map((q, i) => {
+            const g = Number(tp.montantsGlobaux[i]) || 0;
+            const unit = q.qty > 0 ? g / q.qty : 0;
+            const m = resolveMargePct(tp.margePct, q.margePct, defaultMargePct);
+            const pv = unit * (1 + m / 100);
+            return (
+              <tr key={i}>
+                <td>Qté {q.qty.toLocaleString("fr-FR")}</td>
+                <td className="num">{fmtEUR(g)}</td>
+                <td className="num">{q.qty > 0 ? fmtEUR(unit) : "—"}</td>
+                <td className="num">{q.qty > 0 ? fmtEUR(pv) : "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+
   return (
     <section>
       <h2>Paramètres utilisés</h2>
