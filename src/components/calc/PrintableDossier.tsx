@@ -525,7 +525,6 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
-        defaultMargePct={p.coef_marge_pct}
       />
       <ParamsBlock
         entries={[
