@@ -85,6 +85,33 @@ export function reshapePrixParQuantite(
   return arr.map((v) => (Number.isFinite(v) ? v : 0));
 }
 
+/**
+ * Transport / Packaging: a global amount per quantity column.
+ * Unit cost = montantsGlobaux[i] / quantite[i].
+ */
+export type TransportPackaging = {
+  montantsGlobaux: number[];
+  /** Optional margin (%). Defaults to family default when null/undefined. */
+  margePct?: number | null;
+};
+
+/** Backward-compat + shape normalization. */
+export function normalizeTransportPackaging(input: unknown, count: number): TransportPackaging {
+  const o = input && typeof input === "object" ? (input as any) : {};
+  const raw = Array.isArray(o.montantsGlobaux) ? o.montantsGlobaux : [];
+  const arr: number[] = raw.map((v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  });
+  while (arr.length < count) arr.push(0);
+  arr.length = count;
+  const m = o.margePct;
+  return {
+    montantsGlobaux: arr,
+    margePct: m === undefined || m === null || m === "" ? null : Number(m),
+  };
+}
+
 export type QuantityResult = {
   quantite: number;
   prixUnitaireAchat: number;
@@ -94,6 +121,8 @@ export type QuantityResult = {
   commissionSourcingUnit: number;
   commissionRapporteurUnit: number;
   commissionRapporteurTotal: number;
+  transportPackagingUnit?: number;
+  transportPackagingGlobal?: number;
   totalPrixUnitaire: number;
   totalCA: number;
   totalDepenses: number;
@@ -103,8 +132,6 @@ export type QuantityResult = {
   // optional Contra-specific
   margeContra?: number;
   margeContraPct?: number;
-  margeAutres?: number;
-  margeAutresPct?: number;
 };
 
 export type CalcOutput = {

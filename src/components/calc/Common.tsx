@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
-import type { Quantite, LineItem, LineForfait } from "@/lib/calculs/types";
+import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
@@ -335,6 +335,107 @@ export function LinesGridTable({
       )}
       <p className="text-xs text-muted-foreground mt-2">
         Chaque quantité utilise son propre prix d’achat.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Transport / Packaging block: one global amount per quantity column.
+ * Displays computed unit cost read-only. Optional margin (%) override.
+ */
+export function TransportPackagingBlock({
+  quantites,
+  value,
+  onChange,
+  defaultMargePct,
+}: {
+  quantites: Quantite[];
+  value: TransportPackaging;
+  onChange: (v: TransportPackaging) => void;
+  defaultMargePct?: number;
+}) {
+  const qCount = quantites.length;
+  const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
+
+  function updateMontant(i: number, montant: number) {
+    const next = [...arr];
+    next[i] = montant;
+    onChange({ ...value, montantsGlobaux: next });
+  }
+
+  function fmtEuro(n: number) {
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 2,
+    });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <Label className="text-sm font-semibold">Transport / Packaging</Label>
+        <div className="w-40">
+          <Input
+            type="number"
+            step="0.01"
+            placeholder={`marge % (déf. ${defaultMargePct ?? 0})`}
+            value={value?.margePct ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                montantsGlobaux: arr,
+                margePct: e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
+            className="text-right tabular-nums"
+          />
+        </div>
+      </div>
+      {qCount === 0 ? (
+        <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
+          Ajoutez au moins une quantité pour saisir le Transport / Packaging.
+        </div>
+      ) : (
+        <div className="border-2 rounded-md overflow-hidden calc-table">
+          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+            <div>Quantité</div>
+            <div className="text-right">Montant global (€)</div>
+            <div className="text-right">Coût unitaire</div>
+          </div>
+          {quantites.map((q, i) => {
+            const Q = Number(q.qty) || 0;
+            const montant = arr[i] || 0;
+            const unit = Q > 0 ? montant / Q : 0;
+            return (
+              <div
+                key={i}
+                className="calc-row grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 items-center border-b last:border-b-0"
+              >
+                <div className="text-sm tabular-nums">{Q ? Q.toLocaleString("fr-FR") : "—"}</div>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={montant || ""}
+                  placeholder="0"
+                  className="text-right tabular-nums"
+                  onChange={(e) =>
+                    updateMontant(i, e.target.value === "" ? 0 : Number(e.target.value))
+                  }
+                />
+                <div className="text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  {Q > 0 ? fmtEuro(unit) : "—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground mt-2">
+        Le montant global est divisé automatiquement par la quantité et ajouté au prix de vente
+        unitaire.
       </p>
     </div>
   );

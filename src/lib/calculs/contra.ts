@@ -1,5 +1,17 @@
-import type { LineItem, LineForfait, QuantityResult, CalcOutput, Quantite } from "./types";
-import { normalizeQuantites, resolveMargePct, getPrixAchat } from "./types";
+import type {
+  LineItem,
+  LineForfait,
+  QuantityResult,
+  CalcOutput,
+  Quantite,
+  TransportPackaging,
+} from "./types";
+import {
+  normalizeQuantites,
+  normalizeTransportPackaging,
+  resolveMargePct,
+  getPrixAchat,
+} from "./types";
 
 export type ContraParams = {
   coef_contra_pct: number;
@@ -15,7 +27,9 @@ export type ContraInput = {
   quantites: Quantite[];
   achatsContra: LineItem[];
   forfaitsContra: LineForfait[];
-  achatsAutres: LineItem[];
+  transportPackaging?: TransportPackaging;
+  /** @deprecated legacy field kept for old dossiers — ignored by calc. */
+  achatsAutres?: LineItem[];
   params: ContraParams;
 };
 
@@ -30,28 +44,29 @@ export const CONTRA_DEFAULTS: ContraParams = {
 };
 
 export function calculerContra(input: ContraInput): CalcOutput {
-  const { achatsContra, forfaitsContra, achatsAutres, params } = input;
+  const { achatsContra, forfaitsContra, params } = input;
   const quantites = normalizeQuantites(input.quantites);
+  const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
   const sumContraForfait = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
 
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
     const sumContraUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
-    const sumAutresUnit = achatsAutres.reduce((s, l) => s + getPrixAchat(l, qi), 0);
     const forfaitUnit = Q > 0 ? sumContraForfait / Q : 0;
     const contraUnit = sumContraUnit + forfaitUnit;
+    const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
+    const tpUnit = Q > 0 ? tpGlobal / Q : 0;
 
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
       const pct = params.commission_sourcing_pct / 100;
-      const commTotal = sumAutresUnit * pct * Q;
+      const commTotal = tpUnit * pct * Q;
       commSourcingUnit =
         commTotal >= params.commission_sourcing_min_eur
-          ? sumAutresUnit * pct
+          ? tpUnit * pct
           : params.commission_sourcing_min_eur / Q;
     }
-    const autresUnit = sumAutresUnit + commSourcingUnit;
 
     // Per-line PV: priority line > quantity > family default
     let pvUnitContra = 0;
@@ -65,18 +80,14 @@ export function calculerContra(input: ContraInput): CalcOutput {
       pvUnitContra += share * (1 + m / 100);
     }
 
-    let pvUnitAutres = 0;
-    for (const l of achatsAutres) {
-      const m = resolveMargePct(l.margePct, mq, params.coef_autres_pct);
-      pvUnitAutres += getPrixAchat(l, qi) * (1 + m / 100);
-    }
-    // Sourcing commission uses quantity/default (autres family default)
+    // Transport / Packaging uses "autres" default margin (or block override).
+    const mTP = resolveMargePct(tp.margePct, mq, params.coef_autres_pct);
+    const pvUnitTP = tpUnit * (1 + mTP / 100);
     const mSourcing = resolveMargePct(null, mq, params.coef_autres_pct);
-    pvUnitAutres += commSourcingUnit * (1 + mSourcing / 100);
+    const pvUnitSourcing = commSourcingUnit * (1 + mSourcing / 100);
 
-    const prixVenteNetUnit = pvUnitContra + pvUnitAutres;
-
-    const prixUnitaireAchat = contraUnit + autresUnit;
+    const prixVenteNetUnit = pvUnitContra + pvUnitTP + pvUnitSourcing;
+    const prixUnitaireAchat = contraUnit + tpUnit + commSourcingUnit;
     const achatsTotal = prixUnitaireAchat * Q;
     const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
     const budgetNet = prixVenteNetUnit * Q;
@@ -90,8 +101,6 @@ export function calculerContra(input: ContraInput): CalcOutput {
 
     const caContra = pvUnitContra * Q;
     const achContra = contraUnit * Q;
-    const caAutres = pvUnitAutres * Q;
-    const achAutres = autresUnit * Q;
 
     return {
       quantite: Q,
@@ -102,6 +111,8 @@ export function calculerContra(input: ContraInput): CalcOutput {
       commissionSourcingUnit: commSourcingUnit,
       commissionRapporteurUnit: commRapUnit,
       commissionRapporteurTotal: commRapTotal,
+      transportPackagingUnit: tpUnit,
+      transportPackagingGlobal: tpGlobal,
       totalPrixUnitaire,
       totalCA,
       totalDepenses,
@@ -110,8 +121,6 @@ export function calculerContra(input: ContraInput): CalcOutput {
       alerteMarge: margePct < 0.2,
       margeContra: caContra - achContra,
       margeContraPct: caContra > 0 ? (caContra - achContra) / caContra : 0,
-      margeAutres: caAutres - achAutres,
-      margeAutresPct: caAutres > 0 ? (caAutres - achAutres) / caAutres : 0,
     };
   });
 

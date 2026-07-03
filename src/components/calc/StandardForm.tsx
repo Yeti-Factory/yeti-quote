@@ -2,12 +2,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LinesTable, LinesGridTable, QuantitesRow } from "@/components/calc/Common";
+import { LinesGridTable, QuantitesRow, TransportPackagingBlock } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
-import { Layers, ShoppingCart, Package, Settings2 } from "lucide-react";
+import { Layers, ShoppingCart, Truck, Settings2 } from "lucide-react";
 import type { StandardInput, StandardParams } from "@/lib/calculs/standard";
-import type { Quantite } from "@/lib/calculs/types";
-import { syncLinesWithQuantites } from "@/lib/calculs/quantitySync";
+import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
+import { normalizeTransportPackaging } from "@/lib/calculs/types";
+import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function StandardForm({
   value,
@@ -16,6 +17,7 @@ export function StandardForm({
   value: StandardInput;
   onChange: (v: StandardInput) => void;
 }) {
+  const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
   function setParams(p: Partial<StandardParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
@@ -24,7 +26,15 @@ export function StandardForm({
       ...value,
       quantites: newQ,
       achatsPrincipaux: syncLinesWithQuantites(value.quantites, newQ, value.achatsPrincipaux),
+      transportPackaging: syncTransportWithQuantites(
+        value.quantites,
+        newQ,
+        value.transportPackaging,
+      ),
     });
+  }
+  function setTP(next: TransportPackaging) {
+    onChange({ ...value, transportPackaging: next });
   }
   return (
     <div className="space-y-5">
@@ -55,16 +65,15 @@ export function StandardForm({
         </div>
         <div>
           <SectionHeader
-            title="Achats annexes"
-            subtitle="forfait global divisé par la quantité"
+            title="Transport / Packaging"
+            subtitle="montant global par quantité, divisé automatiquement"
             tone="muted"
-            icon={<Package className="w-3.5 h-3.5" />}
+            icon={<Truck className="w-3.5 h-3.5" />}
           />
-          <LinesTable
-            title="Lignes"
-            lines={value.achatsAnnexes}
-            onChange={(l) => onChange({ ...value, achatsAnnexes: l })}
-            field="montantGlobal"
+          <TransportPackagingBlock
+            quantites={value.quantites}
+            value={tp}
+            onChange={setTP}
             defaultMargePct={value.params.coef_marge_pct}
           />
         </div>

@@ -2,12 +2,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LinesTable, LinesGridTable, QuantitesRow } from "@/components/calc/Common";
+import {
+  LinesTable,
+  LinesGridTable,
+  QuantitesRow,
+  TransportPackagingBlock,
+} from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
-import type { Quantite } from "@/lib/calculs/types";
-import { syncLinesWithQuantites } from "@/lib/calculs/quantitySync";
+import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
+import { normalizeTransportPackaging } from "@/lib/calculs/types";
+import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function ContraForm({
   value,
@@ -16,6 +22,7 @@ export function ContraForm({
   value: ContraInput;
   onChange: (v: ContraInput) => void;
 }) {
+  const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
   function setParams(p: Partial<ContraParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
@@ -24,8 +31,15 @@ export function ContraForm({
       ...value,
       quantites: newQ,
       achatsContra: syncLinesWithQuantites(value.quantites, newQ, value.achatsContra),
-      achatsAutres: syncLinesWithQuantites(value.quantites, newQ, value.achatsAutres),
+      transportPackaging: syncTransportWithQuantites(
+        value.quantites,
+        newQ,
+        value.transportPackaging,
+      ),
     });
+  }
+  function setTP(next: TransportPackaging) {
+    onChange({ ...value, transportPackaging: next });
   }
   return (
     <div className="space-y-5">
@@ -71,16 +85,15 @@ export function ContraForm({
         </div>
         <div>
           <SectionHeader
-            title="Achats autres fournisseurs"
-            subtitle="grille de prix par quantité"
+            title="Transport / Packaging"
+            subtitle="montant global par quantité, divisé automatiquement"
             tone="accent"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
-          <LinesGridTable
-            title="Lignes"
-            lines={value.achatsAutres}
-            onChange={(l) => onChange({ ...value, achatsAutres: l })}
+          <TransportPackagingBlock
             quantites={value.quantites}
+            value={tp}
+            onChange={setTP}
             defaultMargePct={value.params.coef_autres_pct}
           />
         </div>

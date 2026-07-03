@@ -56,7 +56,7 @@ function defaultPayload(type: string, params: any) {
     return {
       quantites: [],
       achatsPrincipaux: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
-      achatsAnnexes: [{ fournisseur: "", libelle: "", montantGlobal: 0, margePct: null }],
+      transportPackaging: { montantsGlobaux: [], margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -65,7 +65,7 @@ function defaultPayload(type: string, params: any) {
       quantites: [],
       achatsContra: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
       forfaitsContra: [{ fournisseur: "", libelle: "", montantGlobal: 0, margePct: null }],
-      achatsAutres: [{ fournisseur: "", libelle: "", prixUnitaire: 0, margePct: null }],
+      transportPackaging: { montantsGlobaux: [], margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
@@ -140,6 +140,19 @@ function DossierDetail() {
       nextPayload = dossier.payload;
     } else if (defaults) {
       nextPayload = defaultPayload(dossier.type, defaults[dossier.type]);
+    }
+    // Legacy → new: ensure transportPackaging exists for Standard/Contra dossiers.
+    if (nextPayload && (dossier.type === "standard" || dossier.type === "contra")) {
+      const qCount = Array.isArray(nextPayload.quantites) ? nextPayload.quantites.length : 0;
+      if (!nextPayload.transportPackaging) {
+        nextPayload = {
+          ...nextPayload,
+          transportPackaging: {
+            montantsGlobaux: Array.from({ length: qCount }, () => 0),
+            margePct: null,
+          },
+        };
+      }
     }
     if (nextPayload) {
       setPayload(nextPayload);
