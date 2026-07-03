@@ -105,15 +105,20 @@ function LineTable({
   field,
   quantites,
   defaultMargePct,
+  contraCoefPct,
 }: {
   title: string;
   lines: any[];
   field: "prixUnitaire" | "montantGlobal";
   quantites: Quantite[];
   defaultMargePct: number;
+  /** If provided (Contra), PV = (base × (1 + contraCoefPct/100)) / (1 - m/100). */
+  contraCoefPct?: number;
 }) {
   const qs = normalizeQuantites(quantites);
   const isGrid = field === "prixUnitaire";
+  const contraFactor = 1 + (contraCoefPct ?? 0) / 100;
+  const isContra = contraCoefPct !== undefined;
   return (
     <section>
       <h2>{title}</h2>
@@ -125,7 +130,7 @@ function LineTable({
             {isGrid ? (
               qs.map((q, i) => (
                 <th key={`a${i}`} className="num">
-                  Achat qté {q.qty.toLocaleString("fr-FR")}
+                  {isContra ? "Achat brut" : "Achat"} qté {q.qty.toLocaleString("fr-FR")}
                 </th>
               ))
             ) : (
@@ -134,7 +139,7 @@ function LineTable({
               </th>
             )}
             <th className="num" style={{ width: "8%" }}>
-              Marge %
+              {isContra ? "Marge Yeti %" : "Marge %"}
             </th>
             {qs.map((q, i) => (
               <th key={`pv${i}`} className="num">
@@ -182,7 +187,9 @@ function LineTable({
                     : q.qty > 0
                       ? globalAmount / q.qty
                       : globalAmount;
-                  const pv = base * (1 + m / 100);
+                  const cost = base * contraFactor;
+                  const mClamp = Math.max(0, Math.min(99, m));
+                  const pv = isContra ? cost / (1 - mClamp / 100) : base * (1 + m / 100);
                   return (
                     <td key={`pv${qi}`} className="num">
                       {fmtEUR(pv)}
@@ -197,6 +204,7 @@ function LineTable({
     </section>
   );
 }
+
 
 function TransportPackagingTable({
   quantites,
