@@ -33,18 +33,30 @@ function Dashboard() {
     },
   });
 
-  const { data: recent } = useQuery({
-    queryKey: ["dash-recent"],
+  const { data: dossiers } = useQuery({
+    queryKey: ["dash-by-client"],
     queryFn: async () => {
       const { data } = await supabase
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at, client_id, clients(entreprise)")
+        .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
         .neq("type", "kits")
-        .order("updated_at", { ascending: false })
-        .limit(8);
+        .order("updated_at", { ascending: false });
       return data ?? [];
     },
   });
+
+  const groups = (() => {
+    const map = new Map<string, { name: string; items: any[] }>();
+    for (const d of (dossiers ?? []) as any[]) {
+      const key = d.client_id ?? "none";
+      const name = d.clients?.entreprise ?? "— Sans client —";
+      if (!map.has(key)) map.set(key, { name, items: [] });
+      map.get(key)!.items.push(d);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { sensitivity: "base" }),
+    );
+  })();
 
   return (
     <div>
@@ -69,43 +81,61 @@ function Dashboard() {
 
       <Card className="p-0 overflow-hidden">
         <div className="px-5 py-4 border-b">
-          <h2 className="font-semibold">Derniers dossiers</h2>
+          <h2 className="font-semibold">Dossiers par client</h2>
         </div>
-        <div className="divide-y">
-          {(recent ?? []).length === 0 && (
+        <div>
+          {groups.length === 0 && (
             <div className="px-5 py-10 text-center text-sm text-muted-foreground">
               Aucun dossier pour l'instant. Créez votre premier dossier.
             </div>
           )}
-          {(recent ?? []).map((d: any) => (
-            <Link
-              key={d.id}
-              to="/dossiers/$id"
-              params={{ id: d.id }}
-              className="flex items-center px-5 py-3 hover:bg-muted/40"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">{d.objet || "(Sans objet)"}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {d.reference} · {d.clients?.entreprise ?? "—"}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="capitalize">
-                  {d.type}
-                </Badge>
-                <StatusBadge statut={d.statut} />
-                <span className="text-xs text-muted-foreground w-24 text-right">
-                  {fmtDate(d.updated_at)}
+          {groups.map((g) => (
+            <div key={g.name} className="border-t first:border-t-0">
+              <Link
+                to="/clients"
+                className="block px-5 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+              >
+                {g.name}
+                <span className="ml-2 text-muted-foreground/70 normal-case tracking-normal">
+                  ({g.items.length})
                 </span>
+              </Link>
+              <div className="divide-y">
+                {g.items.map((d: any) => (
+                  <Link
+                    key={d.id}
+                    to="/dossiers/$id"
+                    params={{ id: d.id }}
+                    className="flex items-center px-5 py-3 hover:bg-muted/40"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {d.objet || "(Sans objet)"}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {d.reference || `Indice v${d.version ?? 1}`}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="capitalize">
+                        {d.type}
+                      </Badge>
+                      <StatusBadge statut={d.statut} />
+                      <span className="text-xs text-muted-foreground w-24 text-right">
+                        {fmtDate(d.updated_at)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </Card>
     </div>
   );
 }
+
 
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
   return (
