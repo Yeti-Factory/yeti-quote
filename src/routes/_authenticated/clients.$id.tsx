@@ -50,7 +50,7 @@ function ClientDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at")
+        .select("id, reference, objet, type, statut, updated_at, version")
         .eq("client_id", id)
         .order("updated_at", { ascending: false });
       return data ?? [];
