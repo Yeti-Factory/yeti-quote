@@ -368,7 +368,7 @@ function DossierDetail() {
         </Link>
         <PageHeader
           title={meta.objet || "(Sans objet)"}
-          subtitle={`${meta.reference} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
+          subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
           actions={
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => window.print()}>
