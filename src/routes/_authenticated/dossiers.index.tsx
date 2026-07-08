@@ -48,7 +48,7 @@ function DossiersList() {
     queryFn: async () => {
       let req = supabase
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at, clients(entreprise)")
+        .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
         .neq("type", "kits")
         .order("updated_at", { ascending: false });
       if (type !== "all") req = req.eq("type", type as any);
