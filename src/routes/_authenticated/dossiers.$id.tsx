@@ -292,11 +292,12 @@ function DossierDetail() {
 
   async function duplicate() {
     if (!dossier) return;
+    const nextVersion = ((dossier as any).version ?? 1) + 1;
     const { data, error } = await supabase
       .from("dossiers")
       .insert({
         reference: "",
-        objet: `${dossier.objet} (copie)`,
+        objet: dossier.objet,
         client_id: dossier.client_id,
         contact: dossier.contact,
         email: dossier.email,
@@ -307,13 +308,15 @@ function DossierDetail() {
         params: dossier.params,
         results: dossier.results,
         created_by: user!.id,
-      })
+        version: nextVersion,
+      } as any)
       .select("id")
       .single();
     if (error) return toast.error(error.message);
-    toast.success("Dossier dupliqué");
+    toast.success(`Dossier dupliqué (v${nextVersion})`);
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
+
 
   async function del() {
     if (!dossier) return;
@@ -365,7 +368,7 @@ function DossierDetail() {
         </Link>
         <PageHeader
           title={meta.objet || "(Sans objet)"}
-          subtitle={`${meta.reference} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
+          subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
           actions={
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => window.print()}>

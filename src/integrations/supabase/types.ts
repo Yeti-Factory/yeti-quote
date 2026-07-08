@@ -88,6 +88,7 @@ export type Database = {
           statut: Database["public"]["Enums"]["dossier_statut"]
           type: Database["public"]["Enums"]["dossier_type"]
           updated_at: string
+          version: number
         }
         Insert: {
           client_id: string
@@ -105,6 +106,7 @@ export type Database = {
           statut?: Database["public"]["Enums"]["dossier_statut"]
           type: Database["public"]["Enums"]["dossier_type"]
           updated_at?: string
+          version?: number
         }
         Update: {
           client_id?: string
@@ -122,6 +124,7 @@ export type Database = {
           statut?: Database["public"]["Enums"]["dossier_statut"]
           type?: Database["public"]["Enums"]["dossier_type"]
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {

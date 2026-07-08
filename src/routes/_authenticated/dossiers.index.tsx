@@ -48,7 +48,7 @@ function DossiersList() {
     queryFn: async () => {
       let req = supabase
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at, clients(entreprise)")
+        .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
         .neq("type", "kits")
         .order("updated_at", { ascending: false });
       if (type !== "all") req = req.eq("type", type as any);
@@ -116,70 +116,97 @@ function DossiersList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="divide-y">
+        <div>
           {(dossiers ?? []).length === 0 && (
             <div className="px-5 py-10 text-center text-sm text-muted-foreground">
               Aucun dossier.
             </div>
           )}
-          {(dossiers ?? []).map((d: any) => (
-            <div key={d.id} className="flex items-center px-5 py-3 hover:bg-muted/40 group">
-              <Link
-                to="/dossiers/$id"
-                params={{ id: d.id }}
-                className="flex items-center flex-1 min-w-0 gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{d.objet || "(Sans objet)"}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {d.reference} · {d.clients?.entreprise ?? "—"}
-                  </div>
+          {(() => {
+            const groups = new Map<string, { name: string; items: any[] }>();
+            for (const d of (dossiers ?? []) as any[]) {
+              const key = d.client_id ?? "none";
+              const name = d.clients?.entreprise ?? "— Sans client —";
+              if (!groups.has(key)) groups.set(key, { name, items: [] });
+              groups.get(key)!.items.push(d);
+            }
+            const sorted = Array.from(groups.values()).sort((a, b) =>
+              a.name.localeCompare(b.name, "fr", { sensitivity: "base" }),
+            );
+            return sorted.map((g) => (
+              <div key={g.name} className="border-t first:border-t-0">
+                <div className="px-5 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.name}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className="capitalize">
-                    {d.type}
-                  </Badge>
-                  <StatusBadge statut={d.statut} />
-                  <span className="text-xs text-muted-foreground w-24 text-right">
-                    {fmtDate(d.updated_at)}
-                  </span>
-                </div>
-              </Link>
-              {isAdmin && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label="Supprimer le dossier"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer définitivement ce dossier ?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Cette action est irréversible. Le client associé n'est pas supprimé.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteDossier(d.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                <div className="divide-y">
+                  {g.items.map((d: any) => (
+                    <div key={d.id} className="flex items-center px-5 py-3 hover:bg-muted/40 group">
+                      <Link
+                        to="/dossiers/$id"
+                        params={{ id: d.id }}
+                        className="flex items-center flex-1 min-w-0 gap-3"
                       >
-                        Supprimer
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-          ))}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {d.objet || "(Sans objet)"}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            Indice v{d.version ?? 1}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="capitalize">
+                            {d.type}
+                          </Badge>
+                          <StatusBadge statut={d.statut} />
+                          <span className="text-xs text-muted-foreground w-24 text-right">
+                            {fmtDate(d.updated_at)}
+                          </span>
+                        </div>
+                      </Link>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="Supprimer le dossier"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Supprimer définitivement ce dossier ?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action est irréversible. Le client associé n'est pas
+                                supprimé.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteDossier(d.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
+
       </Card>
     </div>
   );
