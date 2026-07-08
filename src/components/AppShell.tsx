@@ -1,6 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FolderKanban, LogOut, Shield } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  FolderKanban,
+  LogOut,
+  Shield,
+  ChevronRight,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -13,6 +21,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isAdmin } = useIsAdmin(user?.id);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [fullName, setFullName] = useState<string>("");
+  const [clientsOpen, setClientsOpen] = useState<boolean>(() =>
+    pathname.startsWith("/clients"),
+  );
+
+  useEffect(() => {
+    if (pathname.startsWith("/clients")) setClientsOpen(true);
+  }, [pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -24,16 +39,29 @@ export function AppShell({ children }: { children: ReactNode }) {
       .then(({ data }) => setFullName(data?.full_name || data?.email || ""));
   }, [user]);
 
-  const nav = [
-    { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-    { to: "/clients", label: "Clients", icon: Users },
-    { to: "/dossiers", label: "Dossiers", icon: FolderKanban },
-  ];
+  const { data: clientsList } = useQuery({
+    queryKey: ["sidebar-clients"],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id, entreprise")
+        .order("entreprise", { ascending: true });
+      return data ?? [];
+    },
+  });
 
   async function signOut() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
+
+  const linkCls = (active: boolean) =>
+    `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+      active
+        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+        : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
+    }`;
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
@@ -46,33 +74,65 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-2 py-3 space-y-0.5">
-          {nav.map((n) => {
-            const active = pathname.startsWith(n.to);
-            return (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
-                }`}
-              >
-                <n.icon className="w-4 h-4" />
-                {n.label}
-              </Link>
-            );
-          })}
-          {isAdmin && (
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+          <Link to="/dashboard" className={linkCls(pathname.startsWith("/dashboard"))}>
+            <LayoutDashboard className="w-4 h-4" />
+            Tableau de bord
+          </Link>
+
+          <div className="flex items-center">
             <Link
-              to="/admin"
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                pathname.startsWith("/admin")
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
-              }`}
+              to="/clients"
+              className={`${linkCls(pathname.startsWith("/clients"))} flex-1`}
             >
+              <Users className="w-4 h-4" />
+              Clients
+            </Link>
+            <button
+              type="button"
+              onClick={() => setClientsOpen((v) => !v)}
+              aria-label={clientsOpen ? "Replier les clients" : "Déplier les clients"}
+              className="ml-1 p-1.5 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent/60"
+            >
+              <ChevronRight
+                className={`w-3.5 h-3.5 transition-transform ${clientsOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+          </div>
+          {clientsOpen && (
+            <div className="ml-6 mt-0.5 mb-1 max-h-64 overflow-y-auto pr-1 border-l border-sidebar-border/60">
+              {(clientsList ?? []).length === 0 && (
+                <div className="px-3 py-1.5 text-xs text-sidebar-foreground/50">
+                  Aucun client
+                </div>
+              )}
+              {(clientsList ?? []).map((c) => {
+                const active = pathname === `/clients/${c.id}`;
+                return (
+                  <Link
+                    key={c.id}
+                    to="/clients/$id"
+                    params={{ id: c.id }}
+                    className={`block px-3 py-1.5 text-xs rounded-md truncate transition-colors ${
+                      active
+                        ? "text-sidebar-accent-foreground font-medium bg-sidebar-accent/60"
+                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+                    }`}
+                  >
+                    {c.entreprise}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          <Link to="/dossiers" className={linkCls(pathname.startsWith("/dossiers"))}>
+            <FolderKanban className="w-4 h-4" />
+            Dossiers
+          </Link>
+
+          {isAdmin && (
+            <Link to="/admin" className={linkCls(pathname.startsWith("/admin"))}>
               <Shield className="w-4 h-4" />
               Administration
             </Link>
@@ -93,3 +153,4 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
