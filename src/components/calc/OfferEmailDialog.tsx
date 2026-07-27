@@ -28,6 +28,7 @@ type OfferRow = {
   quantity: number;
   unitPrice: number;
   details?: string[];
+  isOption?: boolean;
 };
 
 type OfferEmailDialogProps = {
@@ -70,6 +71,17 @@ function buildLineDetail(line: any, fallback: string) {
     .trim();
 }
 
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isOptionLabel(value: unknown) {
+  return /\boptions?\b/.test(normalizeSearch(value));
+}
+
 function cleanDetails(details: string[] = []) {
   const seen = new Set<string>();
   return details
@@ -92,6 +104,7 @@ function addRow(
   quantity: number,
   unitPrice: number,
   details: string[] = [],
+  isOption = false,
 ) {
   if (!Number.isFinite(unitPrice) || Math.abs(unitPrice) < 0.005) return;
   rows.push({
@@ -99,6 +112,7 @@ function addRow(
     quantity,
     unitPrice,
     details: cleanDetails(details),
+    isOption,
   });
 }
 
@@ -110,13 +124,23 @@ function buildStandardRows(payload: any, scenario: any, scenarioIndex: number): 
 
   let achatsPrincipauxUnit = 0;
   const achatsPrincipauxDetails: string[] = [];
+  let optionsUnit = 0;
+  const optionsDetails: string[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
     const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
-    achatsPrincipauxUnit += achat * (1 + marge / 100);
-    achatsPrincipauxDetails.push(buildLineDetail(line, `Prestation ${index + 1}`));
+    const lineUnit = achat * (1 + marge / 100);
+    const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
+    if (isOptionLabel(line?.libelle)) {
+      optionsUnit += lineUnit;
+      optionsDetails.push(lineDetail);
+    } else {
+      achatsPrincipauxUnit += lineUnit;
+      achatsPrincipauxDetails.push(lineDetail);
+    }
   }
   addRow(rows, "Achats principaux", quantite, achatsPrincipauxUnit, achatsPrincipauxDetails);
+  addRow(rows, "Options", quantite, optionsUnit, optionsDetails, true);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
@@ -141,25 +165,52 @@ function buildContraRows(payload: any, scenario: any, scenarioIndex: number): Of
 
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
+  let optionsContraUnit = 0;
+  const optionsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
     const cost = raw * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    achatsContraUnit += pvFromResidual(cost, margeYeti);
-    achatsContraDetails.push(buildLineDetail(line, `Prestation Contra ${index + 1}`));
+    const lineUnit = pvFromResidual(cost, margeYeti);
+    const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
+    if (isOptionLabel(line?.libelle)) {
+      optionsContraUnit += lineUnit;
+      optionsContraDetails.push(lineDetail);
+    } else {
+      achatsContraUnit += lineUnit;
+      achatsContraDetails.push(lineDetail);
+    }
   }
   addRow(rows, "Achats chez Contra", quantite, achatsContraUnit, achatsContraDetails);
+  addRow(rows, "Options Contra", quantite, optionsContraUnit, optionsContraDetails, true);
 
   let forfaitsContraUnit = 0;
   const forfaitsContraDetails: string[] = [];
+  let optionsForfaitsUnit = 0;
+  const optionsForfaitsDetails: string[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
     const cost = share * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    forfaitsContraUnit += pvFromResidual(cost, margeYeti);
-    forfaitsContraDetails.push(buildLineDetail(line, `Forfait Contra ${index + 1}`));
+    const lineUnit = pvFromResidual(cost, margeYeti);
+    const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
+    if (isOptionLabel(line?.libelle)) {
+      optionsForfaitsUnit += lineUnit;
+      optionsForfaitsDetails.push(lineDetail);
+    } else {
+      forfaitsContraUnit += lineUnit;
+      forfaitsContraDetails.push(lineDetail);
+    }
   }
   addRow(rows, "Forfaits Contra", quantite, forfaitsContraUnit, forfaitsContraDetails);
+  addRow(
+    rows,
+    "Options forfaitaires Contra",
+    quantite,
+    optionsForfaitsUnit,
+    optionsForfaitsDetails,
+    true,
+  );
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const costTP = tpUnit * contraFactor;
@@ -196,6 +247,7 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
       sectionLines.map((line: any, lineIndex: number) =>
         buildLineDetail(line, `Ligne ${lineIndex + 1}`),
       ),
+      isOptionLabel(group?.libelle || payload?.sections?.[index]?.libelle),
     );
   }
 
@@ -235,19 +287,50 @@ function reconcileRows(rows: OfferRow[], scenario: any) {
   return rows;
 }
 
+function rowTotal(row: OfferRow) {
+  return row.unitPrice * row.quantity;
+}
+
+function rowsTotal(rows: OfferRow[]) {
+  return rows.reduce((sum, row) => sum + rowTotal(row), 0);
+}
+
+function buildPlainRows(rows: OfferRow[]) {
+  return rows.flatMap((row) => [
+    `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(rowTotal(row))}`,
+    ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
+  ]);
+}
+
 function buildPlainTextEmail(params: {
   subject: string;
   clientName: string;
   contactName: string;
   reference: string;
   objet: string;
-  rows: OfferRow[];
+  mainRows: OfferRow[];
+  optionRows: OfferRow[];
+  mainTotalHT: number;
+  optionsTotalHT: number;
   totalHT: number;
   vat: number;
   totalTTC: number;
 }) {
-  const { clientName, contactName, reference, objet, rows, totalHT, vat, totalTTC } = params;
+  const {
+    clientName,
+    contactName,
+    reference,
+    objet,
+    mainRows,
+    optionRows,
+    mainTotalHT,
+    optionsTotalHT,
+    totalHT,
+    vat,
+    totalTTC,
+  } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
+  const hasOptions = optionRows.length > 0;
 
   return [
     greeting,
@@ -256,13 +339,14 @@ function buildPlainTextEmail(params: {
     clientName ? `Client : ${clientName}` : "",
     reference ? `Référence interne : ${reference}` : "",
     "",
-    "Détail de l'offre :",
-    ...rows.flatMap((row) => [
-      `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(row.unitPrice * row.quantity)}`,
-      ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
-    ]),
+    hasOptions ? "Offre principale :" : "Détail de l'offre :",
+    ...buildPlainRows(mainRows),
+    hasOptions ? `Total offre principale HT : ${fmtEUR(mainTotalHT)}` : "",
+    hasOptions ? "Options :" : "",
+    ...buildPlainRows(optionRows),
+    hasOptions ? `Total options HT : ${fmtEUR(optionsTotalHT)}` : "",
     "",
-    `Total HT : ${fmtEUR(totalHT)}`,
+    hasOptions ? `Total général HT : ${fmtEUR(totalHT)}` : `Total HT : ${fmtEUR(totalHT)}`,
     `TVA 20 % : ${fmtEUR(vat)}`,
     `Total TTC : ${fmtEUR(totalTTC)}`,
     "",
@@ -281,14 +365,30 @@ function buildHtmlEmail(params: {
   clientEmail: string;
   reference: string;
   objet: string;
-  rows: OfferRow[];
+  mainRows: OfferRow[];
+  optionRows: OfferRow[];
+  mainTotalHT: number;
+  optionsTotalHT: number;
   totalHT: number;
   vat: number;
   totalTTC: number;
 }) {
-  const { clientName, contactName, clientEmail, reference, objet, rows, totalHT, vat, totalTTC } =
-    params;
+  const {
+    clientName,
+    contactName,
+    clientEmail,
+    reference,
+    objet,
+    mainRows,
+    optionRows,
+    mainTotalHT,
+    optionsTotalHT,
+    totalHT,
+    vat,
+    totalTTC,
+  } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
+  const hasOptions = optionRows.length > 0;
   const detailHtml = (details: string[] | undefined) =>
     details?.length
       ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid #f0ebe5;color:#51463f;font-size:12px;line-height:1.35;">
@@ -297,9 +397,10 @@ function buildHtmlEmail(params: {
             .join("")}
         </div>`
       : "";
-  const rowHtml = rows
-    .map(
-      (row) => `
+  const rowHtml = (rows: OfferRow[]) =>
+    rows
+      .map(
+        (row) => `
         <tr>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
             <div style="font-weight:700;">${escapeHtml(row.designation)}</div>
@@ -307,10 +408,35 @@ function buildHtmlEmail(params: {
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(row.unitPrice * row.quantity))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
         </tr>`,
-    )
-    .join("");
+      )
+      .join("");
+  const offerTable = (title: string, rows: OfferRow[], totalLabel: string, total: number) =>
+    rows.length
+      ? `<tr>
+      <td style="padding:0 0 16px 0;">
+        <div style="padding:8px 12px;background:#111111;color:#ffffff;font-weight:700;text-transform:uppercase;font-size:12px;">${escapeHtml(title)}</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #111111;font-family:${FONT};">
+          <thead>
+            <tr>
+              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">Désignation</th>
+              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:70px;">Qté</th>
+              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:120px;">PU HT</th>
+              <th style="padding:10px 12px;background:#ff7900;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:130px;">Total HT</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml(rows)}
+            <tr>
+              <td colspan="3" style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:700;">${escapeHtml(totalLabel)}</td>
+              <td style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:900;white-space:nowrap;">${escapeHtml(fmtEUR(total))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>`
+      : "";
 
   return `
 <div style="margin:0;padding:0;background:#ffffff;color:#111111;font-family:${FONT};font-size:14px;line-height:1.45;">
@@ -349,26 +475,30 @@ function buildHtmlEmail(params: {
         </table>
       </td>
     </tr>
-    <tr>
-      <td style="padding:0 0 16px 0;">
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #111111;font-family:${FONT};">
-          <thead>
-            <tr>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">Désignation</th>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:70px;">Qté</th>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:120px;">PU HT</th>
-              <th style="padding:10px 12px;background:#ff7900;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:130px;">Total HT</th>
-            </tr>
-          </thead>
-          <tbody>${rowHtml}</tbody>
-        </table>
-      </td>
-    </tr>
+    ${offerTable(
+      hasOptions ? "Offre principale" : "Détail de l'offre",
+      mainRows,
+      hasOptions ? "Total offre principale HT" : "Total HT",
+      mainTotalHT,
+    )}
+    ${offerTable("Options", optionRows, "Total options HT", optionsTotalHT)}
     <tr>
       <td style="padding:0 0 18px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-family:${FONT};">
+          ${
+            hasOptions
+              ? `<tr>
+            <td style="padding:8px 12px;text-align:right;color:#111111;">Total offre principale HT</td>
+            <td style="padding:8px 12px;text-align:right;color:#111111;width:160px;font-weight:700;">${escapeHtml(fmtEUR(mainTotalHT))}</td>
+          </tr>
           <tr>
-            <td style="padding:8px 12px;text-align:right;color:#111111;">Total HT</td>
+            <td style="padding:8px 12px;text-align:right;color:#111111;">Total options HT</td>
+            <td style="padding:8px 12px;text-align:right;color:#111111;font-weight:700;">${escapeHtml(fmtEUR(optionsTotalHT))}</td>
+          </tr>`
+              : ""
+          }
+          <tr>
+            <td style="padding:8px 12px;text-align:right;color:#111111;">${hasOptions ? "Total général HT" : "Total HT"}</td>
             <td style="padding:8px 12px;text-align:right;color:#111111;width:160px;font-weight:700;">${escapeHtml(fmtEUR(totalHT))}</td>
           </tr>
           <tr>
@@ -433,8 +563,11 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
     const objet = cleanLabel(meta.objet, dossier?.objet || "Offre de prix");
     const rawRows = buildOfferRows(dossier?.type, payload, output, scenario, selectedIndex);
     const rows = reconcileRows(rawRows, scenario);
-    const totalHT =
-      Number(scenario.totalCA) || rows.reduce((sum, row) => sum + row.unitPrice * row.quantity, 0);
+    const mainRows = rows.filter((row) => !row.isOption);
+    const optionRows = rows.filter((row) => row.isOption);
+    const mainTotalHT = rowsTotal(mainRows);
+    const optionsTotalHT = rowsTotal(optionRows);
+    const totalHT = mainTotalHT + optionsTotalHT;
     const vat = totalHT * 0.2;
     const totalTTC = totalHT + vat;
     const subject = `Offre de prix - ${clientName || "Client"} - ${objet}`;
@@ -444,7 +577,10 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       contactName,
       reference,
       objet,
-      rows,
+      mainRows,
+      optionRows,
+      mainTotalHT,
+      optionsTotalHT,
       totalHT,
       vat,
       totalTTC,
@@ -455,7 +591,10 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       clientEmail,
       reference,
       objet,
-      rows,
+      mainRows,
+      optionRows,
+      mainTotalHT,
+      optionsTotalHT,
       totalHT,
       vat,
       totalTTC,
