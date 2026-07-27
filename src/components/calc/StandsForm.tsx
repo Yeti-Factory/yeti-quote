@@ -2,7 +2,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Trash2, Layers, LayoutGrid, Sigma, Settings2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Layers,
+  LayoutGrid,
+  Sigma,
+  Settings2,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { QuantitesRow } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { fmtEUR, fmtPct } from "@/lib/format";
@@ -19,6 +28,15 @@ export function StandsForm({
   function setParams(p: Partial<StandsParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
+
+  function moveSection(from: number, to: number) {
+    if (to < 0 || to >= value.sections.length) return;
+    const next = [...value.sections];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange({ ...value, sections: next });
+  }
+
 
   const out = calculerStands(value);
 
@@ -79,6 +97,28 @@ export function StandsForm({
                 <div className="font-semibold tabular-nums">{fmtEUR(groupe?.pvTotal ?? 0)}</div>
               </div>
               <div className="flex gap-1 justify-end">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Monter la section"
+                  aria-label="Monter la section"
+                  disabled={si === 0}
+                  onClick={() => moveSection(si, si - 1)}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Descendre la section"
+                  aria-label="Descendre la section"
+                  disabled={si === value.sections.length - 1}
+                  onClick={() => moveSection(si, si + 1)}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
