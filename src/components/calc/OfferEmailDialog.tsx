@@ -27,6 +27,7 @@ type OfferRow = {
   designation: string;
   quantity: number;
   unitPrice: number;
+  details?: string[];
 };
 
 type OfferEmailDialogProps = {
@@ -63,17 +64,39 @@ function cleanLabel(value: unknown, fallback: string) {
   return text.length > 0 ? text : fallback;
 }
 
+function buildLineDetail(line: any, fallback: string) {
+  return cleanLabel(line?.libelle, fallback);
+}
+
+function cleanDetails(details: string[] = []) {
+  const seen = new Set<string>();
+  return details
+    .map((detail) => detail.trim())
+    .filter((detail) => {
+      if (!detail || seen.has(detail)) return false;
+      seen.add(detail);
+      return true;
+    });
+}
+
 function pvFromResidual(cost: number, margePct: number): number {
   const m = Math.max(0, Math.min(99, Number(margePct) || 0));
   return cost / (1 - m / 100);
 }
 
-function addRow(rows: OfferRow[], designation: string, quantity: number, unitPrice: number) {
+function addRow(
+  rows: OfferRow[],
+  designation: string,
+  quantity: number,
+  unitPrice: number,
+  details: string[] = [],
+) {
   if (!Number.isFinite(unitPrice) || Math.abs(unitPrice) < 0.005) return;
   rows.push({
     designation: cleanLabel(designation, "Prestation"),
     quantity,
     unitPrice,
+    details: cleanDetails(details),
   });
 }
 
@@ -83,11 +106,15 @@ function buildStandardRows(payload: any, scenario: any, scenarioIndex: number): 
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
   const defaultMarge = Number(payload?.params?.coef_marge_pct) || 0;
 
+  let achatsPrincipauxUnit = 0;
+  const achatsPrincipauxDetails: string[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
     const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
-    addRow(rows, line?.libelle || `Prestation ${index + 1}`, quantite, achat * (1 + marge / 100));
+    achatsPrincipauxUnit += achat * (1 + marge / 100);
+    achatsPrincipauxDetails.push(buildLineDetail(line, `Prestation ${index + 1}`));
   }
+  addRow(rows, "Achats principaux", quantite, achatsPrincipauxUnit, achatsPrincipauxDetails);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
@@ -110,29 +137,27 @@ function buildContraRows(payload: any, scenario: any, scenarioIndex: number): Of
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
   const contraFactor = 1 + coefContra / 100;
 
+  let achatsContraUnit = 0;
+  const achatsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
     const cost = raw * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    addRow(
-      rows,
-      line?.libelle || `Prestation Contra ${index + 1}`,
-      quantite,
-      pvFromResidual(cost, margeYeti),
-    );
+    achatsContraUnit += pvFromResidual(cost, margeYeti);
+    achatsContraDetails.push(buildLineDetail(line, `Prestation Contra ${index + 1}`));
   }
+  addRow(rows, "Achats chez Contra", quantite, achatsContraUnit, achatsContraDetails);
 
+  let forfaitsContraUnit = 0;
+  const forfaitsContraDetails: string[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
     const cost = share * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    addRow(
-      rows,
-      line?.libelle || `Forfait Contra ${index + 1}`,
-      quantite,
-      pvFromResidual(cost, margeYeti),
-    );
+    forfaitsContraUnit += pvFromResidual(cost, margeYeti);
+    forfaitsContraDetails.push(buildLineDetail(line, `Forfait Contra ${index + 1}`));
   }
+  addRow(rows, "Forfaits Contra", quantite, forfaitsContraUnit, forfaitsContraDetails);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const costTP = tpUnit * contraFactor;
@@ -158,9 +183,18 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
   const groups = output?.extra?.groupes ?? [];
 
   for (const [index, group] of groups.entries()) {
-    const hasInputLines = (payload?.sections?.[index]?.lignes ?? []).length > 0;
+    const sectionLines = payload?.sections?.[index]?.lignes ?? [];
+    const hasInputLines = sectionLines.length > 0;
     if (!hasInputLines && !(Number(group?.pvTotal) > 0)) continue;
-    addRow(rows, group?.libelle || `Groupe ${index + 1}`, quantite, Number(group?.pvTotal) || 0);
+    addRow(
+      rows,
+      group?.libelle || `Groupe ${index + 1}`,
+      quantite,
+      Number(group?.pvTotal) || 0,
+      sectionLines.map((line: any, lineIndex: number) =>
+        buildLineDetail(line, `Ligne ${lineIndex + 1}`),
+      ),
+    );
   }
 
   addRow(
@@ -221,10 +255,12 @@ function buildPlainTextEmail(params: {
     reference ? `Référence interne : ${reference}` : "",
     "",
     "Détail de l'offre :",
-    ...rows.map(
-      (row) =>
-        `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(row.unitPrice * row.quantity)}`,
-    ),
+    ...rows.flatMap((row) => [
+      `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(row.unitPrice * row.quantity)}`,
+      ...(row.details?.length
+        ? ["  Composition :", ...row.details.map((detail) => `  - ${detail}`)]
+        : []),
+    ]),
     "",
     `Total HT : ${fmtEUR(totalHT)}`,
     `TVA 20 % : ${fmtEUR(vat)}`,
@@ -253,11 +289,23 @@ function buildHtmlEmail(params: {
   const { clientName, contactName, clientEmail, reference, objet, rows, totalHT, vat, totalTTC } =
     params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
+  const detailHtml = (details: string[] | undefined) =>
+    details?.length
+      ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid #f0ebe5;color:#51463f;font-size:12px;line-height:1.35;">
+          <div style="font-weight:700;color:#111111;margin-bottom:3px;">Composition</div>
+          ${details
+            .map((detail) => `<div style="margin:2px 0;">&bull;&nbsp;${escapeHtml(detail)}</div>`)
+            .join("")}
+        </div>`
+      : "";
   const rowHtml = rows
     .map(
       (row) => `
         <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">${escapeHtml(row.designation)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
+            <div style="font-weight:700;">${escapeHtml(row.designation)}</div>
+            ${detailHtml(row.details)}
+          </td>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(row.unitPrice * row.quantity))}</td>
@@ -458,7 +506,8 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
           <DialogTitle>Offre à coller dans le mail</DialogTitle>
           <DialogDescription>
             Le corps du mail est généré depuis le calcul. Copiez-le puis collez-le directement dans
-            Outlook, Gmail ou votre client mail.
+            Outlook, Gmail ou votre client mail. Les compositions sont affichées sans fournisseur et
+            sans prix de détail.
           </DialogDescription>
         </DialogHeader>
 
