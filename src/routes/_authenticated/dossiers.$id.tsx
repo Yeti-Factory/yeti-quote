@@ -36,6 +36,7 @@ import { KitsForm } from "@/components/calc/KitsForm";
 import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
+import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
@@ -100,7 +101,7 @@ function DossierDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dossiers")
-        .select("*, clients(id, entreprise, contact, email)")
+        .select("*, clients(id, entreprise, contact, email, adresse)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -317,7 +318,6 @@ function DossierDetail() {
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
 
-
   async function del() {
     if (!dossier) return;
     const { error } = await supabase.from("dossiers").delete().eq("id", dossier.id);
@@ -371,6 +371,9 @@ function DossierDetail() {
           subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
           actions={
             <div className="flex gap-2">
+              {dossier.type !== "kits" && output && (
+                <OfferEmailDialog dossier={dossier} meta={meta} payload={payload} output={output} />
+              )}
               <Button variant="outline" onClick={() => window.print()}>
                 <Printer className="w-4 h-4 mr-1.5" />
                 Imprimer / PDF
