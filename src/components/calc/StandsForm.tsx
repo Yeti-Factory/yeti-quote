@@ -98,6 +98,28 @@ export function StandsForm({
               </div>
               <div className="flex gap-1 justify-end">
                 <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Monter la section"
+                  aria-label="Monter la section"
+                  disabled={si === 0}
+                  onClick={() => moveSection(si, si - 1)}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Descendre la section"
+                  aria-label="Descendre la section"
+                  disabled={si === value.sections.length - 1}
+                  onClick={() => moveSection(si, si + 1)}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </Button>
+                <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => {
