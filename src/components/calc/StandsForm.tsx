@@ -29,6 +29,15 @@ export function StandsForm({
     onChange({ ...value, params: { ...value.params, ...p } });
   }
 
+  function moveSection(from: number, to: number) {
+    if (to < 0 || to >= value.sections.length) return;
+    const next = [...value.sections];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange({ ...value, sections: next });
+  }
+
+
   const out = calculerStands(value);
 
   return (
