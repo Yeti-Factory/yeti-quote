@@ -48,17 +48,6 @@ type OfferScenarioSummary = {
   totalTTC: number;
 };
 
-type OfferMatrixCell = {
-  unitPrice: number;
-  total: number;
-};
-
-type OfferMatrixRow = {
-  designation: string;
-  details?: string[];
-  cells: Array<OfferMatrixCell | null>;
-};
-
 type OfferEmailDialogProps = {
   dossier: any;
   meta: {
@@ -377,43 +366,33 @@ function buildScenarioSummary(
   return summarizeRows(reconcileRows(rawRows, item.scenario), item.scenario);
 }
 
-function matrixKey(row: OfferRow) {
-  return [row.designation, ...(row.details ?? [])].join("\u001f");
-}
-
-function buildMatrixRows(
-  summaries: OfferScenarioSummary[],
-  getRows: (summary: OfferScenarioSummary) => OfferRow[],
-): OfferMatrixRow[] {
-  const byKey = new Map<string, OfferMatrixRow>();
-
-  summaries.forEach((summary, columnIndex) => {
-    for (const row of getRows(summary)) {
-      const key = matrixKey(row);
-      let matrixRow = byKey.get(key);
-      if (!matrixRow) {
-        matrixRow = {
-          designation: row.designation,
-          details: row.details,
-          cells: Array.from({ length: summaries.length }, () => null),
-        };
-        byKey.set(key, matrixRow);
-      }
-      matrixRow.cells[columnIndex] = {
-        unitPrice: row.unitPrice,
-        total: rowTotal(row),
-      };
-    }
-  });
-
-  return Array.from(byKey.values());
-}
-
 function buildPlainRows(rows: OfferRow[]) {
   return rows.flatMap((row) => [
     `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(rowTotal(row))}`,
     ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
   ]);
+}
+
+function unitPriceFromTotal(summary: OfferScenarioSummary, total: number) {
+  return summary.quantity > 0 ? total / summary.quantity : total;
+}
+
+function collectDetails(rowsByScenario: OfferRow[][]) {
+  const seen = new Set<string>();
+  const details: string[] = [];
+
+  for (const rows of rowsByScenario) {
+    for (const row of rows) {
+      for (const detail of row.details ?? []) {
+        const cleaned = detail.trim();
+        if (!cleaned || seen.has(cleaned)) continue;
+        seen.add(cleaned);
+        details.push(cleaned);
+      }
+    }
+  }
+
+  return details;
 }
 
 function buildPlainTextEmail(params: {
@@ -638,37 +617,22 @@ function buildHtmlEmail(params: {
 </div>`;
 }
 
-function buildPlainMatrixRows(matrixRows: OfferMatrixRow[], summaries: OfferScenarioSummary[]) {
-  return matrixRows.flatMap((row) => [
-    `- ${row.designation}`,
-    ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
-    ...summaries.map((summary, index) => {
-      const cell = row.cells[index];
-      return cell
-        ? `  ${summary.label} : ${fmtEUR(cell.total)} HT (${fmtEUR(cell.unitPrice)} HT / u)`
-        : `  ${summary.label} : -`;
-    }),
-  ]);
+function buildTransportCondition(transportIncluded: boolean) {
+  return transportIncluded ? "Transport inclus." : "EXW (départ) nos ateliers.";
+}
+
+function buildPlainQuantityPrice(summary: OfferScenarioSummary, total: number) {
+  return `${summary.label} : PU HT ${fmtEUR(unitPriceFromTotal(summary, total))} / u - Total HT ${fmtEUR(total)}`;
 }
 
 function buildPlainTotalsRows(summaries: OfferScenarioSummary[], hasOptions: boolean) {
   const rows = [];
   if (hasOptions) {
     rows.push(
-      "Total offre principale HT : " +
-        summaries.map((summary) => `${summary.label} ${fmtEUR(summary.mainTotalHT)}`).join(" | "),
-    );
-    rows.push(
-      "Total options HT : " +
-        summaries
-          .map((summary) => `${summary.label} ${fmtEUR(summary.optionsTotalHT)}`)
-          .join(" | "),
+      "Total général HT : " +
+        summaries.map((summary) => `${summary.label} ${fmtEUR(summary.totalHT)}`).join(" | "),
     );
   }
-  rows.push(
-    "Total général HT : " +
-      summaries.map((summary) => `${summary.label} ${fmtEUR(summary.totalHT)}`).join(" | "),
-  );
   rows.push(
     "TVA 20 % : " +
       summaries.map((summary) => `${summary.label} ${fmtEUR(summary.vat)}`).join(" | "),
@@ -686,12 +650,13 @@ function buildPlainTextMultiQuantityEmail(params: {
   reference: string;
   objet: string;
   summaries: OfferScenarioSummary[];
+  transportIncluded: boolean;
 }) {
-  const { clientName, contactName, reference, objet, summaries } = params;
+  const { clientName, contactName, reference, objet, summaries, transportIncluded } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
-  const mainMatrixRows = buildMatrixRows(summaries, (summary) => summary.mainRows);
-  const optionMatrixRows = buildMatrixRows(summaries, (summary) => summary.optionRows);
-  const hasOptions = optionMatrixRows.length > 0;
+  const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
+  const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
 
   return [
     greeting,
@@ -701,14 +666,23 @@ function buildPlainTextMultiQuantityEmail(params: {
     reference ? `Référence interne : ${reference}` : "",
     "",
     objet,
-    ...buildPlainMatrixRows(mainMatrixRows, summaries),
+    ...mainDetails.map((detail) => `- ${detail}`),
+    "",
+    "Prix HT tout inclus :",
+    ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT)),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
-    ...buildPlainMatrixRows(optionMatrixRows, summaries),
+    ...optionDetails.map((detail) => `- ${detail}`),
+    hasOptions ? "Prix options HT :" : "",
+    ...(hasOptions
+      ? summaries.map((summary) => buildPlainQuantityPrice(summary, summary.optionsTotalHT))
+      : []),
     "",
     ...buildPlainTotalsRows(summaries, hasOptions),
     "",
-    "Cette offre est indicative et valable 8 jours, sous réserve de validation technique et de disponibilité.",
+    "Conditions :",
+    "Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.",
+    buildTransportCondition(transportIncluded),
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
     "Le Yeti vous remercie pour votre confiance.",
@@ -724,12 +698,14 @@ function buildHtmlMultiQuantityEmail(params: {
   reference: string;
   objet: string;
   summaries: OfferScenarioSummary[];
+  transportIncluded: boolean;
 }) {
-  const { clientName, contactName, clientEmail, reference, objet, summaries } = params;
+  const { clientName, contactName, clientEmail, reference, objet, summaries, transportIncluded } =
+    params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
-  const mainMatrixRows = buildMatrixRows(summaries, (summary) => summary.mainRows);
-  const optionMatrixRows = buildMatrixRows(summaries, (summary) => summary.optionRows);
-  const hasOptions = optionMatrixRows.length > 0;
+  const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
+  const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
   const columnWidth = Math.max(118, Math.min(160, 520 / Math.max(1, summaries.length)));
 
   const detailHtml = (details: string[] | undefined) =>
@@ -741,13 +717,13 @@ function buildHtmlMultiQuantityEmail(params: {
         </div>`
       : "";
 
-  const matrixTable = (
+  const priceTable = (
     title: string,
-    rows: OfferMatrixRow[],
+    details: string[],
     totalLabel: string,
     totalForSummary: (summary: OfferScenarioSummary) => number,
   ) =>
-    rows.length
+    summaries.length
       ? `<tr>
       <td style="padding:0 0 16px 0;">
         <div style="padding:8px 12px;background:#111111;color:#ffffff;font-weight:700;text-transform:uppercase;font-size:12px;">${escapeHtml(title)}</div>
@@ -764,33 +740,19 @@ function buildHtmlMultiQuantityEmail(params: {
             </tr>
           </thead>
           <tbody>
-            ${rows
-              .map(
-                (row) => `<tr>
-              <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
-                <div style="font-weight:700;">${escapeHtml(row.designation)}</div>
-                ${detailHtml(row.details)}
-              </td>
-              ${row.cells
-                .map((cell) =>
-                  cell
-                    ? `<td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">
-                    <div style="font-weight:900;">${escapeHtml(fmtEUR(cell.total))}</div>
-                    <div style="font-size:11px;color:#51463f;margin-top:2px;">${escapeHtml(fmtEUR(cell.unitPrice))} / u</div>
-                  </td>`
-                    : `<td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#777777;">-</td>`,
-                )
-                .join("")}
-            </tr>`,
-              )
-              .join("")}
             <tr>
-              <td style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:700;">${escapeHtml(totalLabel)}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
+                <div style="font-weight:700;">${escapeHtml(totalLabel)}</div>
+                ${detailHtml(details)}
+              </td>
               ${summaries
-                .map(
-                  (summary) =>
-                    `<td style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:900;white-space:nowrap;">${escapeHtml(fmtEUR(totalForSummary(summary)))}</td>`,
-                )
+                .map((summary) => {
+                  const total = totalForSummary(summary);
+                  return `<td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">
+                    <div style="font-weight:900;font-size:16px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
+                    <div style="font-size:11px;color:#51463f;margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
+                  </td>`;
+                })
                 .join("")}
             </tr>
           </tbody>
@@ -847,8 +809,17 @@ function buildHtmlMultiQuantityEmail(params: {
         </table>
       </td>
     </tr>
-    ${matrixTable(objet || "Offre principale", mainMatrixRows, "Total offre principale HT", (summary) => summary.mainTotalHT)}
-    ${matrixTable("Options", optionMatrixRows, "Total options HT", (summary) => summary.optionsTotalHT)}
+    ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
+    ${
+      hasOptions
+        ? priceTable(
+            "Options",
+            optionDetails,
+            "Prix options HT",
+            (summary) => summary.optionsTotalHT,
+          )
+        : ""
+    }
     <tr>
       <td style="padding:0 0 18px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e3d8cf;font-family:${FONT};">
@@ -885,6 +856,7 @@ function buildHtmlMultiQuantityEmail(params: {
       <td style="padding:14px 16px;border:1px solid #e3d8cf;background:#fbf8f4;color:#111111;">
         <p style="margin:0 0 8px 0;font-weight:700;">Conditions</p>
         <p style="margin:0 0 6px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
+        <p style="margin:0 0 6px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
         <p style="margin:0 0 6px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
@@ -938,12 +910,18 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       const summaries = scenarioItems.map((item) =>
         buildScenarioSummary(dossier?.type, payload, output, item, "Base"),
       );
+      const transportIncluded = scenarioItems.some((item) => {
+        const transportGlobal = Number(item.scenario.transportPackagingGlobal) || 0;
+        const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
+        return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
+      });
       const plainText = buildPlainTextMultiQuantityEmail({
         clientName,
         contactName,
         reference,
         objet,
         summaries,
+        transportIncluded,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -952,6 +930,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         reference,
         objet,
         summaries,
+        transportIncluded,
       });
 
       return { subject, plainText, html };
