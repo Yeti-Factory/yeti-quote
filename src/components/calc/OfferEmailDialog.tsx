@@ -65,7 +65,9 @@ function cleanLabel(value: unknown, fallback: string) {
 }
 
 function buildLineDetail(line: any, fallback: string) {
-  return cleanLabel(line?.libelle, fallback);
+  return cleanLabel(line?.libelle, fallback)
+    .replace(/\s+composants?$/i, "")
+    .trim();
 }
 
 function cleanDetails(details: string[] = []) {
@@ -257,17 +259,15 @@ function buildPlainTextEmail(params: {
     "Détail de l'offre :",
     ...rows.flatMap((row) => [
       `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(row.unitPrice * row.quantity)}`,
-      ...(row.details?.length
-        ? ["  Composition :", ...row.details.map((detail) => `  - ${detail}`)]
-        : []),
+      ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
     ]),
     "",
     `Total HT : ${fmtEUR(totalHT)}`,
     `TVA 20 % : ${fmtEUR(vat)}`,
     `Total TTC : ${fmtEUR(totalTTC)}`,
     "",
-    "Cette offre est indicative et valable 30 jours, sous réserve de validation technique et de disponibilité des composants.",
-    "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel via Sage 50.",
+    "Cette offre est indicative et valable 8 jours, sous réserve de validation technique et de disponibilité.",
+    "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
     "Le Yeti vous remercie pour votre confiance.",
   ]
@@ -292,7 +292,6 @@ function buildHtmlEmail(params: {
   const detailHtml = (details: string[] | undefined) =>
     details?.length
       ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid #f0ebe5;color:#51463f;font-size:12px;line-height:1.35;">
-          <div style="font-weight:700;color:#111111;margin-bottom:3px;">Composition</div>
           ${details
             .map((detail) => `<div style="margin:2px 0;">&bull;&nbsp;${escapeHtml(detail)}</div>`)
             .join("")}
@@ -316,14 +315,6 @@ function buildHtmlEmail(params: {
   return `
 <div style="margin:0;padding:0;background:#ffffff;color:#111111;font-family:${FONT};font-size:14px;line-height:1.45;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:760px;border-collapse:collapse;font-family:${FONT};">
-    <tr>
-      <td style="padding:0 0 18px 0;">
-        <div style="border-left:7px solid #ff7900;padding:12px 0 12px 18px;">
-          <div style="font-size:30px;line-height:1;font-weight:900;letter-spacing:0;color:#ff7900;">YETI</div>
-          <div style="font-size:11px;line-height:1.2;text-transform:uppercase;color:#111111;font-weight:700;">Factory - Offre de prix</div>
-        </div>
-      </td>
-    </tr>
     <tr>
       <td style="padding:0 0 14px 0;color:#111111;">
         <p style="margin:0 0 10px 0;">${greeting}</p>
@@ -394,8 +385,8 @@ function buildHtmlEmail(params: {
     <tr>
       <td style="padding:14px 16px;border:1px solid #e3d8cf;background:#fbf8f4;color:#111111;">
         <p style="margin:0 0 8px 0;font-weight:700;">Conditions</p>
-        <p style="margin:0 0 6px 0;">Offre indicative valable 30 jours, sous réserve de validation technique et de disponibilité des composants.</p>
-        <p style="margin:0 0 6px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel via Sage 50.</p>
+        <p style="margin:0 0 6px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
+        <p style="margin:0 0 6px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
     </tr>
