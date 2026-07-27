@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
 import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
@@ -115,7 +116,13 @@ export function LinesTable({
           onClick={() =>
             onChange([
               ...lines,
-              { fournisseur: "", libelle: "", [field]: 0, margePct: defaultMargePct ?? null },
+              {
+                fournisseur: "",
+                libelle: "",
+                commentaire: "",
+                [field]: 0,
+                margePct: defaultMargePct ?? null,
+              },
             ])
           }
         >
@@ -182,6 +189,12 @@ export function LinesTable({
               >
                 <Trash2 className="w-4 h-4 text-muted-foreground" />
               </Button>
+              <Textarea
+                value={l.commentaire ?? ""}
+                placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
+                className="col-span-full min-h-16 text-sm"
+                onChange={(e) => update(i, "commentaire", e.target.value)}
+              />
             </div>
           ))}
         </div>
@@ -230,6 +243,7 @@ export function LinesGridTable({
       {
         fournisseur: "",
         libelle: "",
+        commentaire: "",
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
         margePct: defaultMargePct ?? null,
@@ -326,6 +340,13 @@ export function LinesGridTable({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <Textarea
+                      value={l.commentaire ?? ""}
+                      placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
+                      className="min-h-16 text-sm"
+                      style={{ gridColumn: "1 / -1" }}
+                      onChange={(e) => update(i, { commentaire: e.target.value })}
+                    />
                   </div>
                 );
               })}

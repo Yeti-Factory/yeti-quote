@@ -11,6 +11,8 @@ export type StandsParams = {
 export type StandsSectionLine = {
   fournisseur?: string;
   libelle: string;
+  /** Internal note saved with the dossier, never used in calculations. */
+  commentaire?: string;
   prixUnitaire: number; // achat unitaire
 };
 
