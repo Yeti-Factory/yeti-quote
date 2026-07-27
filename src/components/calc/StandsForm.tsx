@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -36,7 +37,6 @@ export function StandsForm({
     next.splice(to, 0, moved);
     onChange({ ...value, sections: next });
   }
-
 
   const out = calculerStands(value);
 
@@ -126,7 +126,10 @@ export function StandsForm({
                     const next = [...value.sections];
                     next[si] = {
                       ...sec,
-                      lignes: [...sec.lignes, { fournisseur: "", libelle: "", prixUnitaire: 0 }],
+                      lignes: [
+                        ...sec.lignes,
+                        { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0 },
+                      ],
                     };
                     onChange({ ...value, sections: next });
                   }}
@@ -210,6 +213,19 @@ export function StandsForm({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <Textarea
+                      value={l.commentaire ?? ""}
+                      placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
+                      className="min-h-16 text-sm"
+                      style={{ gridColumn: "1 / -1" }}
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, commentaire: e.target.value };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
                   </div>
                 ))}
               </div>

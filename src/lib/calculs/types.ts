@@ -31,6 +31,8 @@ export function normalizeQuantites(input: unknown): Quantite[] {
 export type LineItem = {
   fournisseur?: string;
   libelle: string;
+  /** Internal note saved with the dossier, never used in calculations. */
+  commentaire?: string;
   /**
    * Legacy single unit price. Kept for backward compatibility.
    * New dossiers use `prixParQuantite` aligned on the quantity columns.
@@ -48,6 +50,8 @@ export type LineItem = {
 export type LineForfait = {
   fournisseur?: string;
   libelle: string;
+  /** Internal note saved with the dossier, never used in calculations. */
+  commentaire?: string;
   montantGlobal: number; // divided by quantité
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
