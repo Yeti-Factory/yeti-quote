@@ -119,6 +119,7 @@ export function LinesTable({
               {
                 fournisseur: "",
                 libelle: "",
+                descriptif: "",
                 commentaire: "",
                 [field]: 0,
                 margePct: defaultMargePct ?? null,
@@ -190,6 +191,12 @@ export function LinesTable({
                 <Trash2 className="w-4 h-4 text-muted-foreground" />
               </Button>
               <Textarea
+                value={l.descriptif ?? ""}
+                placeholder="Descriptif client : visible dans l'offre mail si rempli..."
+                className="col-span-full min-h-14 text-sm"
+                onChange={(e) => update(i, "descriptif", e.target.value)}
+              />
+              <Textarea
                 value={l.commentaire ?? ""}
                 placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
                 className="col-span-full min-h-16 text-sm"
@@ -243,6 +250,7 @@ export function LinesGridTable({
       {
         fournisseur: "",
         libelle: "",
+        descriptif: "",
         commentaire: "",
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
@@ -340,6 +348,13 @@ export function LinesGridTable({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <Textarea
+                      value={l.descriptif ?? ""}
+                      placeholder="Descriptif client : visible dans l'offre mail si rempli..."
+                      className="min-h-14 text-sm"
+                      style={{ gridColumn: "1 / -1" }}
+                      onChange={(e) => update(i, { descriptif: e.target.value })}
+                    />
                     <Textarea
                       value={l.commentaire ?? ""}
                       placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
