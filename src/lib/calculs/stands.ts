@@ -11,6 +11,8 @@ export type StandsParams = {
 export type StandsSectionLine = {
   fournisseur?: string;
   libelle: string;
+  /** Client-facing description shown in generated offers when filled. */
+  descriptif?: string;
   /** Internal note saved with the dossier, never used in calculations. */
   commentaire?: string;
   prixUnitaire: number; // achat unitaire

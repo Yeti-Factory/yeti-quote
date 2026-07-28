@@ -59,6 +59,11 @@ type OfferEmailDialogProps = {
 };
 
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
+const YETI_ORANGE = "#ff7900";
+const MAIL_TEXT = "#222222";
+const MAIL_MUTED = "#666666";
+const MAIL_BORDER = "#eadfd7";
+const MAIL_SOFT = "#fff7f0";
 
 function escapeHtml(value: unknown) {
   return String(value ?? "")
@@ -83,9 +88,11 @@ function cleanLabel(value: unknown, fallback: string) {
 }
 
 function buildLineDetail(line: any, fallback: string) {
-  return cleanLabel(line?.libelle, fallback)
+  const label = cleanLabel(line?.libelle, fallback)
     .replace(/\s+composants?$/i, "")
     .trim();
+  const description = cleanLabel(line?.descriptif, "");
+  return description ? `${label}\n${description}` : label;
 }
 
 function normalizeSearch(value: unknown) {
@@ -369,12 +376,49 @@ function buildScenarioSummary(
 function buildPlainRows(rows: OfferRow[]) {
   return rows.flatMap((row) => [
     `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(rowTotal(row))}`,
-    ...(row.details?.length ? row.details.map((detail) => `  - ${detail}`) : []),
+    ...buildPlainDetailLines(row.details ?? [], "  "),
   ]);
 }
 
 function unitPriceFromTotal(summary: OfferScenarioSummary, total: number) {
   return summary.quantity > 0 ? total / summary.quantity : total;
+}
+
+function splitDetail(detail: string) {
+  const [label = "", ...descriptionLines] = String(detail).split(/\r?\n/);
+  return {
+    label: label.trim(),
+    description: descriptionLines.join("\n").trim(),
+  };
+}
+
+function buildPlainDetailLines(details: string[], indent = "") {
+  return details.flatMap((detail) => {
+    const { label, description } = splitDetail(detail);
+    if (!label) return [];
+    return [
+      `${indent}- ${label}`,
+      ...description
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => `${indent}  ${line}`),
+    ];
+  });
+}
+
+function buildDetailHtml(detail: string) {
+  const { label, description } = splitDetail(detail);
+  if (!label) return "";
+  const descriptionHtml = escapeHtml(description).replace(/\r?\n/g, "<br />");
+  return `<div style="margin:2px 0;">
+    <div>&bull;&nbsp;${escapeHtml(label)}</div>
+    ${
+      description
+        ? `<div style="margin:2px 0 0 12px;color:${MAIL_MUTED};line-height:1.35;">${descriptionHtml}</div>`
+        : ""
+    }
+  </div>`;
 }
 
 function collectDetails(rowsByScenario: OfferRow[][]) {
@@ -484,10 +528,8 @@ function buildHtmlEmail(params: {
   const hasOptions = optionRows.length > 0;
   const detailHtml = (details: string[] | undefined) =>
     details?.length
-      ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid #f0ebe5;color:#51463f;font-size:12px;line-height:1.35;">
-          ${details
-            .map((detail) => `<div style="margin:2px 0;">&bull;&nbsp;${escapeHtml(detail)}</div>`)
-            .join("")}
+      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;">
+          ${details.map(buildDetailHtml).join("")}
         </div>`
       : "";
   const rowHtml = (rows: OfferRow[]) =>
@@ -495,35 +537,35 @@ function buildHtmlEmail(params: {
       .map(
         (row) => `
         <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
             <div style="font-weight:700;">${escapeHtml(row.designation)}</div>
             ${detailHtml(row.details)}
           </td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
         </tr>`,
       )
       .join("");
   const offerTable = (title: string, rows: OfferRow[], totalLabel: string, total: number) =>
     rows.length
       ? `<tr>
-      <td style="padding:0 0 16px 0;">
-        <div style="padding:8px 12px;background:#111111;color:#ffffff;font-weight:700;text-transform:uppercase;font-size:12px;">${escapeHtml(title)}</div>
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #111111;font-family:${FONT};">
+      <td style="padding:0 0 14px 0;">
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(title)}</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">Désignation</th>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:70px;">Qté</th>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:120px;">PU HT</th>
-              <th style="padding:10px 12px;background:#ff7900;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:130px;">Total HT</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:62px;">Qté</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:105px;">PU HT</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:120px;">Total HT</th>
             </tr>
           </thead>
           <tbody>
             ${rowHtml(rows)}
             <tr>
-              <td colspan="3" style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:700;">${escapeHtml(totalLabel)}</td>
-              <td style="padding:10px 12px;text-align:right;background:#fbf8f4;color:#111111;font-weight:900;white-space:nowrap;">${escapeHtml(fmtEUR(total))}</td>
+              <td colspan="3" style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(totalLabel)}</td>
+              <td style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(total))}</td>
             </tr>
           </tbody>
         </table>
@@ -532,37 +574,37 @@ function buildHtmlEmail(params: {
       : "";
 
   return `
-<div style="margin:0;padding:0;background:#ffffff;color:#111111;font-family:${FONT};font-size:14px;line-height:1.45;">
+<div style="margin:0;padding:0;background:#ffffff;color:${MAIL_TEXT};font-family:${FONT};font-size:12.5px;line-height:1.4;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:760px;border-collapse:collapse;font-family:${FONT};">
     <tr>
-      <td style="padding:0 0 14px 0;color:#111111;">
-        <p style="margin:0 0 10px 0;">${greeting}</p>
+      <td style="padding:0 0 12px 0;color:${MAIL_TEXT};">
+        <p style="margin:0 0 8px 0;">${greeting}</p>
         <p style="margin:0;">Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée.</p>
       </td>
     </tr>
     <tr>
-      <td style="padding:0 0 16px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e3d8cf;">
+      <td style="padding:0 0 14px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};">
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;width:155px;">Client</td>
-            <td style="padding:10px 12px;background:#fbf8f4;color:#111111;">${escapeHtml(clientName || "-")}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;width:130px;">Client</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(clientName || "-")}</td>
           </tr>
           ${
             clientEmail
-              ? `<tr><td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Email</td><td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(clientEmail)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Email</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(clientEmail)}</td></tr>`
               : ""
           }
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Projet</td>
-            <td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(objet || "-")}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Projet</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(objet || "-")}</td>
           </tr>
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Date</td>
-            <td style="padding:10px 12px;background:#fbf8f4;color:#111111;">${escapeHtml(formatDate())}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Date</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(formatDate())}</td>
           </tr>
           ${
             reference
-              ? `<tr><td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Référence</td><td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(reference)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
               : ""
           }
         </table>
@@ -576,40 +618,40 @@ function buildHtmlEmail(params: {
     )}
     ${offerTable("Options", optionRows, "Total options HT", optionsTotalHT)}
     <tr>
-      <td style="padding:0 0 18px 0;">
+      <td style="padding:0 0 16px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-family:${FONT};">
           ${
             hasOptions
               ? `<tr>
-            <td style="padding:8px 12px;text-align:right;color:#111111;">Total offre principale HT</td>
-            <td style="padding:8px 12px;text-align:right;color:#111111;width:160px;font-weight:700;">${escapeHtml(fmtEUR(mainTotalHT))}</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_MUTED};font-size:12px;">Total offre principale HT</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_TEXT};font-size:12px;width:145px;font-weight:700;">${escapeHtml(fmtEUR(mainTotalHT))}</td>
           </tr>
           <tr>
-            <td style="padding:8px 12px;text-align:right;color:#111111;">Total options HT</td>
-            <td style="padding:8px 12px;text-align:right;color:#111111;font-weight:700;">${escapeHtml(fmtEUR(optionsTotalHT))}</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_MUTED};font-size:12px;">Total options HT</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(fmtEUR(optionsTotalHT))}</td>
           </tr>`
               : ""
           }
           <tr>
-            <td style="padding:8px 12px;text-align:right;color:#111111;">${hasOptions ? "Total général HT" : "Total HT"}</td>
-            <td style="padding:8px 12px;text-align:right;color:#111111;width:160px;font-weight:700;">${escapeHtml(fmtEUR(totalHT))}</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_MUTED};font-size:12px;">${hasOptions ? "Total général HT" : "Total HT"}</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_TEXT};font-size:12px;width:145px;font-weight:700;">${escapeHtml(fmtEUR(totalHT))}</td>
           </tr>
           <tr>
-            <td style="padding:8px 12px;text-align:right;color:#111111;">TVA 20 %</td>
-            <td style="padding:8px 12px;text-align:right;color:#111111;font-weight:700;">${escapeHtml(fmtEUR(vat))}</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_MUTED};font-size:12px;">TVA 20 %</td>
+            <td style="padding:5px 10px;text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(fmtEUR(vat))}</td>
           </tr>
           <tr>
-            <td style="padding:12px;text-align:right;background:#111111;color:#ffffff;font-weight:700;">Total TTC</td>
-            <td style="padding:12px;text-align:right;background:#ff7900;color:#ffffff;font-weight:900;font-size:18px;">${escapeHtml(fmtEUR(totalTTC))}</td>
+            <td style="padding:9px 10px;text-align:right;border-top:2px solid ${YETI_ORANGE};color:${MAIL_TEXT};font-size:12px;font-weight:700;">Total TTC</td>
+            <td style="padding:9px 10px;text-align:right;border-top:2px solid ${YETI_ORANGE};color:${YETI_ORANGE};font-size:15px;font-weight:800;">${escapeHtml(fmtEUR(totalTTC))}</td>
           </tr>
         </table>
       </td>
     </tr>
     <tr>
-      <td style="padding:14px 16px;border:1px solid #e3d8cf;background:#fbf8f4;color:#111111;">
-        <p style="margin:0 0 8px 0;font-weight:700;">Conditions</p>
-        <p style="margin:0 0 6px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
-        <p style="margin:0 0 6px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
+      <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
+        <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
+        <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
+        <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
     </tr>
@@ -666,13 +708,13 @@ function buildPlainTextMultiQuantityEmail(params: {
     reference ? `Référence interne : ${reference}` : "",
     "",
     objet,
-    ...mainDetails.map((detail) => `- ${detail}`),
+    ...buildPlainDetailLines(mainDetails),
     "",
     "Prix HT tout inclus :",
     ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT)),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
-    ...optionDetails.map((detail) => `- ${detail}`),
+    ...buildPlainDetailLines(optionDetails),
     hasOptions ? "Prix options HT :" : "",
     ...(hasOptions
       ? summaries.map((summary) => buildPlainQuantityPrice(summary, summary.optionsTotalHT))
@@ -710,10 +752,8 @@ function buildHtmlMultiQuantityEmail(params: {
 
   const detailHtml = (details: string[] | undefined) =>
     details?.length
-      ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid #f0ebe5;color:#51463f;font-size:12px;line-height:1.35;">
-          ${details
-            .map((detail) => `<div style="margin:2px 0;">&bull;&nbsp;${escapeHtml(detail)}</div>`)
-            .join("")}
+      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;">
+          ${details.map(buildDetailHtml).join("")}
         </div>`
       : "";
 
@@ -725,32 +765,32 @@ function buildHtmlMultiQuantityEmail(params: {
   ) =>
     summaries.length
       ? `<tr>
-      <td style="padding:0 0 16px 0;">
-        <div style="padding:8px 12px;background:#111111;color:#ffffff;font-weight:700;text-transform:uppercase;font-size:12px;">${escapeHtml(title)}</div>
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:2px solid #111111;font-family:${FONT};">
+      <td style="padding:0 0 14px 0;">
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(title)}</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">Désignation</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
               ${summaries
                 .map(
                   (summary) =>
-                    `<th style="padding:10px 12px;background:#ff7900;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
+                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
                 )
                 .join("")}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;color:#111111;">
+              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
                 <div style="font-weight:700;">${escapeHtml(totalLabel)}</div>
                 ${detailHtml(details)}
               </td>
               ${summaries
                 .map((summary) => {
                   const total = totalForSummary(summary);
-                  return `<td style="padding:10px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;white-space:nowrap;">
-                    <div style="font-weight:900;font-size:16px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
-                    <div style="font-size:11px;color:#51463f;margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
+                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">
+                    <div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
+                    <div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
                   </td>`;
                 })
                 .join("")}
@@ -763,47 +803,47 @@ function buildHtmlMultiQuantityEmail(params: {
 
   const totalsRow = (label: string, valueForSummary: (summary: OfferScenarioSummary) => number) => `
     <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #e7e0d8;color:#111111;font-weight:700;">${escapeHtml(label)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:12px;font-weight:700;">${escapeHtml(label)}</td>
       ${summaries
         .map(
           (summary) =>
-            `<td style="padding:8px 12px;border-bottom:1px solid #e7e0d8;text-align:right;color:#111111;font-weight:700;white-space:nowrap;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
+            `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
         )
         .join("")}
     </tr>`;
 
   return `
-<div style="margin:0;padding:0;background:#ffffff;color:#111111;font-family:${FONT};font-size:14px;line-height:1.45;">
+<div style="margin:0;padding:0;background:#ffffff;color:${MAIL_TEXT};font-family:${FONT};font-size:12.5px;line-height:1.4;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:920px;border-collapse:collapse;font-family:${FONT};">
     <tr>
-      <td style="padding:0 0 14px 0;color:#111111;">
-        <p style="margin:0 0 10px 0;">${greeting}</p>
+      <td style="padding:0 0 12px 0;color:${MAIL_TEXT};">
+        <p style="margin:0 0 8px 0;">${greeting}</p>
         <p style="margin:0;">Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée.</p>
       </td>
     </tr>
     <tr>
-      <td style="padding:0 0 16px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e3d8cf;">
+      <td style="padding:0 0 14px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};">
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;width:155px;">Client</td>
-            <td style="padding:10px 12px;background:#fbf8f4;color:#111111;">${escapeHtml(clientName || "-")}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;width:130px;">Client</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(clientName || "-")}</td>
           </tr>
           ${
             clientEmail
-              ? `<tr><td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Email</td><td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(clientEmail)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Email</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(clientEmail)}</td></tr>`
               : ""
           }
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Projet</td>
-            <td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(objet || "-")}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Projet</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(objet || "-")}</td>
           </tr>
           <tr>
-            <td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Date</td>
-            <td style="padding:10px 12px;background:#fbf8f4;color:#111111;">${escapeHtml(formatDate())}</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Date</td>
+            <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(formatDate())}</td>
           </tr>
           ${
             reference
-              ? `<tr><td style="padding:10px 12px;background:#111111;color:#ffffff;font-weight:700;">Référence</td><td style="padding:10px 12px;background:#ffffff;color:#111111;">${escapeHtml(reference)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
               : ""
           }
         </table>
@@ -821,15 +861,15 @@ function buildHtmlMultiQuantityEmail(params: {
         : ""
     }
     <tr>
-      <td style="padding:0 0 18px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e3d8cf;font-family:${FONT};">
+      <td style="padding:0 0 16px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">Total</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Total</th>
               ${summaries
                 .map(
                   (summary) =>
-                    `<th style="padding:10px 12px;background:#111111;color:#ffffff;text-align:right;font-size:12px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
+                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
                 )
                 .join("")}
             </tr>
@@ -840,11 +880,11 @@ function buildHtmlMultiQuantityEmail(params: {
             ${totalsRow("Total général HT", (summary) => summary.totalHT)}
             ${totalsRow("TVA 20 %", (summary) => summary.vat)}
             <tr>
-              <td style="padding:12px;background:#111111;color:#ffffff;font-weight:700;">Total TTC</td>
+              <td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};color:${MAIL_TEXT};font-size:12px;font-weight:700;">Total TTC</td>
               ${summaries
                 .map(
                   (summary) =>
-                    `<td style="padding:12px;text-align:right;background:#ff7900;color:#ffffff;font-weight:900;font-size:16px;white-space:nowrap;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
+                    `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
                 )
                 .join("")}
             </tr>
@@ -853,11 +893,11 @@ function buildHtmlMultiQuantityEmail(params: {
       </td>
     </tr>
     <tr>
-      <td style="padding:14px 16px;border:1px solid #e3d8cf;background:#fbf8f4;color:#111111;">
-        <p style="margin:0 0 8px 0;font-weight:700;">Conditions</p>
-        <p style="margin:0 0 6px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
-        <p style="margin:0 0 6px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
-        <p style="margin:0 0 6px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
+      <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
+        <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
+        <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
+        <p style="margin:0 0 5px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
+        <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
     </tr>

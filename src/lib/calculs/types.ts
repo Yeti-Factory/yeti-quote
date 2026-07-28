@@ -31,6 +31,8 @@ export function normalizeQuantites(input: unknown): Quantite[] {
 export type LineItem = {
   fournisseur?: string;
   libelle: string;
+  /** Client-facing description shown in generated offers when filled. */
+  descriptif?: string;
   /** Internal note saved with the dossier, never used in calculations. */
   commentaire?: string;
   /**
@@ -50,6 +52,8 @@ export type LineItem = {
 export type LineForfait = {
   fournisseur?: string;
   libelle: string;
+  /** Client-facing description shown in generated offers when filled. */
+  descriptif?: string;
   /** Internal note saved with the dossier, never used in calculations. */
   commentaire?: string;
   montantGlobal: number; // divided by quantité

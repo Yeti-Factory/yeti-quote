@@ -128,7 +128,13 @@ export function StandsForm({
                       ...sec,
                       lignes: [
                         ...sec.lignes,
-                        { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0 },
+                        {
+                          fournisseur: "",
+                          libelle: "",
+                          descriptif: "",
+                          commentaire: "",
+                          prixUnitaire: 0,
+                        },
                       ],
                     };
                     onChange({ ...value, sections: next });
@@ -213,6 +219,19 @@ export function StandsForm({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <Textarea
+                      value={l.descriptif ?? ""}
+                      placeholder="Descriptif client : visible dans l'offre mail si rempli..."
+                      className="min-h-14 text-sm"
+                      style={{ gridColumn: "1 / -1" }}
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, descriptif: e.target.value };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
                     <Textarea
                       value={l.commentaire ?? ""}
                       placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
