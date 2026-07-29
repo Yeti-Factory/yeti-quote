@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Copy, Save, Trash2, Printer } from "lucide-react";
+import { ArrowLeft, Copy, Download, Save, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
+import { createDossierBackup, downloadDossierBackup } from "@/lib/dossier-backup";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
@@ -107,7 +108,9 @@ function DossierDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dossiers")
-        .select("*, clients(id, entreprise, contact, email, adresse)")
+        .select(
+          "*, clients(id, entreprise, contact, email, telephone, adresse, notes, created_at, updated_at)",
+        )
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -326,6 +329,18 @@ function DossierDetail() {
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
 
+  function exportDossier() {
+    if (!dossier || !payload) return;
+    const backup = createDossierBackup({
+      dossier,
+      meta,
+      payload,
+      results: output ?? {},
+    });
+    downloadDossierBackup(backup);
+    toast.success("Export dossier telecharge");
+  }
+
   async function del() {
     if (!dossier) return;
     const { error } = await supabase.from("dossiers").delete().eq("id", dossier.id);
@@ -385,6 +400,10 @@ function DossierDetail() {
               <Button variant="outline" onClick={() => window.print()}>
                 <Printer className="w-4 h-4 mr-1.5" />
                 Imprimer / PDF
+              </Button>
+              <Button variant="outline" onClick={exportDossier}>
+                <Download className="w-4 h-4 mr-1.5" />
+                Exporter dossier
               </Button>
               <Button variant="outline" onClick={duplicate}>
                 <Copy className="w-4 h-4 mr-1.5" />
