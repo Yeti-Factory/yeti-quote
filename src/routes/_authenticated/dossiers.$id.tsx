@@ -59,7 +59,7 @@ function defaultPayload(type: string, params: any) {
       achatsPrincipaux: [
         { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null },
       ],
-      transportPackaging: { montantsGlobaux: [], margePct: null },
+      transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -72,7 +72,7 @@ function defaultPayload(type: string, params: any) {
       forfaitsContra: [
         { fournisseur: "", libelle: "", commentaire: "", montantGlobal: 0, margePct: null },
       ],
-      transportPackaging: { montantsGlobaux: [], margePct: null },
+      transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
@@ -198,6 +198,7 @@ function DossierDetail() {
           ...nextPayload,
           transportPackaging: {
             montantsGlobaux: montants,
+            transportInclus: existingTP?.transportInclus === true,
             margePct: existingTP?.margePct ?? null,
           },
           _legacyMigrated: true,
@@ -208,6 +209,7 @@ function DossierDetail() {
           ...nextPayload,
           transportPackaging: {
             montantsGlobaux: Array.from({ length: qCount }, () => 0),
+            transportInclus: false,
             margePct: null,
           },
         };

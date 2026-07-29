@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus } from "lucide-react";
 import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
@@ -418,29 +419,44 @@ export function TransportPackagingBlock({
             Marge optionnelle — laissée vide, T/P est refacturé sans marge.
           </p>
         </div>
-        <div className="w-48">
-          <Input
-            type="number"
-            step="0.01"
-            placeholder="Marge % (facultatif)"
-            value={value?.margePct ?? ""}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                montantsGlobaux: arr,
-                margePct: e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-            className="text-right tabular-nums"
-          />
-          <p className="text-[10px] text-muted-foreground mt-1 text-right">
-            {value?.margePct === null ||
-            value?.margePct === undefined ||
-            value?.margePct === (undefined as any)
-              ? "Sans marge (au coût)"
-              : `Marge ${Number(value.margePct)} %`}
-            {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
-          </p>
+        <div className="flex items-start gap-4">
+          <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium">
+            <Checkbox
+              checked={Boolean(value?.transportInclus)}
+              onCheckedChange={(checked) =>
+                onChange({
+                  ...value,
+                  montantsGlobaux: arr,
+                  transportInclus: checked === true,
+                })
+              }
+            />
+            Transport inclus
+          </label>
+          <div className="w-48">
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Marge % (facultatif)"
+              value={value?.margePct ?? ""}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  montantsGlobaux: arr,
+                  margePct: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              className="text-right tabular-nums"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1 text-right">
+              {value?.margePct === null ||
+              value?.margePct === undefined ||
+              value?.margePct === (undefined as any)
+                ? "Sans marge (au coût)"
+                : `Marge ${Number(value.margePct)} %`}
+              {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
+            </p>
+          </div>
         </div>
       </div>
       {qCount === 0 ? (

@@ -99,6 +99,8 @@ export function reshapePrixParQuantite(
  */
 export type TransportPackaging = {
   montantsGlobaux: number[];
+  /** Client-facing flag: transport is already included in supplier prices. */
+  transportInclus?: boolean;
   /** Optional margin (%). Defaults to family default when null/undefined. */
   margePct?: number | null;
 };
@@ -116,6 +118,7 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
   const m = o.margePct;
   return {
     montantsGlobaux: arr,
+    transportInclus: o.transportInclus === true || o.transportInclus === "true",
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
   };
 }
