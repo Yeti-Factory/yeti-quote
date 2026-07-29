@@ -950,11 +950,13 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       const summaries = scenarioItems.map((item) =>
         buildScenarioSummary(dossier?.type, payload, output, item, "Base"),
       );
-      const transportIncluded = scenarioItems.some((item) => {
-        const transportGlobal = Number(item.scenario.transportPackagingGlobal) || 0;
-        const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
-        return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
-      });
+      const transportIncluded =
+        payload?.transportPackaging?.transportInclus === true ||
+        scenarioItems.some((item) => {
+          const transportGlobal = Number(item.scenario.transportPackagingGlobal) || 0;
+          const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
+          return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
+        });
       const plainText = buildPlainTextMultiQuantityEmail({
         clientName,
         contactName,
