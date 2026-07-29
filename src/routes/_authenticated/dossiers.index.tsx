@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,19 +26,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
+import { parseDossierBackup, type DossierBackup } from "@/lib/dossier-backup";
+import type { Json } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/dossiers/")({
   component: DossiersList,
 });
 
 function DossiersList() {
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [type, setType] = useState<string>("all");
   const [statut, setStatut] = useState<string>("all");
+  const [pendingImport, setPendingImport] = useState<DossierBackup | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const { user } = useAuth();
   const { isAdmin } = useIsAdmin(user?.id);
   const qc = useQueryClient();
@@ -48,7 +54,9 @@ function DossiersList() {
     queryFn: async () => {
       let req = supabase
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
+        .select(
+          "id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)",
+        )
         .neq("type", "kits")
         .order("updated_at", { ascending: false });
       if (type !== "all") req = req.eq("type", type as any);
@@ -70,17 +78,190 @@ function DossiersList() {
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
 
+  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const backup = parseDossierBackup(JSON.parse(text));
+      setPendingImport(backup);
+    } catch {
+      toast.error("Fichier dossier invalide");
+    }
+  }
+
+  async function importPendingDossier() {
+    if (!pendingImport || !user) return;
+    setImporting(true);
+    try {
+      const importedId = await restoreDossierBackup(pendingImport);
+      toast.success("Dossier importe");
+      setPendingImport(null);
+      qc.invalidateQueries({ queryKey: ["dossiers"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      navigate({ to: "/dossiers/$id", params: { id: importedId } });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Import impossible");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function restoreDossierBackup(backup: DossierBackup) {
+    if (!user) throw new Error("Utilisateur non connecte");
+
+    const clientFields = {
+      entreprise: backup.client.entreprise,
+      contact: backup.client.contact ?? null,
+      email: backup.client.email ?? null,
+      telephone: backup.client.telephone ?? null,
+      adresse: backup.client.adresse ?? null,
+      notes: backup.client.notes ?? null,
+    };
+
+    const { data: clientById, error: clientByIdError } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("id", backup.client.id)
+      .maybeSingle();
+    if (clientByIdError) throw clientByIdError;
+
+    let targetClientId = clientById?.id ?? "";
+
+    if (!targetClientId && backup.client.email) {
+      const { data: clientByEmail, error: clientByEmailError } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("email", backup.client.email)
+        .limit(1)
+        .maybeSingle();
+      if (clientByEmailError) throw clientByEmailError;
+      targetClientId = clientByEmail?.id ?? "";
+    }
+
+    if (!targetClientId) {
+      const { data: clientByName, error: clientByNameError } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("entreprise", backup.client.entreprise)
+        .limit(1)
+        .maybeSingle();
+      if (clientByNameError) throw clientByNameError;
+      targetClientId = clientByName?.id ?? "";
+    }
+
+    if (targetClientId) {
+      const { error } = await supabase
+        .from("clients")
+        .update(clientFields)
+        .eq("id", targetClientId);
+      if (error) throw error;
+    } else {
+      const { data: insertedClient, error } = await supabase
+        .from("clients")
+        .insert({
+          id: backup.client.id,
+          ...clientFields,
+          created_by: user.id,
+          created_at: backup.client.created_at,
+          updated_at: backup.client.updated_at,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      targetClientId = insertedClient.id;
+    }
+
+    const dossierFields = {
+      reference: backup.dossier.reference,
+      objet: backup.dossier.objet,
+      client_id: targetClientId,
+      contact: backup.dossier.contact ?? null,
+      email: backup.dossier.email ?? null,
+      type: backup.dossier.type,
+      statut: backup.dossier.statut,
+      onedrive_note: backup.dossier.onedrive_note ?? null,
+      payload: (backup.dossier.payload ?? {}) as Json,
+      results: (backup.dossier.results ?? {}) as Json,
+      params: (backup.dossier.params ?? {}) as Json,
+      version: backup.dossier.version ?? 1,
+    };
+
+    const { data: dossierById, error: dossierByIdError } = await supabase
+      .from("dossiers")
+      .select("id")
+      .eq("id", backup.dossier.id)
+      .maybeSingle();
+    if (dossierByIdError) throw dossierByIdError;
+
+    if (dossierById?.id) {
+      const { error } = await supabase
+        .from("dossiers")
+        .update(dossierFields)
+        .eq("id", dossierById.id);
+      if (error) throw error;
+      return dossierById.id;
+    }
+
+    if (backup.dossier.reference.trim()) {
+      const { data: dossierByRef, error: dossierByRefError } = await supabase
+        .from("dossiers")
+        .select("id")
+        .eq("reference", backup.dossier.reference)
+        .limit(1)
+        .maybeSingle();
+      if (dossierByRefError) throw dossierByRefError;
+
+      if (dossierByRef?.id) {
+        const { error } = await supabase
+          .from("dossiers")
+          .update(dossierFields)
+          .eq("id", dossierByRef.id);
+        if (error) throw error;
+        return dossierByRef.id;
+      }
+    }
+
+    const { data: insertedDossier, error } = await supabase
+      .from("dossiers")
+      .insert({
+        id: backup.dossier.id,
+        ...dossierFields,
+        created_by: user.id,
+        created_at: backup.dossier.created_at,
+        updated_at: backup.dossier.updated_at,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return insertedDossier.id;
+  }
+
   return (
     <div>
       <PageHeader
         title="Dossiers de calcul"
         subtitle="Tous les dossiers, filtrables par client, type et statut."
         actions={
-          <Link to="/dossiers/new">
-            <Button>
-              <Plus className="w-4 h-4 mr-1.5" /> Nouveau dossier
+          <>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <Button variant="outline" onClick={() => importInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-1.5" /> Importer un dossier
             </Button>
-          </Link>
+            <Link to="/dossiers/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-1.5" /> Nouveau dossier
+              </Button>
+            </Link>
+          </>
         }
       />
 
@@ -183,8 +364,7 @@ function DossiersList() {
                                 Supprimer définitivement ce dossier ?
                               </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Cette action est irréversible. Le client associé n'est pas
-                                supprimé.
+                                Cette action est irréversible. Le client associé n'est pas supprimé.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -206,8 +386,31 @@ function DossiersList() {
             ));
           })()}
         </div>
-
       </Card>
+
+      <AlertDialog
+        open={Boolean(pendingImport)}
+        onOpenChange={(open) => {
+          if (!open && !importing) setPendingImport(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importer ce dossier ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingImport
+                ? `Le fichier va restaurer "${pendingImport.dossier.objet}" pour le client "${pendingImport.client.entreprise}". Si ce dossier existe deja, il sera mis a jour.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={importing}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={importPendingDossier} disabled={importing}>
+              {importing ? "Import..." : "Importer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
