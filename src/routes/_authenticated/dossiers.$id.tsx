@@ -37,7 +37,7 @@ import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
-import { createDossierBackup, downloadDossierBackup } from "@/lib/dossier-backup";
+import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
@@ -329,7 +329,7 @@ function DossierDetail() {
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
 
-  function exportDossier() {
+  async function exportDossier() {
     if (!dossier || !payload) return;
     const backup = createDossierBackup({
       dossier,
@@ -337,8 +337,12 @@ function DossierDetail() {
       payload,
       results: output ?? {},
     });
-    downloadDossierBackup(backup);
-    toast.success("Export dossier telecharge");
+    const result = await saveDossierBackup(backup);
+    if (result === "saved") {
+      toast.success("Dossier enregistre");
+    } else if (result === "downloaded") {
+      toast.success("Fichier telecharge");
+    }
   }
 
   async function del() {
@@ -403,7 +407,7 @@ function DossierDetail() {
               </Button>
               <Button variant="outline" onClick={exportDossier}>
                 <Download className="w-4 h-4 mr-1.5" />
-                Exporter dossier
+                Enregistrer sous
               </Button>
               <Button variant="outline" onClick={duplicate}>
                 <Copy className="w-4 h-4 mr-1.5" />
