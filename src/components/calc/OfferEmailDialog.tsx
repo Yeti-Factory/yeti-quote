@@ -20,7 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { pvFromContraSharedRaw, sanitizeContraInput } from "@/lib/calculs/contra";
+import {
+  pvFromContraSharedRaw,
+  resolveContraMargePct,
+  sanitizeContraInput,
+} from "@/lib/calculs/contra";
 import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
@@ -210,7 +214,7 @@ function buildContraRows(
   const optionsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
-    const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
+    const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
     const lineUnit = pvFromContraSharedRaw(raw, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
@@ -230,7 +234,7 @@ function buildContraRows(
   const optionsForfaitsDetails: string[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
-    const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
+    const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
     const lineUnit = pvFromContraSharedRaw(share, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
@@ -252,7 +256,10 @@ function buildContraRows(
   );
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
-  const tpMarge = resolveMargePct(payload?.transportPackaging?.margePct, quantiteMarge, coefContra);
+  const tpMarge = margeFor(
+    payload?.transportPackaging?.margePct,
+    payload?.transportPackaging?.margeConfirmed,
+  );
   addRow(
     rows,
     "Transport / Packaging",
