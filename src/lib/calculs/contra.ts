@@ -6,12 +6,7 @@ import type {
   Quantite,
   TransportPackaging,
 } from "./types";
-import {
-  normalizeQuantites,
-  normalizeTransportPackaging,
-  resolveMargePct,
-  getPrixAchat,
-} from "./types";
+import { normalizeQuantites, normalizeTransportPackaging, getPrixAchat } from "./types";
 
 export type ContraParams = {
   /**
@@ -70,34 +65,54 @@ export function effectiveContraCoefPct(params: ContraParams): number {
 }
 
 /**
- * Remplace toutes les marges non confirmées (lignes, forfaits, quantités,
- * transport/packaging, coefficient) par l'accord standard 25 %.
- * Utilisé par le calcul, l'écran, l'offre mail et le PDF pour garantir
- * exactement la même logique partout.
+ * Marge Yeti effective pour une ligne / un forfait / le Transport-Packaging.
+ * Priorité stricte :
+ *   marge ligne CONFIRMÉE > marge quantité CONFIRMÉE > accord standard 25 %.
+ * Les marges non confirmées (anciens dossiers à 33,33 % par exemple) sont
+ * simplement ignorées : elles n'écrasent jamais le niveau supérieur.
+ */
+export function resolveContraMargePct(
+  lineMarge: number | null | undefined,
+  lineConfirmed: boolean | undefined,
+  quantityMarge: number | null | undefined,
+  quantityConfirmed: boolean | undefined,
+): number {
+  const line = effectiveContraMarge(lineMarge, lineConfirmed);
+  if (line !== null) return line;
+  const quantity = effectiveContraMarge(quantityMarge, quantityConfirmed);
+  if (quantity !== null) return quantity;
+  return CONTRA_STANDARD_MARGE_PCT;
+}
+
+/**
+ * Prépare un payload Contra pour l'affichage (écran, offre mail, PDF) :
+ *  - coefficient Contra normalisé (25 % sauf modification confirmée),
+ *  - marges NON confirmées neutralisées (mises à null) au lieu d'être forcées
+ *    à 25 %, afin que la priorité reste ligne confirmée > quantité confirmée
+ *    > 25 % (une ligne non confirmée n'écrase jamais la marge quantité).
  */
 export function sanitizeContraInput(input: ContraInput): ContraInput {
-  const coef = effectiveContraCoefPct(input.params);
-  const pick = (m: number | null | undefined, c: boolean | undefined) =>
-    effectiveContraMarge(m, c) ?? CONTRA_STANDARD_MARGE_PCT;
+  const keep = (m: number | null | undefined, c: boolean | undefined) => effectiveContraMarge(m, c);
+  const tp = input.transportPackaging;
   return {
     ...input,
-    params: { ...input.params, coef_contra_pct: coef },
-    quantites: (input.quantites ?? []).map((q: any) => ({
+    params: { ...input.params, coef_contra_pct: effectiveContraCoefPct(input.params) },
+    quantites: (input.quantites ?? []).map((q) => ({
       ...q,
-      margePct: pick(q?.margePct, q?.margeConfirmed),
+      margePct: keep(q?.margePct, q?.margeConfirmed),
     })),
     achatsContra: (input.achatsContra ?? []).map((l) => ({
       ...l,
-      margePct: pick(l?.margePct, l?.margeConfirmed),
+      margePct: keep(l?.margePct, l?.margeConfirmed),
     })),
     forfaitsContra: (input.forfaitsContra ?? []).map((l) => ({
       ...l,
-      margePct: pick(l?.margePct, l?.margeConfirmed),
+      margePct: keep(l?.margePct, l?.margeConfirmed),
     })),
     transportPackaging: {
-      ...(input.transportPackaging ?? { montantsGlobaux: [] }),
-      montantsGlobaux: input.transportPackaging?.montantsGlobaux ?? [],
-      margePct: pick(input.transportPackaging?.margePct, input.transportPackaging?.margeConfirmed),
+      ...(tp ?? { montantsGlobaux: [] }),
+      montantsGlobaux: tp?.montantsGlobaux ?? [],
+      margePct: keep(tp?.margePct, tp?.margeConfirmed),
     },
   };
 }
@@ -134,7 +149,8 @@ export function pvFromContraSharedRaw(
 }
 
 export function calculerContra(rawInput: ContraInput): CalcOutput {
-  // Toutes les marges non confirmées retombent sur l'accord standard 25 %.
+  // Seul le coefficient Contra est normalisé ici ; les marges suivent la
+  // priorité ligne confirmée > quantité confirmée > 25 %.
   const input = sanitizeContraInput(rawInput);
   const { achatsContra, forfaitsContra, params } = input;
 
@@ -147,6 +163,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
+    const mqConfirmed = quant.margeConfirmed;
 
     // 1) Bases BRUTES transmises par Contra
     const rawAchatUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
@@ -175,20 +192,19 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     let pvUnitAchats = 0;
     for (const l of achatsContra) {
       const raw = getPrixAchat(l, qi);
-      const mYeti = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
+      const mYeti = resolveContraMargePct(l.margePct, l.margeConfirmed, mq, mqConfirmed);
       pvUnitAchats += pvFromContraSharedRaw(raw, coefContra, mYeti);
     }
     let pvUnitForfaits = 0;
     for (const f of forfaitsContra) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
-      const mYeti = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
+      const mYeti = resolveContraMargePct(f.margePct, f.margeConfirmed, mq, mqConfirmed);
       pvUnitForfaits += pvFromContraSharedRaw(share, coefContra, mYeti);
     }
 
     // Transport / Packaging participe au même partage Contra/Yeti :
-    // Contra applique son markup, puis Yeti applique sa marge résiduelle
-    // (marge T/P > marge quantité > défaut Contra).
-    const mTP = resolveMargePct(tp.margePct, mq, params.coef_contra_pct);
+    // marge T/P confirmée > marge quantité confirmée > 25 %.
+    const mTP = resolveContraMargePct(tp.margePct, tp.margeConfirmed, mq, mqConfirmed);
     const pvUnitTP = pvFromContraSharedRaw(tpUnit, coefContra, mTP);
 
     // Commission sourcing — refacturée au coût.
