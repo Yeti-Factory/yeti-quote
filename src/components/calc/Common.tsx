@@ -84,13 +84,20 @@ export function QuantitesRow({
   quantites,
   onChange,
   defaultMargePct,
+  margeGuard,
 }: {
   quantites: Quantite[];
   onChange: (v: Quantite[]) => void;
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   function add() {
-    onChange([...quantites, { qty: 0, margePct: defaultMargePct ?? null }]);
+    onChange([
+      ...quantites,
+      margeGuard
+        ? { qty: 0, margePct: margeGuard.standardPct, margeConfirmed: false }
+        : { qty: 0, margePct: defaultMargePct ?? null },
+    ]);
   }
   function remove(i: number) {
     onChange(quantites.filter((_, idx) => idx !== i));
@@ -100,11 +107,12 @@ export function QuantitesRow({
     next[i] = { ...next[i], qty };
     onChange(next);
   }
-  function updateMarge(i: number, margePct: number | null) {
+  function updateMarge(i: number, margePct: number | null, margeConfirmed?: boolean) {
     const next = [...quantites];
-    next[i] = { ...next[i], margePct };
+    next[i] = { ...next[i], margePct, ...(margeGuard ? { margeConfirmed: margeConfirmed } : {}) };
     onChange(next);
   }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
