@@ -6,12 +6,8 @@ import type {
   Quantite,
   TransportPackaging,
 } from "./types";
-import {
-  normalizeQuantites,
-  normalizeTransportPackaging,
-  resolveMargePct,
-  getPrixAchat,
-} from "./types";
+import { normalizeQuantites, normalizeTransportPackaging, getPrixAchat } from "./types";
+
 
 export type ContraParams = {
   /**
