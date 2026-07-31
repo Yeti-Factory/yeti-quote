@@ -70,37 +70,38 @@ export function effectiveContraCoefPct(params: ContraParams): number {
 }
 
 /**
- * Remplace toutes les marges non confirmées (lignes, forfaits, quantités,
- * transport/packaging, coefficient) par l'accord standard 25 %.
- * Utilisé par le calcul, l'écran, l'offre mail et le PDF pour garantir
- * exactement la même logique partout.
+ * Marge Yeti effective pour une ligne / un forfait / le Transport-Packaging.
+ * Priorité stricte :
+ *   marge ligne CONFIRMÉE > marge quantité CONFIRMÉE > accord standard 25 %.
+ * Les marges non confirmées (anciens dossiers à 33,33 % par exemple) sont
+ * simplement ignorées : elles n'écrasent jamais le niveau supérieur.
+ */
+export function resolveContraMargePct(
+  lineMarge: number | null | undefined,
+  lineConfirmed: boolean | undefined,
+  quantityMarge: number | null | undefined,
+  quantityConfirmed: boolean | undefined,
+): number {
+  const line = effectiveContraMarge(lineMarge, lineConfirmed);
+  if (line !== null) return line;
+  const quantity = effectiveContraMarge(quantityMarge, quantityConfirmed);
+  if (quantity !== null) return quantity;
+  return CONTRA_STANDARD_MARGE_PCT;
+}
+
+/**
+ * Normalise uniquement le coefficient Contra (25 % sauf modification
+ * confirmée). Les marges des lignes/quantités/T-P sont laissées telles quelles :
+ * leur résolution passe par `resolveContraMargePct`, qui respecte la priorité
+ * ligne confirmée > quantité confirmée > 25 %.
  */
 export function sanitizeContraInput(input: ContraInput): ContraInput {
-  const coef = effectiveContraCoefPct(input.params);
-  const pick = (m: number | null | undefined, c: boolean | undefined) =>
-    effectiveContraMarge(m, c) ?? CONTRA_STANDARD_MARGE_PCT;
   return {
     ...input,
-    params: { ...input.params, coef_contra_pct: coef },
-    quantites: (input.quantites ?? []).map((q: any) => ({
-      ...q,
-      margePct: pick(q?.margePct, q?.margeConfirmed),
-    })),
-    achatsContra: (input.achatsContra ?? []).map((l) => ({
-      ...l,
-      margePct: pick(l?.margePct, l?.margeConfirmed),
-    })),
-    forfaitsContra: (input.forfaitsContra ?? []).map((l) => ({
-      ...l,
-      margePct: pick(l?.margePct, l?.margeConfirmed),
-    })),
-    transportPackaging: {
-      ...(input.transportPackaging ?? { montantsGlobaux: [] }),
-      montantsGlobaux: input.transportPackaging?.montantsGlobaux ?? [],
-      margePct: pick(input.transportPackaging?.margePct, input.transportPackaging?.margeConfirmed),
-    },
+    params: { ...input.params, coef_contra_pct: effectiveContraCoefPct(input.params) },
   };
 }
+
 
 export const CONTRA_DEFAULTS: ContraParams = {
   coef_contra_pct: CONTRA_STANDARD_MARGE_PCT,
