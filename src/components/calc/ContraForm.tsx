@@ -143,13 +143,22 @@ export function ContraForm({
             <Input
               type="number"
               step="0.01"
-              value={value.params.coef_contra_pct}
-              onChange={(e) => setParams({ coef_contra_pct: Number(e.target.value) })}
+              value={coefDraft}
+              onChange={(e) => setCoefDraft(e.target.value)}
+              onBlur={commitCoef}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Markup Contra sur le Bon de commande <em>et</em> marge résiduelle cible Yeti.
+              Markup Contra sur le Bon de commande <em>et</em> marge résiduelle cible Yeti. Accord
+              standard : {CONTRA_STANDARD_MARGE_PCT} % / {CONTRA_STANDARD_MARGE_PCT} %
+              {value.params.coef_contra_confirmed === true
+                ? " — modification confirmée."
+                : " — toute autre valeur doit être confirmée."}
             </p>
           </div>
+
           <div>
             <Label>Frais fixes (%)</Label>
             <Input
