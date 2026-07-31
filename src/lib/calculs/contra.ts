@@ -134,8 +134,11 @@ export function pvFromContraSharedRaw(
   return rawCost * (1 + truncatePct(totalMarkupPct) / 100);
 }
 
-export function calculerContra(input: ContraInput): CalcOutput {
+export function calculerContra(rawInput: ContraInput): CalcOutput {
+  // Toutes les marges non confirmées retombent sur l'accord standard 25 %.
+  const input = sanitizeContraInput(rawInput);
   const { achatsContra, forfaitsContra, params } = input;
+
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
   const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
