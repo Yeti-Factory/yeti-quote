@@ -51,6 +51,8 @@ export type LineItem = {
   prixParQuantite?: number[];
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 export type LineForfait = {
@@ -63,7 +65,10 @@ export type LineForfait = {
   montantGlobal: number; // divided by quantité
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
+
 
 /**
  * Resolve the purchase unit price for a line at a given quantity index.
