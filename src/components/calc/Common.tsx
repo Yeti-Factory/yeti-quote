@@ -268,16 +268,27 @@ export function LinesTable({
                   update(i, field, e.target.value === "" ? 0 : Number(e.target.value))
                 }
               />
-              <Input
-                type="number"
-                step="0.01"
-                value={l.margePct ?? defaultMargePct ?? ""}
-                placeholder="marge %"
-                className="text-right tabular-nums"
-                onChange={(e) =>
-                  update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
-                }
-              />
+              {margeGuard ? (
+                <GuardedMargeInput
+                  margePct={l.margePct}
+                  margeConfirmed={(l as any).margeConfirmed}
+                  guard={margeGuard}
+                  className="text-right tabular-nums"
+                  onCommit={(m, c) => updateMarge(i, m, c)}
+                />
+              ) : (
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={l.margePct ?? defaultMargePct ?? ""}
+                  placeholder="marge %"
+                  className="text-right tabular-nums"
+                  onChange={(e) =>
+                    update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
+                  }
+                />
+              )}
+
 
               <Button
                 size="icon"
