@@ -42,6 +42,7 @@ import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
 import { calculerKits, KITS_DEFAULTS, type KitsInput } from "@/lib/calculs/kits";
+import { reshapePrixParQuantite } from "@/lib/calculs/types";
 import {
   calculerStands,
   STANDS_DEFAULTS,
@@ -94,6 +95,66 @@ function defaultPayload(type: string, params: any) {
     sections: STANDS_SECTIONS_DEFAUT.map((l) => ({ libelle: l, lignes: [], margePct: null })),
     params: { ...STANDS_DEFAULTS, ...(params ?? {}) },
   } satisfies StandsInput;
+}
+
+function toOptionalNumber(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function contraToStandardPayload(input: ContraInput, standardDefaults: any): StandardInput {
+  const quantites = Array.isArray(input.quantites) ? input.quantites : [];
+  const qCount = quantites.length;
+  const contraParams = input.params ?? CONTRA_DEFAULTS;
+  const baseParams = { ...STANDARD_DEFAULTS, ...(standardDefaults ?? {}) };
+  const params = {
+    ...baseParams,
+    frais_fixes_pct: toOptionalNumber(contraParams.frais_fixes_pct) ?? baseParams.frais_fixes_pct,
+    commission_rapporteur_pct:
+      toOptionalNumber(contraParams.commission_rapporteur_pct) ??
+      baseParams.commission_rapporteur_pct,
+  };
+
+  const achatsPrincipaux = [
+    ...(Array.isArray(input.achatsContra) ? input.achatsContra : []).map((line) => ({
+      fournisseur: line.fournisseur ?? "",
+      libelle: line.libelle ?? "",
+      descriptif: line.descriptif ?? "",
+      commentaire: line.commentaire ?? "",
+      prixUnitaire: line.prixUnitaire ?? 0,
+      prixParQuantite: reshapePrixParQuantite(line, qCount),
+      margePct: line.margePct ?? null,
+    })),
+    ...(Array.isArray(input.forfaitsContra) ? input.forfaitsContra : []).map((line) => {
+      const montantGlobal = Number(line.montantGlobal) || 0;
+      return {
+        fournisseur: line.fournisseur ?? "",
+        libelle: line.libelle ? `Forfait - ${line.libelle}` : "Forfait",
+        descriptif: line.descriptif ?? "",
+        commentaire: line.commentaire ?? "",
+        prixUnitaire: 0,
+        prixParQuantite: quantites.map((quant) => {
+          const qty = Number(quant?.qty) || 0;
+          return qty > 0 ? montantGlobal / qty : 0;
+        }),
+        margePct: line.margePct ?? null,
+      };
+    }),
+  ];
+
+  return {
+    quantites,
+    achatsPrincipaux:
+      achatsPrincipaux.length > 0
+        ? achatsPrincipaux
+        : [{ fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null }],
+    transportPackaging: input.transportPackaging ?? {
+      montantsGlobaux: Array.from({ length: qCount }, () => 0),
+      transportInclus: false,
+      margePct: null,
+    },
+    params,
+  };
 }
 
 function DossierDetail() {
@@ -329,6 +390,35 @@ function DossierDetail() {
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
 
+  async function duplicateAsStandard() {
+    if (!dossier || !payload || dossier.type !== "contra") return;
+    const standardPayload = contraToStandardPayload(payload as ContraInput, defaults?.standard);
+    const standardResults = calculerStandard(standardPayload);
+    const nextVersion = ((dossier as any).version ?? 1) + 1;
+    const { data, error } = await supabase
+      .from("dossiers")
+      .insert({
+        reference: "",
+        objet: `${dossier.objet} - Standard`,
+        client_id: dossier.client_id,
+        contact: dossier.contact,
+        email: dossier.email,
+        type: "standard",
+        statut: "brouillon",
+        onedrive_note: dossier.onedrive_note,
+        payload: standardPayload,
+        params: standardPayload.params,
+        results: standardResults,
+        created_by: user!.id,
+        version: nextVersion,
+      } as any)
+      .select("id")
+      .single();
+    if (error) return toast.error(error.message);
+    toast.success("Dossier duplique en Standard");
+    navigate({ to: "/dossiers/$id", params: { id: data.id } });
+  }
+
   async function exportDossier() {
     if (!dossier || !payload) return;
     const backup = createDossierBackup({
@@ -413,6 +503,12 @@ function DossierDetail() {
                 <Copy className="w-4 h-4 mr-1.5" />
                 Dupliquer
               </Button>
+              {dossier.type === "contra" && (
+                <Button variant="outline" onClick={duplicateAsStandard}>
+                  <Copy className="w-4 h-4 mr-1.5" />
+                  Dupliquer en Standard
+                </Button>
+              )}
               {isAdmin && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
