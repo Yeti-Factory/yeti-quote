@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
+import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
 
 type OfferRow = {
@@ -87,27 +88,8 @@ function cleanLabel(value: unknown, fallback: string) {
   return text.length > 0 ? text : fallback;
 }
 
-function normalizeCivilite(value: unknown) {
-  return cleanLabel(value, "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
 function buildOfferContactName(dossier: any) {
-  const client = dossier?.clients ?? {};
-  const civilite = normalizeCivilite(client?.civilite);
-  const prenom = cleanLabel(client?.prenom, "");
-  const nom = cleanLabel(client?.nom, "");
-
-  if ((civilite === "monsieur" || civilite === "m" || civilite === "m.") && nom) {
-    return `Monsieur ${nom}`;
-  }
-  if ((civilite === "madame" || civilite === "mme" || civilite === "mme.") && nom) {
-    return `Madame ${nom}`;
-  }
-
-  return prenom || cleanLabel(dossier?.contact || client?.contact, "");
+  return formatClientGreetingName(dossier?.clients ?? {}, dossier?.contact);
 }
 
 function buildLineDetail(line: any, fallback: string) {

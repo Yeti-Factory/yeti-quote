@@ -30,6 +30,7 @@ import {
   buildClientContactName,
   formatClientContact,
   normalizeClientCivilite,
+  parseClientContact,
 } from "@/lib/client-contact";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
@@ -42,11 +43,12 @@ function nullableTrim(value: string) {
 }
 
 function makeClientForm(initial?: any) {
+  const contact = parseClientContact(initial);
   return {
     entreprise: initial?.entreprise ?? "",
-    civilite: normalizeClientCivilite(initial?.civilite),
-    prenom: initial?.prenom ?? "",
-    nom: initial?.nom ?? "",
+    civilite: contact.civilite,
+    prenom: contact.prenom,
+    nom: contact.nom,
     contact: initial?.contact ?? "",
     email: initial?.email ?? "",
     telephone: initial?.telephone ?? "",
@@ -64,15 +66,11 @@ function ClientsPage() {
     queryFn: async () => {
       let req = supabase
         .from("clients")
-        .select(
-          "id, entreprise, contact, civilite, prenom, nom, email, telephone, updated_at, dossiers(count)",
-        )
+        .select("id, entreprise, contact, email, telephone, updated_at, dossiers(count)")
         .order("updated_at", { ascending: false });
       if (q.trim()) {
         const term = q.trim();
-        req = req.or(
-          `entreprise.ilike.%${term}%,contact.ilike.%${term}%,prenom.ilike.%${term}%,nom.ilike.%${term}%,email.ilike.%${term}%`,
-        );
+        req = req.or(`entreprise.ilike.%${term}%,contact.ilike.%${term}%,email.ilike.%${term}%`);
       }
       const { data, error } = await req;
       if (error) throw error;
@@ -167,9 +165,6 @@ export function ClientDialog({
     try {
       const clientPayload = {
         entreprise: form.entreprise.trim(),
-        civilite: form.civilite || null,
-        prenom: nullableTrim(form.prenom),
-        nom: nullableTrim(form.nom),
         contact: nullableTrim(buildClientContactName(form)),
         email: nullableTrim(form.email),
         telephone: nullableTrim(form.telephone),
