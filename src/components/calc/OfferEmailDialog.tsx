@@ -192,12 +192,17 @@ function buildContraRows(
   scenarioIndex: number,
   primaryDesignation = "Achats chez Contra",
 ): OfferRow[] {
-  // Mêmes règles que le calcul : marges non confirmées ramenées à l'accord standard.
+  // Mêmes règles que le calcul : ligne confirmée > quantité confirmée > 25 %.
   const payload = sanitizeContraInput(rawPayload);
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
-  const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
+  const quantiteRow = payload?.quantites?.[scenarioIndex];
+  const quantiteMarge = quantiteRow?.margePct ?? null;
+  const quantiteConfirmed = quantiteRow?.margeConfirmed;
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
+  const margeFor = (m: number | null | undefined, c: boolean | undefined) =>
+    resolveContraMargePct(m, c, quantiteMarge, quantiteConfirmed);
+
 
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
