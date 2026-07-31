@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { pvFromContraSharedRaw } from "@/lib/calculs/contra";
+import { pvFromContraSharedRaw, sanitizeContraInput } from "@/lib/calculs/contra";
 import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
