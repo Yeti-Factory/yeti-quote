@@ -35,46 +35,37 @@ export type Database = {
       clients: {
         Row: {
           adresse: string | null
-          civilite: string | null
           contact: string | null
           created_at: string
           created_by: string | null
           email: string | null
           entreprise: string
           id: string
-          nom: string | null
           notes: string | null
-          prenom: string | null
           telephone: string | null
           updated_at: string
         }
         Insert: {
           adresse?: string | null
-          civilite?: string | null
           contact?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           entreprise: string
           id?: string
-          nom?: string | null
           notes?: string | null
-          prenom?: string | null
           telephone?: string | null
           updated_at?: string
         }
         Update: {
           adresse?: string | null
-          civilite?: string | null
           contact?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           entreprise?: string
           id?: string
-          nom?: string | null
           notes?: string | null
-          prenom?: string | null
           telephone?: string | null
           updated_at?: string
         }
