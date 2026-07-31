@@ -90,17 +90,38 @@ export function resolveContraMargePct(
 }
 
 /**
- * Normalise uniquement le coefficient Contra (25 % sauf modification
- * confirmée). Les marges des lignes/quantités/T-P sont laissées telles quelles :
- * leur résolution passe par `resolveContraMargePct`, qui respecte la priorité
- * ligne confirmée > quantité confirmée > 25 %.
+ * Prépare un payload Contra pour l'affichage (écran, offre mail, PDF) :
+ *  - coefficient Contra normalisé (25 % sauf modification confirmée),
+ *  - marges NON confirmées neutralisées (mises à null) au lieu d'être forcées
+ *    à 25 %, afin que la priorité reste ligne confirmée > quantité confirmée
+ *    > 25 % (une ligne non confirmée n'écrase jamais la marge quantité).
  */
 export function sanitizeContraInput(input: ContraInput): ContraInput {
+  const keep = (m: number | null | undefined, c: boolean | undefined) => effectiveContraMarge(m, c);
+  const tp = input.transportPackaging;
   return {
     ...input,
     params: { ...input.params, coef_contra_pct: effectiveContraCoefPct(input.params) },
+    quantites: (input.quantites ?? []).map((q) => ({
+      ...q,
+      margePct: keep(q?.margePct, q?.margeConfirmed),
+    })),
+    achatsContra: (input.achatsContra ?? []).map((l) => ({
+      ...l,
+      margePct: keep(l?.margePct, l?.margeConfirmed),
+    })),
+    forfaitsContra: (input.forfaitsContra ?? []).map((l) => ({
+      ...l,
+      margePct: keep(l?.margePct, l?.margeConfirmed),
+    })),
+    transportPackaging: {
+      ...(tp ?? { montantsGlobaux: [] }),
+      montantsGlobaux: tp?.montantsGlobaux ?? [],
+      margePct: keep(tp?.margePct, tp?.margeConfirmed),
+    },
   };
 }
+
 
 
 export const CONTRA_DEFAULTS: ContraParams = {
