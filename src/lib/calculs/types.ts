@@ -7,6 +7,8 @@
 export type Quantite = {
   qty: number;
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 /** Backward-compat: normalize legacy `number[]` payloads to `Quantite[]`. */
@@ -14,19 +16,21 @@ export function normalizeQuantites(input: unknown): Quantite[] {
   if (!Array.isArray(input)) return [];
   return input
     .map((v) => {
-      if (typeof v === "number") return { qty: v, margePct: null };
+      if (typeof v === "number") return { qty: v, margePct: null, margeConfirmed: false };
       if (v && typeof v === "object" && "qty" in (v as any)) {
         const q = (v as any).qty;
         const m = (v as any).margePct;
         return {
           qty: Number(q) || 0,
           margePct: m === undefined || m === null || m === "" ? null : Number(m),
+          margeConfirmed: (v as any).margeConfirmed === true,
         };
       }
-      return { qty: 0, margePct: null };
+      return { qty: 0, margePct: null, margeConfirmed: false };
     })
     .filter((q) => q.qty > 0 || q.qty === 0);
 }
+
 
 export type LineItem = {
   fournisseur?: string;
