@@ -135,7 +135,8 @@ export function pvFromContraSharedRaw(
 }
 
 export function calculerContra(rawInput: ContraInput): CalcOutput {
-  // Toutes les marges non confirmées retombent sur l'accord standard 25 %.
+  // Seul le coefficient Contra est normalisé ici ; les marges suivent la
+  // priorité ligne confirmée > quantité confirmée > 25 %.
   const input = sanitizeContraInput(rawInput);
   const { achatsContra, forfaitsContra, params } = input;
 
@@ -148,6 +149,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
+    const mqConfirmed = quant.margeConfirmed;
 
     // 1) Bases BRUTES transmises par Contra
     const rawAchatUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
@@ -176,21 +178,21 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     let pvUnitAchats = 0;
     for (const l of achatsContra) {
       const raw = getPrixAchat(l, qi);
-      const mYeti = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
+      const mYeti = resolveContraMargePct(l.margePct, l.margeConfirmed, mq, mqConfirmed);
       pvUnitAchats += pvFromContraSharedRaw(raw, coefContra, mYeti);
     }
     let pvUnitForfaits = 0;
     for (const f of forfaitsContra) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
-      const mYeti = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
+      const mYeti = resolveContraMargePct(f.margePct, f.margeConfirmed, mq, mqConfirmed);
       pvUnitForfaits += pvFromContraSharedRaw(share, coefContra, mYeti);
     }
 
     // Transport / Packaging participe au même partage Contra/Yeti :
-    // Contra applique son markup, puis Yeti applique sa marge résiduelle
-    // (marge T/P > marge quantité > défaut Contra).
-    const mTP = resolveMargePct(tp.margePct, mq, params.coef_contra_pct);
+    // marge T/P confirmée > marge quantité confirmée > 25 %.
+    const mTP = resolveContraMargePct(tp.margePct, tp.margeConfirmed, mq, mqConfirmed);
     const pvUnitTP = pvFromContraSharedRaw(tpUnit, coefContra, mTP);
+
 
     // Commission sourcing — refacturée au coût.
     const pvUnitSourcing = commSourcingUnit;
