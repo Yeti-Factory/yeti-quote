@@ -207,7 +207,6 @@ function buildContraRows(
   const margeFor = (m: number | null | undefined, c: boolean | undefined) =>
     resolveContraMargePct(m, c, quantiteMarge, quantiteConfirmed);
 
-
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
   let optionsContraUnit = 0;

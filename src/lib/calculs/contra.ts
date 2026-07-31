@@ -8,7 +8,6 @@ import type {
 } from "./types";
 import { normalizeQuantites, normalizeTransportPackaging, getPrixAchat } from "./types";
 
-
 export type ContraParams = {
   /**
    * Coefficient Contra (%) — sert de DOUBLE usage :
@@ -118,8 +117,6 @@ export function sanitizeContraInput(input: ContraInput): ContraInput {
   };
 }
 
-
-
 export const CONTRA_DEFAULTS: ContraParams = {
   coef_contra_pct: CONTRA_STANDARD_MARGE_PCT,
   coef_contra_confirmed: false,
@@ -209,7 +206,6 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     // marge T/P confirmée > marge quantité confirmée > 25 %.
     const mTP = resolveContraMargePct(tp.margePct, tp.margeConfirmed, mq, mqConfirmed);
     const pvUnitTP = pvFromContraSharedRaw(tpUnit, coefContra, mTP);
-
 
     // Commission sourcing — refacturée au coût.
     const pvUnitSourcing = commSourcingUnit;
