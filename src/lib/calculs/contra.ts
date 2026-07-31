@@ -52,10 +52,24 @@ export const CONTRA_DEFAULTS: ContraParams = {
   commission_rapporteur_pct: 0,
 };
 
-/** Marge résiduelle : PV = coût / (1 - m/100). Clamp m dans [0, 99]. */
-function pvFromResidual(cost: number, margePct: number): number {
+function truncatePct(value: number, decimals = 3): number {
+  const factor = 10 ** decimals;
+  return Math.trunc(value * factor) / factor;
+}
+
+/**
+ * Mode historique du tableur Contra : on transforme le partage Contra/Yeti
+ * en coefficient global sur le brut, tronqué à 3 décimales (ex. 66,666 %).
+ */
+export function pvFromContraSharedRaw(
+  rawCost: number,
+  contraPct: number,
+  margePct: number,
+): number {
   const m = Math.max(0, Math.min(99, Number(margePct) || 0));
-  return cost / (1 - m / 100);
+  const contraFactor = 1 + (Number(contraPct) || 0) / 100;
+  const totalMarkupPct = (contraFactor / (1 - m / 100) - 1) * 100;
+  return rawCost * (1 + truncatePct(totalMarkupPct) / 100);
 }
 
 export function calculerContra(input: ContraInput): CalcOutput {
@@ -92,31 +106,26 @@ export function calculerContra(input: ContraInput): CalcOutput {
           : params.commission_sourcing_min_eur / Q;
     }
 
-    // 4) Prix de vente client Yeti — marge RÉSIDUELLE (PV = coût / (1 - m/100)).
-    //    Par ligne : cost_line = raw_line × (1 + coefContra/100)
-    //    puis pv_line = cost_line / (1 - m_yeti/100).
+    // 4) Prix de vente client Yeti — mode Excel historique Contra.
+    //    Par ligne : brut × coefficient global Contra/Yeti tronqué à 3 décimales.
     let pvUnitAchats = 0;
     for (const l of achatsContra) {
       const raw = getPrixAchat(l, qi);
-      const cost = raw * contraFactor;
       const mYeti = resolveMargePct(l.margePct, mq, params.coef_contra_pct);
-      pvUnitAchats += pvFromResidual(cost, mYeti);
+      pvUnitAchats += pvFromContraSharedRaw(raw, coefContra, mYeti);
     }
     let pvUnitForfaits = 0;
     for (const f of forfaitsContra) {
       const share = Q > 0 ? (Number(f.montantGlobal) || 0) / Q : 0;
-      const cost = share * contraFactor;
       const mYeti = resolveMargePct(f.margePct, mq, params.coef_contra_pct);
-      pvUnitForfaits += pvFromResidual(cost, mYeti);
+      pvUnitForfaits += pvFromContraSharedRaw(share, coefContra, mYeti);
     }
 
-    // Transport / Packaging — Contra prend sa marge, puis Yeti applique sa
-    // propre marge résiduelle SEULEMENT si une marge est explicitement saisie
-    // (sinon T/P est refacturé au coût, sans marge Yeti).
-    const costTP = tpUnit * contraFactor;
-    const tpHasMargin = tp.margePct !== null && tp.margePct !== undefined;
-    const mTP = tpHasMargin ? Number(tp.margePct) : 0;
-    const pvUnitTP = tpHasMargin ? pvFromResidual(costTP, mTP) : costTP;
+    // Transport / Packaging participe au même partage Contra/Yeti :
+    // Contra applique son markup, puis Yeti applique sa marge résiduelle
+    // (marge T/P > marge quantité > défaut Contra).
+    const mTP = resolveMargePct(tp.margePct, mq, params.coef_contra_pct);
+    const pvUnitTP = pvFromContraSharedRaw(tpUnit, coefContra, mTP);
 
     // Commission sourcing — refacturée au coût.
     const pvUnitSourcing = commSourcingUnit;
@@ -150,7 +159,7 @@ export function calculerContra(input: ContraInput): CalcOutput {
       commissionRapporteurTotal: commRapTotal,
       transportPackagingUnit: tpUnit,
       transportPackagingGlobal: tpGlobal,
-      transportPackagingSansMarge: !tpHasMargin,
+      transportPackagingSansMarge: false,
       transportPackagingMargePct: mTP,
       totalPrixUnitaire,
       totalCA,

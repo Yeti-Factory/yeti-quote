@@ -101,7 +101,7 @@ export type TransportPackaging = {
   montantsGlobaux: number[];
   /** Client-facing flag: transport is already included in supplier prices. */
   transportInclus?: boolean;
-  /** Optional margin (%). Defaults to family default when null/undefined. */
+  /** Optional margin override (%). Each calculator defines the empty-value fallback. */
   margePct?: number | null;
 };
 

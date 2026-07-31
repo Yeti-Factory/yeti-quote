@@ -11,7 +11,7 @@ import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
 import { calculerStandard } from "@/lib/calculs/standard";
-import { calculerContra } from "@/lib/calculs/contra";
+import { calculerContra, pvFromContraSharedRaw } from "@/lib/calculs/contra";
 import { calculerStands } from "@/lib/calculs/stands";
 
 type Meta = {
@@ -112,12 +112,11 @@ function LineTable({
   field: "prixUnitaire" | "montantGlobal";
   quantites: Quantite[];
   defaultMargePct: number;
-  /** If provided (Contra), PV = (base × (1 + contraCoefPct/100)) / (1 - m/100). */
+  /** If provided (Contra), PV follows the historical Excel shared-margin coefficient. */
   contraCoefPct?: number;
 }) {
   const qs = normalizeQuantites(quantites);
   const isGrid = field === "prixUnitaire";
-  const contraFactor = 1 + (contraCoefPct ?? 0) / 100;
   const isContra = contraCoefPct !== undefined;
   return (
     <section>
@@ -187,9 +186,9 @@ function LineTable({
                     : q.qty > 0
                       ? globalAmount / q.qty
                       : globalAmount;
-                  const cost = base * contraFactor;
-                  const mClamp = Math.max(0, Math.min(99, m));
-                  const pv = isContra ? cost / (1 - mClamp / 100) : base * (1 + m / 100);
+                  const pv = isContra
+                    ? pvFromContraSharedRaw(base, contraCoefPct ?? 0, m)
+                    : base * (1 + m / 100);
                   return (
                     <td key={`pv${qi}`} className="num">
                       {fmtEUR(pv)}
@@ -209,26 +208,32 @@ function TransportPackagingTable({
   quantites,
   transportPackaging,
   contraCoefPct,
+  defaultMargePct,
+  useDefaultMarginWhenEmpty = false,
 }: {
   quantites: Quantite[];
   transportPackaging?: TransportPackaging;
   /** If provided (Contra), the Contra markup is applied on top of the unit cost. */
   contraCoefPct?: number;
+  defaultMargePct?: number;
+  useDefaultMarginWhenEmpty?: boolean;
 }) {
   const qs = normalizeQuantites(quantites);
   if (qs.length === 0) return null;
   const tp = normalizeTransportPackaging(transportPackaging, qs.length);
   const hasMargin = tp.margePct !== null && tp.margePct !== undefined;
-  const m = hasMargin ? Number(tp.margePct) : 0;
   const contraFactor = 1 + (contraCoefPct ?? 0) / 100;
+  const defaultMargin = defaultMargePct ?? 0;
+  const marginLabel = hasMargin
+    ? `Marge ${Number(tp.margePct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`
+    : useDefaultMarginWhenEmpty
+      ? `Marge quantité / défaut ${defaultMargin.toLocaleString("fr-FR", {
+          maximumFractionDigits: 2,
+        })} %`
+      : "Sans marge (refacturé au coût)";
   return (
     <section>
-      <h2>
-        Transport / Packaging —{" "}
-        {hasMargin
-          ? `Marge ${m.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`
-          : "Sans marge (refacturé au coût)"}
-      </h2>
+      <h2>Transport / Packaging — {marginLabel}</h2>
       <table>
         <thead>
           <tr>
@@ -246,8 +251,15 @@ function TransportPackagingTable({
           {qs.map((q, i) => {
             const g = Number(tp.montantsGlobaux[i]) || 0;
             const unit = q.qty > 0 ? g / q.qty : 0;
-            const cost = unit * contraFactor;
-            const pv = hasMargin ? cost / (1 - Math.min(99, m) / 100) : cost;
+            const effectiveMargin = useDefaultMarginWhenEmpty
+              ? resolveMargePct(tp.margePct, q.margePct, defaultMargin)
+              : hasMargin
+                ? Number(tp.margePct)
+                : 0;
+            const pv =
+              hasMargin || useDefaultMarginWhenEmpty
+                ? pvFromContraSharedRaw(unit, contraCoefPct ?? 0, effectiveMargin)
+                : unit * contraFactor;
             return (
               <tr key={i}>
                 <td>Qté {q.qty.toLocaleString("fr-FR")}</td>
@@ -553,6 +565,8 @@ function ContraPrint({ payload }: { payload: ContraInput }) {
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
         contraCoefPct={p.coef_contra_pct}
+        defaultMargePct={p.coef_contra_pct}
+        useDefaultMarginWhenEmpty
       />
       <BonCommandeContraTable output={output} coefPct={p.coef_contra_pct} />
       <ParamsBlock

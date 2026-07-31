@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { pvFromContraSharedRaw } from "@/lib/calculs/contra";
 import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
@@ -122,11 +123,6 @@ function cleanDetails(details: string[] = []) {
     });
 }
 
-function pvFromResidual(cost: number, margePct: number): number {
-  const m = Math.max(0, Math.min(99, Number(margePct) || 0));
-  return cost / (1 - m / 100);
-}
-
 function addRow(
   rows: OfferRow[],
   designation: string,
@@ -200,7 +196,6 @@ function buildContraRows(
   const quantite = Number(scenario.quantite) || 0;
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
-  const contraFactor = 1 + coefContra / 100;
 
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
@@ -208,9 +203,8 @@ function buildContraRows(
   const optionsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
-    const cost = raw * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    const lineUnit = pvFromResidual(cost, margeYeti);
+    const lineUnit = pvFromContraSharedRaw(raw, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsContraUnit += lineUnit;
@@ -229,9 +223,8 @@ function buildContraRows(
   const optionsForfaitsDetails: string[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
-    const cost = share * contraFactor;
     const margeYeti = resolveMargePct(line?.margePct, quantiteMarge, coefContra);
-    const lineUnit = pvFromResidual(cost, margeYeti);
+    const lineUnit = pvFromContraSharedRaw(share, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsForfaitsUnit += lineUnit;
@@ -252,14 +245,12 @@ function buildContraRows(
   );
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
-  const costTP = tpUnit * contraFactor;
-  const hasTpMargin = scenario.transportPackagingSansMarge === false;
-  const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
+  const tpMarge = resolveMargePct(payload?.transportPackaging?.margePct, quantiteMarge, coefContra);
   addRow(
     rows,
     "Transport / Packaging",
     quantite,
-    hasTpMargin ? pvFromResidual(costTP, tpMarge) : costTP,
+    pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
   );
 
   addRow(rows, "Commission sourcing", quantite, Number(scenario.commissionSourcingUnit) || 0);

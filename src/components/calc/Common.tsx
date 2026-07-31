@@ -386,11 +386,13 @@ export function TransportPackagingBlock({
   value,
   onChange,
   defaultMargePct,
+  useDefaultMarginWhenEmpty = false,
 }: {
   quantites: Quantite[];
   value: TransportPackaging;
   onChange: (v: TransportPackaging) => void;
   defaultMargePct?: number;
+  useDefaultMarginWhenEmpty?: boolean;
 }) {
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
@@ -416,7 +418,9 @@ export function TransportPackagingBlock({
         <div>
           <Label className="text-sm font-semibold">Transport / Packaging</Label>
           <p className="text-xs text-muted-foreground">
-            Marge optionnelle — laissée vide, T/P est refacturé sans marge.
+            {useDefaultMarginWhenEmpty
+              ? "Marge vide : priorité marge quantité, puis marge par défaut."
+              : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
           </p>
         </div>
         <div className="flex items-start gap-4">
@@ -452,7 +456,9 @@ export function TransportPackagingBlock({
               {value?.margePct === null ||
               value?.margePct === undefined ||
               value?.margePct === (undefined as any)
-                ? "Sans marge (au coût)"
+                ? useDefaultMarginWhenEmpty
+                  ? "Marge quantité / défaut"
+                  : "Sans marge (au coût)"
                 : `Marge ${Number(value.margePct)} %`}
               {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
             </p>

@@ -90,7 +90,13 @@ export function ContraForm({
             tone="accent"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
-          <TransportPackagingBlock quantites={value.quantites} value={tp} onChange={setTP} />
+          <TransportPackagingBlock
+            quantites={value.quantites}
+            value={tp}
+            onChange={setTP}
+            defaultMargePct={value.params.coef_contra_pct}
+            useDefaultMarginWhenEmpty
+          />
         </div>
       </Card>
 
