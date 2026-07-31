@@ -11,7 +11,12 @@ import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
 import { calculerStandard } from "@/lib/calculs/standard";
-import { calculerContra, pvFromContraSharedRaw } from "@/lib/calculs/contra";
+import {
+  calculerContra,
+  pvFromContraSharedRaw,
+  sanitizeContraInput,
+} from "@/lib/calculs/contra";
+
 import { calculerStands } from "@/lib/calculs/stands";
 
 type Meta = {
