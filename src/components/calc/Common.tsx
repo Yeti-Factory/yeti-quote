@@ -565,31 +565,57 @@ export function TransportPackagingBlock({
             Transport inclus
           </label>
           <div className="w-48">
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Marge % (facultatif)"
-              value={value?.margePct ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  montantsGlobaux: arr,
-                  margePct: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              className="text-right tabular-nums"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">
-              {value?.margePct === null ||
-              value?.margePct === undefined ||
-              value?.margePct === (undefined as any)
-                ? useDefaultMarginWhenEmpty
-                  ? "Marge quantité / défaut"
-                  : "Sans marge (au coût)"
-                : `Marge ${Number(value.margePct)} %`}
-              {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
-            </p>
+            {margeGuard ? (
+              <>
+                <GuardedMargeInput
+                  margePct={value?.margePct}
+                  margeConfirmed={value?.margeConfirmed}
+                  guard={margeGuard}
+                  placeholder="Marge %"
+                  className="text-right tabular-nums"
+                  onCommit={(m, c) =>
+                    onChange({
+                      ...value,
+                      montantsGlobaux: arr,
+                      margePct: m,
+                      margeConfirmed: c,
+                    })
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margeConfirmed === true
+                    ? `Marge confirmée ${Number(value.margePct)} %`
+                    : `Marge standard ${margeGuard.standardPct} %`}
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Marge % (facultatif)"
+                  value={value?.margePct ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      montantsGlobaux: arr,
+                      margePct: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  className="text-right tabular-nums"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margePct === null || value?.margePct === undefined
+                    ? useDefaultMarginWhenEmpty
+                      ? "Marge quantité / défaut"
+                      : "Sans marge (au coût)"
+                    : `Marge ${Number(value.margePct)} %`}
+                  {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
+                </p>
+              </>
+            )}
           </div>
+
         </div>
       </div>
       {qCount === 0 ? (
