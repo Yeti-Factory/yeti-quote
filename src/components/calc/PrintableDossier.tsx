@@ -539,9 +539,12 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
   );
 }
 
-function ContraPrint({ payload }: { payload: ContraInput }) {
+function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
+  // Mêmes règles que le calcul : marges non confirmées ramenées à l'accord standard.
+  const payload = sanitizeContraInput(rawPayload);
   const p = payload.params;
   const output = calculerContra(payload);
+
   return (
     <>
       <QuantitesTable quantites={payload.quantites} defaultMargePct={p.coef_contra_pct} />
