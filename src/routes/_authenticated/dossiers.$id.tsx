@@ -157,6 +157,78 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
   };
 }
 
+function standardToContraPayload(input: StandardInput, contraDefaults: any): ContraInput {
+  const quantites = Array.isArray(input.quantites) ? input.quantites : [];
+  const qCount = quantites.length;
+  const standardParams = input.params ?? STANDARD_DEFAULTS;
+  const baseParams = { ...CONTRA_DEFAULTS, ...(contraDefaults ?? {}) };
+  const params = {
+    ...baseParams,
+    frais_fixes_pct: toOptionalNumber(standardParams.frais_fixes_pct) ?? baseParams.frais_fixes_pct,
+    commission_sourcing:
+      typeof standardParams.commission_sourcing === "boolean"
+        ? standardParams.commission_sourcing
+        : baseParams.commission_sourcing,
+    commission_sourcing_pct:
+      toOptionalNumber(standardParams.commission_sourcing_pct) ??
+      baseParams.commission_sourcing_pct,
+    commission_sourcing_min_eur:
+      toOptionalNumber(standardParams.commission_sourcing_min_eur) ??
+      baseParams.commission_sourcing_min_eur,
+    commission_rapporteur_pct:
+      toOptionalNumber(standardParams.commission_rapporteur_pct) ??
+      baseParams.commission_rapporteur_pct,
+  };
+
+  const achatsContra = (Array.isArray(input.achatsPrincipaux) ? input.achatsPrincipaux : []).map(
+    (line) => ({
+      fournisseur: line.fournisseur ?? "",
+      libelle: line.libelle ?? "",
+      descriptif: line.descriptif ?? "",
+      commentaire: line.commentaire ?? "",
+      prixUnitaire: line.prixUnitaire ?? 0,
+      prixParQuantite: reshapePrixParQuantite(line, qCount),
+      margePct: line.margePct ?? null,
+    }),
+  );
+
+  return {
+    quantites,
+    achatsContra:
+      achatsContra.length > 0
+        ? achatsContra
+        : [{ fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null }],
+    forfaitsContra: [],
+    transportPackaging: input.transportPackaging ?? {
+      montantsGlobaux: Array.from({ length: qCount }, () => 0),
+      transportInclus: false,
+      margePct: null,
+    },
+    params,
+  };
+}
+
+function convertBetweenStandardAndContra(
+  fromType: "standard" | "contra",
+  toType: "standard" | "contra",
+  input: any,
+  defaults: any,
+) {
+  if (fromType === toType) return input;
+  if (fromType === "contra" && toType === "standard") {
+    return contraToStandardPayload(input as ContraInput, defaults?.standard);
+  }
+  if (fromType === "standard" && toType === "contra") {
+    return standardToContraPayload(input as StandardInput, defaults?.contra);
+  }
+  return null;
+}
+
+function calculateForType(type: "standard" | "contra", nextPayload: any) {
+  if (type === "standard") return calculerStandard(nextPayload as StandardInput);
+  return calculerContra(nextPayload as ContraInput);
+}
+
 function DossierDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -194,6 +266,8 @@ function DossierDetail() {
     statut: "brouillon" as "brouillon" | "valide" | "archive",
   });
   const [payload, setPayload] = useState<any>(null);
+  const [pendingType, setPendingType] = useState<"standard" | "contra" | null>(null);
+  const [modelBusy, setModelBusy] = useState(false);
   const initialSnapshotRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -361,6 +435,60 @@ function DossierDetail() {
     initialSnapshotRef.current = JSON.stringify({ meta: savedMeta, payload: cleanPayload });
     qc.invalidateQueries({ queryKey: ["dossier", id] });
     qc.invalidateQueries({ queryKey: ["dossiers"] });
+  }
+
+  async function changeModel(targetType: "standard" | "contra") {
+    if (!dossier || !payload) return;
+    const sourceType = dossier.type;
+    if (sourceType === targetType) {
+      setPendingType(null);
+      return;
+    }
+    if (sourceType !== "standard" && sourceType !== "contra") {
+      toast.error("Ce modele ne peut pas etre converti automatiquement");
+      setPendingType(null);
+      return;
+    }
+
+    const nextPayload = convertBetweenStandardAndContra(sourceType, targetType, payload, defaults);
+    if (!nextPayload) {
+      toast.error("Conversion impossible");
+      setPendingType(null);
+      return;
+    }
+
+    setModelBusy(true);
+    try {
+      const nextResults = calculateForType(targetType, nextPayload);
+      const nextMeta = { ...meta, statut: "brouillon" as const };
+      const update = {
+        reference: meta.reference.trim(),
+        objet: meta.objet.trim(),
+        onedrive_note: meta.onedrive_note,
+        statut: "brouillon" as const,
+        type: targetType,
+        payload: nextPayload,
+        results: nextResults,
+        params: nextPayload.params,
+      };
+      const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
+      if (error) throw error;
+
+      qc.setQueryData(["dossier", id], (current: any) =>
+        current ? { ...current, ...update } : current,
+      );
+      setMeta(nextMeta);
+      setPayload(nextPayload);
+      initialSnapshotRef.current = JSON.stringify({ meta: nextMeta, payload: nextPayload });
+      qc.invalidateQueries({ queryKey: ["dossier", id] });
+      qc.invalidateQueries({ queryKey: ["dossiers"] });
+      toast.success(`Modele change en ${targetType === "standard" ? "Standard" : "Contra"}`);
+      setPendingType(null);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Changement de modele impossible");
+    } finally {
+      setModelBusy(false);
+    }
   }
 
   async function duplicate() {
@@ -589,6 +717,30 @@ function DossierDetail() {
               </Select>
             </div>
             <div>
+              <Label>Modele de calcul</Label>
+              <Select
+                value={dossier.type}
+                disabled={modelBusy || (dossier.type !== "standard" && dossier.type !== "contra")}
+                onValueChange={(v) => {
+                  if (v === dossier.type) return;
+                  if (v === "standard" || v === "contra") setPendingType(v);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="contra">Contra</SelectItem>
+                  {dossier.type === "stands" && <SelectItem value="stands">Stands</SelectItem>}
+                  {dossier.type === "kits" && <SelectItem value="kits">Kits</SelectItem>}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Conversion directe disponible entre Standard et Contra.
+              </p>
+            </div>
+            <div>
               <Label>Note / lien dossier OneDrive</Label>
               <Textarea
                 rows={3}
@@ -649,6 +801,37 @@ function DossierDetail() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Quitter sans enregistrer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingType !== null}
+        onOpenChange={(open) => {
+          if (!open && !modelBusy) setPendingType(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Changer le modele de calcul ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le dossier existant sera converti en{" "}
+              <strong>{pendingType === "standard" ? "Standard" : "Contra"}</strong> et repassera en
+              brouillon. Les informations communes seront conservees, mais les calculs propres au
+              modele seront recalcules.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={modelBusy}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={modelBusy || pendingType === null}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingType) void changeModel(pendingType);
+              }}
+            >
+              {modelBusy ? "Conversion..." : "Changer le modele"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
