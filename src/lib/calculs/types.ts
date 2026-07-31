@@ -112,6 +112,8 @@ export type TransportPackaging = {
   transportInclus?: boolean;
   /** Optional margin override (%). Each calculator defines the empty-value fallback. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 /** Backward-compat + shape normalization. */
@@ -129,7 +131,9 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
     montantsGlobaux: arr,
     transportInclus: o.transportInclus === true || o.transportInclus === "true",
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
+    margeConfirmed: o.margeConfirmed === true,
   };
+
 }
 
 export type QuantityResult = {
