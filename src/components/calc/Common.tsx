@@ -142,15 +142,26 @@ export function QuantitesRow({
                 value={q.qty || ""}
                 onChange={(e) => updateQty(i, e.target.value === "" ? 0 : Number(e.target.value))}
               />
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Marge %"
-                value={q.margePct ?? defaultMargePct ?? ""}
-                onChange={(e) =>
-                  updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
-                }
-              />
+              {margeGuard ? (
+                <GuardedMargeInput
+                  margePct={q.margePct}
+                  margeConfirmed={q.margeConfirmed}
+                  guard={margeGuard}
+                  placeholder="Marge %"
+                  onCommit={(m, c) => updateMarge(i, m, c)}
+                />
+              ) : (
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Marge %"
+                  value={q.margePct ?? defaultMargePct ?? ""}
+                  onChange={(e) =>
+                    updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
+                  }
+                />
+              )}
+
             </div>
           ))}
         </div>
