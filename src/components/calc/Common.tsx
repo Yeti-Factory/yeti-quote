@@ -508,13 +508,16 @@ export function TransportPackagingBlock({
   onChange,
   defaultMargePct,
   useDefaultMarginWhenEmpty = false,
+  margeGuard,
 }: {
   quantites: Quantite[];
   value: TransportPackaging;
   onChange: (v: TransportPackaging) => void;
   defaultMargePct?: number;
   useDefaultMarginWhenEmpty?: boolean;
+  margeGuard?: MargeGuard;
 }) {
+
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
 
