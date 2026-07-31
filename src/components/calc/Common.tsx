@@ -183,16 +183,21 @@ export function LinesTable({
   onChange,
   field,
   defaultMargePct,
+  margeGuard,
 }: {
   title: string;
   lines: (LineItem | LineForfait)[];
   onChange: (lines: any[]) => void;
   field: "prixUnitaire" | "montantGlobal";
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   function update(i: number, key: string, value: any) {
     const next = lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l));
     onChange(next);
+  }
+  function updateMarge(i: number, margePct: number, margeConfirmed: boolean) {
+    onChange(lines.map((l, idx) => (idx === i ? { ...l, margePct, margeConfirmed } : l)));
   }
   return (
     <div>
@@ -211,8 +216,10 @@ export function LinesTable({
                 descriptif: "",
                 commentaire: "",
                 [field]: 0,
-                margePct: defaultMargePct ?? null,
+                margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+                ...(margeGuard ? { margeConfirmed: false } : {}),
               },
+
             ])
           }
         >
