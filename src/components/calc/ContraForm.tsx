@@ -95,7 +95,7 @@ export function ContraForm({
             lines={value.achatsContra}
             onChange={(l) => onChange({ ...value, achatsContra: l })}
             quantites={value.quantites}
-            defaultMargePct={value.params.coef_contra_pct}
+            margeGuard={GUARD}
           />
         </div>
         <div>
@@ -110,7 +110,7 @@ export function ContraForm({
             lines={value.forfaitsContra}
             onChange={(l) => onChange({ ...value, forfaitsContra: l })}
             field="montantGlobal"
-            defaultMargePct={value.params.coef_contra_pct}
+            margeGuard={GUARD}
           />
         </div>
         <div>
@@ -124,10 +124,11 @@ export function ContraForm({
             quantites={value.quantites}
             value={tp}
             onChange={setTP}
-            defaultMargePct={value.params.coef_contra_pct}
             useDefaultMarginWhenEmpty
+            margeGuard={GUARD}
           />
         </div>
+
       </Card>
 
       <Card className="p-4 calc-section">
