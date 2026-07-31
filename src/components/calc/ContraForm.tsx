@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -8,12 +9,16 @@ import {
   QuantitesRow,
   TransportPackagingBlock,
 } from "@/components/calc/Common";
+import type { MargeGuard } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
+import { CONTRA_STANDARD_MARGE_PCT, effectiveContraCoefPct } from "@/lib/calculs/contra";
 import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
 import { normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
+
+const GUARD: MargeGuard = { standardPct: CONTRA_STANDARD_MARGE_PCT };
 
 export function ContraForm({
   value,
@@ -23,8 +28,32 @@ export function ContraForm({
   onChange: (v: ContraInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
+  const coefEffectif = effectiveContraCoefPct(value.params);
+  const [coefDraft, setCoefDraft] = useState<string>(String(coefEffectif));
+  useEffect(() => {
+    setCoefDraft(String(coefEffectif));
+  }, [coefEffectif]);
+
   function setParams(p: Partial<ContraParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
+  }
+  function commitCoef() {
+    const parsed = coefDraft.trim() === "" ? CONTRA_STANDARD_MARGE_PCT : Number(coefDraft);
+    const next = Number.isFinite(parsed) ? parsed : CONTRA_STANDARD_MARGE_PCT;
+    if (next === coefEffectif) {
+      setCoefDraft(String(coefEffectif));
+      return;
+    }
+    if (next === CONTRA_STANDARD_MARGE_PCT) {
+      setParams({ coef_contra_pct: CONTRA_STANDARD_MARGE_PCT, coef_contra_confirmed: false });
+      return;
+    }
+    const ok = window.confirm(
+      `L'accord standard Contra/Yeti est de ${CONTRA_STANDARD_MARGE_PCT} %.\n` +
+        `Confirmez-vous cette modification à ${next} % ?`,
+    );
+    if (ok) setParams({ coef_contra_pct: next, coef_contra_confirmed: true });
+    else setCoefDraft(String(coefEffectif));
   }
   function handleQuantitesChange(newQ: Quantite[]) {
     onChange({
@@ -48,9 +77,10 @@ export function ContraForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={handleQuantitesChange}
-          defaultMargePct={value.params.coef_contra_pct}
+          margeGuard={GUARD}
         />
       </Card>
+
 
       <Card className="p-4 calc-section space-y-5">
         <div>
