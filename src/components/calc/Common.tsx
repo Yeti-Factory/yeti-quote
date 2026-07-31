@@ -542,11 +542,14 @@ export function TransportPackagingBlock({
         <div>
           <Label className="text-sm font-semibold">Transport / Packaging</Label>
           <p className="text-xs text-muted-foreground">
-            {useDefaultMarginWhenEmpty
-              ? "Marge vide : priorité marge quantité, puis marge par défaut."
-              : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
+            {margeGuard
+              ? `Participe au partage Contra/Yeti — marge standard ${margeGuard.standardPct} %.`
+              : useDefaultMarginWhenEmpty
+                ? "Marge vide : priorité marge quantité, puis marge par défaut."
+                : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
           </p>
         </div>
+
         <div className="flex items-start gap-4">
           <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium">
             <Checkbox
