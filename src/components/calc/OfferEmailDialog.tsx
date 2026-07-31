@@ -87,6 +87,29 @@ function cleanLabel(value: unknown, fallback: string) {
   return text.length > 0 ? text : fallback;
 }
 
+function normalizeCivilite(value: unknown) {
+  return cleanLabel(value, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function buildOfferContactName(dossier: any) {
+  const client = dossier?.clients ?? {};
+  const civilite = normalizeCivilite(client?.civilite);
+  const prenom = cleanLabel(client?.prenom, "");
+  const nom = cleanLabel(client?.nom, "");
+
+  if ((civilite === "monsieur" || civilite === "m" || civilite === "m.") && nom) {
+    return `Monsieur ${nom}`;
+  }
+  if ((civilite === "madame" || civilite === "mme" || civilite === "mme.") && nom) {
+    return `Madame ${nom}`;
+  }
+
+  return prenom || cleanLabel(dossier?.contact || client?.contact, "");
+}
+
 function buildLineDetail(line: any, fallback: string) {
   const label = cleanLabel(line?.libelle, fallback)
     .replace(/\s+composants?$/i, "")
@@ -940,7 +963,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
     if (scenarioItems.length === 0) return null;
 
     const clientName = cleanLabel(dossier?.clients?.entreprise, "");
-    const contactName = cleanLabel(dossier?.contact || dossier?.clients?.contact, "");
+    const contactName = buildOfferContactName(dossier);
     const clientEmail = cleanLabel(dossier?.email || dossier?.clients?.email, "");
     const reference = cleanLabel(meta.reference, "");
     const objet = cleanLabel(meta.objet, dossier?.objet || "Offre de prix");

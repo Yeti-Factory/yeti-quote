@@ -242,7 +242,7 @@ function DossierDetail() {
       const { data, error } = await supabase
         .from("dossiers")
         .select(
-          "*, clients(id, entreprise, contact, email, telephone, adresse, notes, created_at, updated_at)",
+          "*, clients(id, entreprise, contact, civilite, prenom, nom, email, telephone, adresse, notes, created_at, updated_at)",
         )
         .eq("id", id)
         .single();

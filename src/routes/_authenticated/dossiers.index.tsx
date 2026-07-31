@@ -115,6 +115,9 @@ function DossiersList() {
     const clientFields = {
       entreprise: backup.client.entreprise,
       contact: backup.client.contact ?? null,
+      civilite: backup.client.civilite ?? null,
+      prenom: backup.client.prenom ?? null,
+      nom: backup.client.nom ?? null,
       email: backup.client.email ?? null,
       telephone: backup.client.telephone ?? null,
       adresse: backup.client.adresse ?? null,
