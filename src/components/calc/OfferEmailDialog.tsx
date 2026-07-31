@@ -187,15 +187,18 @@ function buildStandardRows(
 }
 
 function buildContraRows(
-  payload: any,
+  rawPayload: any,
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats chez Contra",
 ): OfferRow[] {
+  // Mêmes règles que le calcul : marges non confirmées ramenées à l'accord standard.
+  const payload = sanitizeContraInput(rawPayload);
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
+
 
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
