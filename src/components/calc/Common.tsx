@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +7,74 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus } from "lucide-react";
 import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
+
+/**
+ * Margin guard (Contra): the standard agreement is 25 % / 25 %.
+ * Any other value must be explicitly confirmed by the user, otherwise the
+ * standard value is displayed and used.
+ */
+export type MargeGuard = { standardPct: number };
+
+export function GuardedMargeInput({
+  margePct,
+  margeConfirmed,
+  guard,
+  className,
+  placeholder = "marge %",
+  onCommit,
+}: {
+  margePct?: number | null;
+  margeConfirmed?: boolean;
+  guard: MargeGuard;
+  className?: string;
+  placeholder?: string;
+  onCommit: (margePct: number, margeConfirmed: boolean) => void;
+}) {
+  const effective =
+    margeConfirmed === true && margePct !== null && margePct !== undefined && !Number.isNaN(margePct)
+      ? Number(margePct)
+      : guard.standardPct;
+  const [draft, setDraft] = useState<string>(String(effective));
+
+  useEffect(() => {
+    setDraft(String(effective));
+  }, [effective]);
+
+  function commit() {
+    const parsed = draft.trim() === "" ? guard.standardPct : Number(draft);
+    const next = Number.isFinite(parsed) ? parsed : guard.standardPct;
+    if (next === effective) {
+      setDraft(String(effective));
+      return;
+    }
+    if (next === guard.standardPct) {
+      onCommit(guard.standardPct, false);
+      return;
+    }
+    const ok = window.confirm(
+      `L'accord standard Contra/Yeti est de ${guard.standardPct} %.\n` +
+        `Confirmez-vous cette modification à ${next} % ?`,
+    );
+    if (ok) onCommit(next, true);
+    else setDraft(String(effective));
+  }
+
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      value={draft}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+    />
+  );
+}
+
 
 /**
  * Dynamic quantity columns with a per-quantity margin (%).
