@@ -327,12 +327,14 @@ export function LinesGridTable({
   onChange,
   quantites,
   defaultMargePct,
+  margeGuard,
 }: {
   title: string;
   lines: LineItem[];
   onChange: (lines: LineItem[]) => void;
   quantites: Quantite[];
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   const qCount = quantites.length;
 
@@ -361,10 +363,12 @@ export function LinesGridTable({
         commentaire: "",
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
-        margePct: defaultMargePct ?? null,
+        margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+        ...(margeGuard ? { margeConfirmed: false } : {}),
       },
     ]);
   }
+
 
   // Column widths
   const tmpl = `160px minmax(240px,1fr) ${Array.from({ length: qCount }, () => "110px").join(" ")} 110px 36px`;
