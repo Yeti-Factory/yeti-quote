@@ -31,7 +31,10 @@ export function GuardedMargeInput({
   onCommit: (margePct: number, margeConfirmed: boolean) => void;
 }) {
   const effective =
-    margeConfirmed === true && margePct !== null && margePct !== undefined && !Number.isNaN(margePct)
+    margeConfirmed === true &&
+    margePct !== null &&
+    margePct !== undefined &&
+    !Number.isNaN(margePct)
       ? Number(margePct)
       : guard.standardPct;
   const [draft, setDraft] = useState<string>(String(effective));
@@ -74,7 +77,6 @@ export function GuardedMargeInput({
     />
   );
 }
-
 
 /**
  * Dynamic quantity columns with a per-quantity margin (%).
@@ -161,7 +163,6 @@ export function QuantitesRow({
                   }
                 />
               )}
-
             </div>
           ))}
         </div>
@@ -219,7 +220,6 @@ export function LinesTable({
                 margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
                 ...(margeGuard ? { margeConfirmed: false } : {}),
               },
-
             ])
           }
         >
@@ -288,7 +288,6 @@ export function LinesTable({
                   }
                 />
               )}
-
 
               <Button
                 size="icon"
@@ -368,7 +367,6 @@ export function LinesGridTable({
       },
     ]);
   }
-
 
   // Column widths
   const tmpl = `160px minmax(240px,1fr) ${Array.from({ length: qCount }, () => "110px").join(" ")} 110px 36px`;
@@ -517,7 +515,6 @@ export function TransportPackagingBlock({
   useDefaultMarginWhenEmpty?: boolean;
   margeGuard?: MargeGuard;
 }) {
-
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
 
@@ -615,7 +612,6 @@ export function TransportPackagingBlock({
               </>
             )}
           </div>
-
         </div>
       </div>
       {qCount === 0 ? (

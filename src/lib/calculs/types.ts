@@ -31,7 +31,6 @@ export function normalizeQuantites(input: unknown): Quantite[] {
     .filter((q) => q.qty > 0 || q.qty === 0);
 }
 
-
 export type LineItem = {
   fournisseur?: string;
   libelle: string;
@@ -68,7 +67,6 @@ export type LineForfait = {
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
   margeConfirmed?: boolean;
 };
-
 
 /**
  * Resolve the purchase unit price for a line at a given quantity index.
@@ -133,7 +131,6 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
     margeConfirmed: o.margeConfirmed === true,
   };
-
 }
 
 export type QuantityResult = {

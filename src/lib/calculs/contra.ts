@@ -113,7 +113,6 @@ export const CONTRA_DEFAULTS: ContraParams = {
   commission_rapporteur_pct: 0,
 };
 
-
 function truncatePct(value: number, decimals = 3): number {
   const factor = 10 ** decimals;
   return Math.trunc(value * factor) / factor;

@@ -199,7 +199,6 @@ function buildContraRows(
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
 
-
   let achatsContraUnit = 0;
   const achatsContraDetails: string[] = [];
   let optionsContraUnit = 0;

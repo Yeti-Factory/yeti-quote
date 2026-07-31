@@ -81,7 +81,6 @@ export function ContraForm({
         />
       </Card>
 
-
       <Card className="p-4 calc-section space-y-5">
         <div>
           <SectionHeader
@@ -128,7 +127,6 @@ export function ContraForm({
             margeGuard={GUARD}
           />
         </div>
-
       </Card>
 
       <Card className="p-4 calc-section">
