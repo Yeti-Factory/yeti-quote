@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClientDialog } from "./clients.index";
+import { formatClientContact } from "@/lib/client-contact";
 import { StatusBadge } from "./dashboard";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
@@ -76,7 +77,7 @@ function ClientDetail() {
       </Link>
       <PageHeader
         title={client.entreprise}
-        subtitle={client.contact || undefined}
+        subtitle={formatClientContact(client) || undefined}
         actions={
           <>
             <Button variant="outline" onClick={() => setEdit(true)}>

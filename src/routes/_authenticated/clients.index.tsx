@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +26,34 @@ import {
 import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
+import {
+  buildClientContactName,
+  formatClientContact,
+  normalizeClientCivilite,
+} from "@/lib/client-contact";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
 });
+
+function nullableTrim(value: string) {
+  const text = value.trim();
+  return text.length ? text : null;
+}
+
+function makeClientForm(initial?: any) {
+  return {
+    entreprise: initial?.entreprise ?? "",
+    civilite: normalizeClientCivilite(initial?.civilite),
+    prenom: initial?.prenom ?? "",
+    nom: initial?.nom ?? "",
+    contact: initial?.contact ?? "",
+    email: initial?.email ?? "",
+    telephone: initial?.telephone ?? "",
+    adresse: initial?.adresse ?? "",
+    notes: initial?.notes ?? "",
+  };
+}
 
 function ClientsPage() {
   const [q, setQ] = useState("");
@@ -33,9 +64,16 @@ function ClientsPage() {
     queryFn: async () => {
       let req = supabase
         .from("clients")
-        .select("id, entreprise, contact, email, telephone, updated_at, dossiers(count)")
+        .select(
+          "id, entreprise, contact, civilite, prenom, nom, email, telephone, updated_at, dossiers(count)",
+        )
         .order("updated_at", { ascending: false });
-      if (q.trim()) req = req.ilike("entreprise", `%${q.trim()}%`);
+      if (q.trim()) {
+        const term = q.trim();
+        req = req.or(
+          `entreprise.ilike.%${term}%,contact.ilike.%${term}%,prenom.ilike.%${term}%,nom.ilike.%${term}%,email.ilike.%${term}%`,
+        );
+      }
       const { data, error } = await req;
       if (error) throw error;
       return data ?? [];
@@ -80,7 +118,7 @@ function ClientsPage() {
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm">{c.entreprise}</div>
                 <div className="text-xs text-muted-foreground">
-                  {c.contact || "—"} · {c.email || "—"}
+                  {formatClientContact(c) || "—"} · {c.email || "—"}
                 </div>
               </div>
               <div className="text-xs text-muted-foreground w-24 text-right shrink-0">
@@ -113,15 +151,12 @@ export function ClientDialog({
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    entreprise: initial?.entreprise ?? "",
-    contact: initial?.contact ?? "",
-    email: initial?.email ?? "",
-    telephone: initial?.telephone ?? "",
-    adresse: initial?.adresse ?? "",
-    notes: initial?.notes ?? "",
-  });
+  const [form, setForm] = useState(() => makeClientForm(initial));
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(makeClientForm(initial));
+  }, [initial, open]);
 
   async function save() {
     if (!form.entreprise.trim()) {
@@ -130,15 +165,27 @@ export function ClientDialog({
     }
     setBusy(true);
     try {
+      const clientPayload = {
+        entreprise: form.entreprise.trim(),
+        civilite: form.civilite || null,
+        prenom: nullableTrim(form.prenom),
+        nom: nullableTrim(form.nom),
+        contact: nullableTrim(buildClientContactName(form)),
+        email: nullableTrim(form.email),
+        telephone: nullableTrim(form.telephone),
+        adresse: nullableTrim(form.adresse),
+        notes: nullableTrim(form.notes),
+      };
+
       if (initial?.id) {
-        const { error } = await supabase.from("clients").update(form).eq("id", initial.id);
+        const { error } = await supabase.from("clients").update(clientPayload).eq("id", initial.id);
         if (error) throw error;
         toast.success("Client mis à jour");
         onSaved?.(initial.id);
       } else {
         const { data, error } = await supabase
           .from("clients")
-          .insert({ ...form, created_by: user!.id })
+          .insert({ ...clientPayload, created_by: user!.id })
           .select("id")
           .single();
         if (error) throw error;
@@ -171,14 +218,41 @@ export function ClientDialog({
               onChange={(e) => setForm({ ...form, entreprise: e.target.value })}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr_1fr] gap-3">
             <div>
-              <Label>Contact</Label>
+              <Label>Formule</Label>
+              <Select
+                value={form.civilite || "prenom"}
+                onValueChange={(value) =>
+                  setForm({
+                    ...form,
+                    civilite: value === "prenom" ? "" : normalizeClientCivilite(value),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="prenom">Prénom</SelectItem>
+                  <SelectItem value="monsieur">M.</SelectItem>
+                  <SelectItem value="madame">Mme</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Prénom</Label>
               <Input
-                value={form.contact}
-                onChange={(e) => setForm({ ...form, contact: e.target.value })}
+                value={form.prenom}
+                onChange={(e) => setForm({ ...form, prenom: e.target.value })}
               />
             </div>
+            <div>
+              <Label>Nom</Label>
+              <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Téléphone</Label>
               <Input
@@ -186,14 +260,14 @@ export function ClientDialog({
                 onChange={(e) => setForm({ ...form, telephone: e.target.value })}
               />
             </div>
-          </div>
-          <div>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
           </div>
           <div>
             <Label>Adresse</Label>
