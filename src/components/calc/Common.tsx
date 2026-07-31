@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,76 @@ import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
+ * Margin guard (Contra): the standard agreement is 25 % / 25 %.
+ * Any other value must be explicitly confirmed by the user, otherwise the
+ * standard value is displayed and used.
+ */
+export type MargeGuard = { standardPct: number };
+
+export function GuardedMargeInput({
+  margePct,
+  margeConfirmed,
+  guard,
+  className,
+  placeholder = "marge %",
+  onCommit,
+}: {
+  margePct?: number | null;
+  margeConfirmed?: boolean;
+  guard: MargeGuard;
+  className?: string;
+  placeholder?: string;
+  onCommit: (margePct: number, margeConfirmed: boolean) => void;
+}) {
+  const effective =
+    margeConfirmed === true &&
+    margePct !== null &&
+    margePct !== undefined &&
+    !Number.isNaN(margePct)
+      ? Number(margePct)
+      : guard.standardPct;
+  const [draft, setDraft] = useState<string>(String(effective));
+
+  useEffect(() => {
+    setDraft(String(effective));
+  }, [effective]);
+
+  function commit() {
+    const parsed = draft.trim() === "" ? guard.standardPct : Number(draft);
+    const next = Number.isFinite(parsed) ? parsed : guard.standardPct;
+    if (next === effective) {
+      setDraft(String(effective));
+      return;
+    }
+    if (next === guard.standardPct) {
+      onCommit(guard.standardPct, false);
+      return;
+    }
+    const ok = window.confirm(
+      `L'accord standard Contra/Yeti est de ${guard.standardPct} %.\n` +
+        `Confirmez-vous cette modification à ${next} % ?`,
+    );
+    if (ok) onCommit(next, true);
+    else setDraft(String(effective));
+  }
+
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      value={draft}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+    />
+  );
+}
+
+/**
  * Dynamic quantity columns with a per-quantity margin (%).
  * No pre-filled default quantities.
  */
@@ -15,13 +86,20 @@ export function QuantitesRow({
   quantites,
   onChange,
   defaultMargePct,
+  margeGuard,
 }: {
   quantites: Quantite[];
   onChange: (v: Quantite[]) => void;
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   function add() {
-    onChange([...quantites, { qty: 0, margePct: defaultMargePct ?? null }]);
+    onChange([
+      ...quantites,
+      margeGuard
+        ? { qty: 0, margePct: margeGuard.standardPct, margeConfirmed: false }
+        : { qty: 0, margePct: defaultMargePct ?? null },
+    ]);
   }
   function remove(i: number) {
     onChange(quantites.filter((_, idx) => idx !== i));
@@ -31,11 +109,12 @@ export function QuantitesRow({
     next[i] = { ...next[i], qty };
     onChange(next);
   }
-  function updateMarge(i: number, margePct: number | null) {
+  function updateMarge(i: number, margePct: number | null, margeConfirmed?: boolean) {
     const next = [...quantites];
-    next[i] = { ...next[i], margePct };
+    next[i] = { ...next[i], margePct, ...(margeGuard ? { margeConfirmed: margeConfirmed } : {}) };
     onChange(next);
   }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -65,15 +144,25 @@ export function QuantitesRow({
                 value={q.qty || ""}
                 onChange={(e) => updateQty(i, e.target.value === "" ? 0 : Number(e.target.value))}
               />
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Marge %"
-                value={q.margePct ?? defaultMargePct ?? ""}
-                onChange={(e) =>
-                  updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
-                }
-              />
+              {margeGuard ? (
+                <GuardedMargeInput
+                  margePct={q.margePct}
+                  margeConfirmed={q.margeConfirmed}
+                  guard={margeGuard}
+                  placeholder="Marge %"
+                  onCommit={(m, c) => updateMarge(i, m, c)}
+                />
+              ) : (
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Marge %"
+                  value={q.margePct ?? defaultMargePct ?? ""}
+                  onChange={(e) =>
+                    updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
+                  }
+                />
+              )}
             </div>
           ))}
         </div>
@@ -95,16 +184,21 @@ export function LinesTable({
   onChange,
   field,
   defaultMargePct,
+  margeGuard,
 }: {
   title: string;
   lines: (LineItem | LineForfait)[];
   onChange: (lines: any[]) => void;
   field: "prixUnitaire" | "montantGlobal";
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   function update(i: number, key: string, value: any) {
     const next = lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l));
     onChange(next);
+  }
+  function updateMarge(i: number, margePct: number, margeConfirmed: boolean) {
+    onChange(lines.map((l, idx) => (idx === i ? { ...l, margePct, margeConfirmed } : l)));
   }
   return (
     <div>
@@ -123,7 +217,8 @@ export function LinesTable({
                 descriptif: "",
                 commentaire: "",
                 [field]: 0,
-                margePct: defaultMargePct ?? null,
+                margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+                ...(margeGuard ? { margeConfirmed: false } : {}),
               },
             ])
           }
@@ -173,16 +268,26 @@ export function LinesTable({
                   update(i, field, e.target.value === "" ? 0 : Number(e.target.value))
                 }
               />
-              <Input
-                type="number"
-                step="0.01"
-                value={l.margePct ?? defaultMargePct ?? ""}
-                placeholder="marge %"
-                className="text-right tabular-nums"
-                onChange={(e) =>
-                  update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
-                }
-              />
+              {margeGuard ? (
+                <GuardedMargeInput
+                  margePct={l.margePct}
+                  margeConfirmed={(l as any).margeConfirmed}
+                  guard={margeGuard}
+                  className="text-right tabular-nums"
+                  onCommit={(m, c) => updateMarge(i, m, c)}
+                />
+              ) : (
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={l.margePct ?? defaultMargePct ?? ""}
+                  placeholder="marge %"
+                  className="text-right tabular-nums"
+                  onChange={(e) =>
+                    update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
+                  }
+                />
+              )}
 
               <Button
                 size="icon"
@@ -221,12 +326,14 @@ export function LinesGridTable({
   onChange,
   quantites,
   defaultMargePct,
+  margeGuard,
 }: {
   title: string;
   lines: LineItem[];
   onChange: (lines: LineItem[]) => void;
   quantites: Quantite[];
   defaultMargePct?: number;
+  margeGuard?: MargeGuard;
 }) {
   const qCount = quantites.length;
 
@@ -255,7 +362,8 @@ export function LinesGridTable({
         commentaire: "",
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
-        margePct: defaultMargePct ?? null,
+        margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+        ...(margeGuard ? { margeConfirmed: false } : {}),
       },
     ]);
   }
@@ -330,18 +438,29 @@ export function LinesGridTable({
                         }
                       />
                     ))}
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={l.margePct ?? defaultMargePct ?? ""}
-                      placeholder="marge %"
-                      className="text-right tabular-nums"
-                      onChange={(e) =>
-                        update(i, {
-                          margePct: e.target.value === "" ? null : Number(e.target.value),
-                        })
-                      }
-                    />
+                    {margeGuard ? (
+                      <GuardedMargeInput
+                        margePct={l.margePct}
+                        margeConfirmed={l.margeConfirmed}
+                        guard={margeGuard}
+                        className="text-right tabular-nums"
+                        onCommit={(m, c) => update(i, { margePct: m, margeConfirmed: c })}
+                      />
+                    ) : (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={l.margePct ?? defaultMargePct ?? ""}
+                        placeholder="marge %"
+                        className="text-right tabular-nums"
+                        onChange={(e) =>
+                          update(i, {
+                            margePct: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                      />
+                    )}
+
                     <Button
                       size="icon"
                       variant="ghost"
@@ -387,12 +506,14 @@ export function TransportPackagingBlock({
   onChange,
   defaultMargePct,
   useDefaultMarginWhenEmpty = false,
+  margeGuard,
 }: {
   quantites: Quantite[];
   value: TransportPackaging;
   onChange: (v: TransportPackaging) => void;
   defaultMargePct?: number;
   useDefaultMarginWhenEmpty?: boolean;
+  margeGuard?: MargeGuard;
 }) {
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
@@ -418,11 +539,14 @@ export function TransportPackagingBlock({
         <div>
           <Label className="text-sm font-semibold">Transport / Packaging</Label>
           <p className="text-xs text-muted-foreground">
-            {useDefaultMarginWhenEmpty
-              ? "Marge vide : priorité marge quantité, puis marge par défaut."
-              : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
+            {margeGuard
+              ? `Participe au partage Contra/Yeti — marge standard ${margeGuard.standardPct} %.`
+              : useDefaultMarginWhenEmpty
+                ? "Marge vide : priorité marge quantité, puis marge par défaut."
+                : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
           </p>
         </div>
+
         <div className="flex items-start gap-4">
           <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium">
             <Checkbox
@@ -438,30 +562,55 @@ export function TransportPackagingBlock({
             Transport inclus
           </label>
           <div className="w-48">
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Marge % (facultatif)"
-              value={value?.margePct ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  montantsGlobaux: arr,
-                  margePct: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              className="text-right tabular-nums"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">
-              {value?.margePct === null ||
-              value?.margePct === undefined ||
-              value?.margePct === (undefined as any)
-                ? useDefaultMarginWhenEmpty
-                  ? "Marge quantité / défaut"
-                  : "Sans marge (au coût)"
-                : `Marge ${Number(value.margePct)} %`}
-              {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
-            </p>
+            {margeGuard ? (
+              <>
+                <GuardedMargeInput
+                  margePct={value?.margePct}
+                  margeConfirmed={value?.margeConfirmed}
+                  guard={margeGuard}
+                  placeholder="Marge %"
+                  className="text-right tabular-nums"
+                  onCommit={(m, c) =>
+                    onChange({
+                      ...value,
+                      montantsGlobaux: arr,
+                      margePct: m,
+                      margeConfirmed: c,
+                    })
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margeConfirmed === true
+                    ? `Marge confirmée ${Number(value.margePct)} %`
+                    : `Marge standard ${margeGuard.standardPct} %`}
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Marge % (facultatif)"
+                  value={value?.margePct ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      montantsGlobaux: arr,
+                      margePct: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  className="text-right tabular-nums"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margePct === null || value?.margePct === undefined
+                    ? useDefaultMarginWhenEmpty
+                      ? "Marge quantité / défaut"
+                      : "Sans marge (au coût)"
+                    : `Marge ${Number(value.margePct)} %`}
+                  {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

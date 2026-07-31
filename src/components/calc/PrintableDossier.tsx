@@ -11,7 +11,8 @@ import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
 import { calculerStandard } from "@/lib/calculs/standard";
-import { calculerContra, pvFromContraSharedRaw } from "@/lib/calculs/contra";
+import { calculerContra, pvFromContraSharedRaw, sanitizeContraInput } from "@/lib/calculs/contra";
+
 import { calculerStands } from "@/lib/calculs/stands";
 
 type Meta = {
@@ -539,9 +540,12 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
   );
 }
 
-function ContraPrint({ payload }: { payload: ContraInput }) {
+function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
+  // Mêmes règles que le calcul : marges non confirmées ramenées à l'accord standard.
+  const payload = sanitizeContraInput(rawPayload);
   const p = payload.params;
   const output = calculerContra(payload);
+
   return (
     <>
       <QuantitesTable quantites={payload.quantites} defaultMargePct={p.coef_contra_pct} />

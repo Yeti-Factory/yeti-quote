@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -8,12 +9,16 @@ import {
   QuantitesRow,
   TransportPackagingBlock,
 } from "@/components/calc/Common";
+import type { MargeGuard } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
+import { CONTRA_STANDARD_MARGE_PCT, effectiveContraCoefPct } from "@/lib/calculs/contra";
 import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
 import { normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
+
+const GUARD: MargeGuard = { standardPct: CONTRA_STANDARD_MARGE_PCT };
 
 export function ContraForm({
   value,
@@ -23,8 +28,32 @@ export function ContraForm({
   onChange: (v: ContraInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
+  const coefEffectif = effectiveContraCoefPct(value.params);
+  const [coefDraft, setCoefDraft] = useState<string>(String(coefEffectif));
+  useEffect(() => {
+    setCoefDraft(String(coefEffectif));
+  }, [coefEffectif]);
+
   function setParams(p: Partial<ContraParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
+  }
+  function commitCoef() {
+    const parsed = coefDraft.trim() === "" ? CONTRA_STANDARD_MARGE_PCT : Number(coefDraft);
+    const next = Number.isFinite(parsed) ? parsed : CONTRA_STANDARD_MARGE_PCT;
+    if (next === coefEffectif) {
+      setCoefDraft(String(coefEffectif));
+      return;
+    }
+    if (next === CONTRA_STANDARD_MARGE_PCT) {
+      setParams({ coef_contra_pct: CONTRA_STANDARD_MARGE_PCT, coef_contra_confirmed: false });
+      return;
+    }
+    const ok = window.confirm(
+      `L'accord standard Contra/Yeti est de ${CONTRA_STANDARD_MARGE_PCT} %.\n` +
+        `Confirmez-vous cette modification à ${next} % ?`,
+    );
+    if (ok) setParams({ coef_contra_pct: next, coef_contra_confirmed: true });
+    else setCoefDraft(String(coefEffectif));
   }
   function handleQuantitesChange(newQ: Quantite[]) {
     onChange({
@@ -48,7 +77,7 @@ export function ContraForm({
         <QuantitesRow
           quantites={value.quantites}
           onChange={handleQuantitesChange}
-          defaultMargePct={value.params.coef_contra_pct}
+          margeGuard={GUARD}
         />
       </Card>
 
@@ -65,7 +94,7 @@ export function ContraForm({
             lines={value.achatsContra}
             onChange={(l) => onChange({ ...value, achatsContra: l })}
             quantites={value.quantites}
-            defaultMargePct={value.params.coef_contra_pct}
+            margeGuard={GUARD}
           />
         </div>
         <div>
@@ -80,7 +109,7 @@ export function ContraForm({
             lines={value.forfaitsContra}
             onChange={(l) => onChange({ ...value, forfaitsContra: l })}
             field="montantGlobal"
-            defaultMargePct={value.params.coef_contra_pct}
+            margeGuard={GUARD}
           />
         </div>
         <div>
@@ -94,8 +123,8 @@ export function ContraForm({
             quantites={value.quantites}
             value={tp}
             onChange={setTP}
-            defaultMargePct={value.params.coef_contra_pct}
             useDefaultMarginWhenEmpty
+            margeGuard={GUARD}
           />
         </div>
       </Card>
@@ -112,13 +141,22 @@ export function ContraForm({
             <Input
               type="number"
               step="0.01"
-              value={value.params.coef_contra_pct}
-              onChange={(e) => setParams({ coef_contra_pct: Number(e.target.value) })}
+              value={coefDraft}
+              onChange={(e) => setCoefDraft(e.target.value)}
+              onBlur={commitCoef}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Markup Contra sur le Bon de commande <em>et</em> marge résiduelle cible Yeti.
+              Markup Contra sur le Bon de commande <em>et</em> marge résiduelle cible Yeti. Accord
+              standard : {CONTRA_STANDARD_MARGE_PCT} % / {CONTRA_STANDARD_MARGE_PCT} %
+              {value.params.coef_contra_confirmed === true
+                ? " — modification confirmée."
+                : " — toute autre valeur doit être confirmée."}
             </p>
           </div>
+
           <div>
             <Label>Frais fixes (%)</Label>
             <Input

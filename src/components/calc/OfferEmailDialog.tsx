@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { pvFromContraSharedRaw } from "@/lib/calculs/contra";
+import { pvFromContraSharedRaw, sanitizeContraInput } from "@/lib/calculs/contra";
 import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
@@ -187,11 +187,13 @@ function buildStandardRows(
 }
 
 function buildContraRows(
-  payload: any,
+  rawPayload: any,
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats chez Contra",
 ): OfferRow[] {
+  // Mêmes règles que le calcul : marges non confirmées ramenées à l'accord standard.
+  const payload = sanitizeContraInput(rawPayload);
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;

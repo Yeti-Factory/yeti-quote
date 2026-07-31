@@ -20,8 +20,12 @@ export type ContraParams = {
    *     (prix facturé Contra = base × (1 + coef/100))
    *  2) taux de marge résiduelle cible pour Yeti (par défaut, sauf override
    *     par ligne ou par quantité).
+   * Non pris en compte tant que `coef_contra_confirmed !== true` : on retombe
+   * alors sur l'accord standard Contra/Yeti (25 % / 25 %).
    */
   coef_contra_pct: number;
+  /** true quand l'utilisateur a explicitement confirmé un coef différent de 25 %. */
+  coef_contra_confirmed?: boolean;
   /** @deprecated ancien coef "Autres". Conservé pour compat, non utilisé. */
   coef_autres_pct: number;
   frais_fixes_pct: number;
@@ -42,8 +46,65 @@ export type ContraInput = {
   params: ContraParams;
 };
 
+/** Accord standard Contra/Yeti : 25 % pour Contra, 25 % pour Yeti. */
+export const CONTRA_STANDARD_MARGE_PCT = 25;
+
+/**
+ * Marge effective : la valeur saisie ne compte que si elle a été explicitement
+ * confirmée par l'utilisateur. Sinon on force l'accord standard (25 %).
+ */
+export function effectiveContraMarge(
+  margePct: number | null | undefined,
+  margeConfirmed: boolean | undefined,
+): number | null {
+  if (margeConfirmed !== true) return null;
+  const n = Number(margePct);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Coefficient Contra effectif (25 % sauf modification confirmée). */
+export function effectiveContraCoefPct(params: ContraParams): number {
+  if (params?.coef_contra_confirmed !== true) return CONTRA_STANDARD_MARGE_PCT;
+  const n = Number(params.coef_contra_pct);
+  return Number.isFinite(n) ? n : CONTRA_STANDARD_MARGE_PCT;
+}
+
+/**
+ * Remplace toutes les marges non confirmées (lignes, forfaits, quantités,
+ * transport/packaging, coefficient) par l'accord standard 25 %.
+ * Utilisé par le calcul, l'écran, l'offre mail et le PDF pour garantir
+ * exactement la même logique partout.
+ */
+export function sanitizeContraInput(input: ContraInput): ContraInput {
+  const coef = effectiveContraCoefPct(input.params);
+  const pick = (m: number | null | undefined, c: boolean | undefined) =>
+    effectiveContraMarge(m, c) ?? CONTRA_STANDARD_MARGE_PCT;
+  return {
+    ...input,
+    params: { ...input.params, coef_contra_pct: coef },
+    quantites: (input.quantites ?? []).map((q: any) => ({
+      ...q,
+      margePct: pick(q?.margePct, q?.margeConfirmed),
+    })),
+    achatsContra: (input.achatsContra ?? []).map((l) => ({
+      ...l,
+      margePct: pick(l?.margePct, l?.margeConfirmed),
+    })),
+    forfaitsContra: (input.forfaitsContra ?? []).map((l) => ({
+      ...l,
+      margePct: pick(l?.margePct, l?.margeConfirmed),
+    })),
+    transportPackaging: {
+      ...(input.transportPackaging ?? { montantsGlobaux: [] }),
+      montantsGlobaux: input.transportPackaging?.montantsGlobaux ?? [],
+      margePct: pick(input.transportPackaging?.margePct, input.transportPackaging?.margeConfirmed),
+    },
+  };
+}
+
 export const CONTRA_DEFAULTS: ContraParams = {
-  coef_contra_pct: 25,
+  coef_contra_pct: CONTRA_STANDARD_MARGE_PCT,
+  coef_contra_confirmed: false,
   coef_autres_pct: 33.33,
   frais_fixes_pct: 4,
   commission_sourcing: false,
@@ -72,8 +133,11 @@ export function pvFromContraSharedRaw(
   return rawCost * (1 + truncatePct(totalMarkupPct) / 100);
 }
 
-export function calculerContra(input: ContraInput): CalcOutput {
+export function calculerContra(rawInput: ContraInput): CalcOutput {
+  // Toutes les marges non confirmées retombent sur l'accord standard 25 %.
+  const input = sanitizeContraInput(rawInput);
   const { achatsContra, forfaitsContra, params } = input;
+
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
   const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);

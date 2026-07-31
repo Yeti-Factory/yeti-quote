@@ -7,6 +7,8 @@
 export type Quantite = {
   qty: number;
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 /** Backward-compat: normalize legacy `number[]` payloads to `Quantite[]`. */
@@ -14,16 +16,17 @@ export function normalizeQuantites(input: unknown): Quantite[] {
   if (!Array.isArray(input)) return [];
   return input
     .map((v) => {
-      if (typeof v === "number") return { qty: v, margePct: null };
+      if (typeof v === "number") return { qty: v, margePct: null, margeConfirmed: false };
       if (v && typeof v === "object" && "qty" in (v as any)) {
         const q = (v as any).qty;
         const m = (v as any).margePct;
         return {
           qty: Number(q) || 0,
           margePct: m === undefined || m === null || m === "" ? null : Number(m),
+          margeConfirmed: (v as any).margeConfirmed === true,
         };
       }
-      return { qty: 0, margePct: null };
+      return { qty: 0, margePct: null, margeConfirmed: false };
     })
     .filter((q) => q.qty > 0 || q.qty === 0);
 }
@@ -47,6 +50,8 @@ export type LineItem = {
   prixParQuantite?: number[];
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 export type LineForfait = {
@@ -59,6 +64,8 @@ export type LineForfait = {
   montantGlobal: number; // divided by quantité
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 /**
@@ -103,6 +110,8 @@ export type TransportPackaging = {
   transportInclus?: boolean;
   /** Optional margin override (%). Each calculator defines the empty-value fallback. */
   margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
 };
 
 /** Backward-compat + shape normalization. */
@@ -120,6 +129,7 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
     montantsGlobaux: arr,
     transportInclus: o.transportInclus === true || o.transportInclus === "true",
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
+    margeConfirmed: o.margeConfirmed === true,
   };
 }
 
