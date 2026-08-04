@@ -16,7 +16,7 @@
 
 # 3. Port exposé : 3000 (voir Dockerfile / package.json > "start").
 
-# 4. Domaine : mapper www.yeti-lab.fr vers l'app dans Coolify.
+# 4. Domaine : mapper yeti-quote.yeti-lab.fr vers l'app dans Coolify.
 
 # 5. Health check : GET / (retourne la page de connexion).
 
@@ -26,15 +26,11 @@
 
 #
 
-# NOTE : le script `npm run build:node` utilise la syntaxe shell POSIX
+# NOTE : le preset Nitro `node-server` est configuré directement dans
 
-# (`NITRO_PRESET=node-server vite build`) et ne fonctionne donc que sous
+# `vite.config.ts`. `npm run build` fonctionne donc de la même façon en local
 
-# Linux/macOS ou dans le conteneur Docker. Sous Windows, utiliser WSL,
-
-# Docker Desktop, ou exécuter `set NITRO_PRESET=node-server && vite build`
-
-# (cmd) / `$env:NITRO_PRESET="node-server"; vite build` (PowerShell).
+# et dans le conteneur Docker.
 
 # ---- Emails / invitations d'installation PWA ----
 
