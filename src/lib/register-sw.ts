@@ -1,5 +1,5 @@
-// Guarded service worker registration. Never registers in Lovable preview,
-// iframes, dev builds, or non-secure contexts.
+// Guarded service worker registration. Never registers in iframes, dev builds,
+// or non-secure contexts.
 export function registerServiceWorker() {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
@@ -30,22 +30,6 @@ export function registerServiceWorker() {
     }
   })();
   if (inIframe) {
-    unregisterAppServiceWorkers();
-    return;
-  }
-
-  const isLovablePreview =
-    hostname.startsWith("id-preview--") ||
-    hostname.startsWith("preview--") ||
-    hostname === "lovableproject.com" ||
-    hostname.endsWith(".lovableproject.com") ||
-    hostname === "lovableproject-dev.com" ||
-    hostname.endsWith(".lovableproject-dev.com") ||
-    hostname === "beta.lovable.dev" ||
-    hostname.endsWith(".beta.lovable.dev") ||
-    hostname === "lovable.app" ||
-    hostname.endsWith(".lovable.app");
-  if (isLovablePreview) {
     unregisterAppServiceWorkers();
     return;
   }

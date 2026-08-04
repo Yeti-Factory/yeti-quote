@@ -30,24 +30,15 @@ export const sendInstallInviteFn = createServerFn({ method: "POST" })
       );
     }
 
-    const forbiddenHosts = [
-      "lovable.app",
-      "lovableproject.com",
-      "lovableproject-dev.com",
-      "beta.lovable.dev",
-    ];
-    let publicHost = "";
+    let publicUrl: URL;
     try {
-      publicHost = new URL(APP_PUBLIC_URL).hostname.toLowerCase();
+      publicUrl = new URL(APP_PUBLIC_URL);
     } catch {
       throw new Error(
         "Domaine d'invitation invalide : configurer APP_PUBLIC_URL=https://yeti-quote.yeti-lab.fr",
       );
     }
-    const isForbidden = forbiddenHosts.some(
-      (h) => publicHost === h || publicHost.endsWith("." + h),
-    );
-    if (isForbidden) {
+    if (publicUrl.protocol !== "https:") {
       throw new Error(
         "Domaine d'invitation invalide : configurer APP_PUBLIC_URL=https://yeti-quote.yeti-lab.fr",
       );
@@ -64,8 +55,8 @@ export const sendInstallInviteFn = createServerFn({ method: "POST" })
       throw new Error("Utilisateur introuvable ou sans email");
     }
 
-    const installUrl = `${APP_PUBLIC_URL.replace(/\/$/, "")}/install`;
-    const logoUrl = `${APP_PUBLIC_URL.replace(/\/$/, "")}/yeti-logo.png`;
+    const installUrl = `${publicUrl.origin}/install`;
+    const logoUrl = `${publicUrl.origin}/yeti-logo.png`;
     const displayName = profile.full_name || "";
 
     const html = `<!doctype html>

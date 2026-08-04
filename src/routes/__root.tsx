@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
 
 function NotFoundComponent() {
@@ -38,9 +37,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -101,13 +97,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2df4a3ca-6b43-4eb9-ba2d-651dfe5095ae/id-preview-8e55715b--99ad5ef6-1b72-4b78-8db0-9fafb03af847.lovable.app-1782841052959.png",
+        content: "https://yeti-quote.yeti-lab.fr/pwa-512.png",
       },
       {
         name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2df4a3ca-6b43-4eb9-ba2d-651dfe5095ae/id-preview-8e55715b--99ad5ef6-1b72-4b78-8db0-9fafb03af847.lovable.app-1782841052959.png",
+        content: "https://yeti-quote.yeti-lab.fr/pwa-512.png",
       },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
