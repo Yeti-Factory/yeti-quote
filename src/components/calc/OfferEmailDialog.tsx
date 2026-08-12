@@ -1125,7 +1125,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
 
           <div className="rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
             <div
-              className="min-w-[720px]"
+              className="min-w-[920px]"
               dangerouslySetInnerHTML={{ __html: offer?.html ?? "" }}
             />
           </div>
