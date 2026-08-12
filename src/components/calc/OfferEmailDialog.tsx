@@ -879,14 +879,14 @@ function buildHtmlMultiQuantityEmail(params: {
     }
     <tr>
       <td style="padding:0 0 16px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="${tableWidth}" style="width:${tableWidth}px;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Total</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;width:${textColWidth}px;">Total</th>
               ${summaries
                 .map(
                   (summary) =>
-                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
+                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${quantityColWidth}px;">${escapeHtml(summary.label)}</th>`,
                 )
                 .join("")}
             </tr>
