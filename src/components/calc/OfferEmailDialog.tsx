@@ -996,8 +996,16 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         summaries,
         transportIncluded,
       });
+      const columnWidth = Math.min(
+        MAIL_PRICE_COL_MAX,
+        Math.max(
+          MAIL_PRICE_COL_MIN,
+          Math.floor((920 - MAIL_DESIGNATION_WIDTH) / Math.max(1, summaries.length)),
+        ),
+      );
+      const previewWidth = MAIL_DESIGNATION_WIDTH + columnWidth * summaries.length + 2;
 
-      return { subject, plainText, html };
+      return { subject, plainText, html, previewWidth };
     }
 
     if (!scenario || !selectedItem) return null;
