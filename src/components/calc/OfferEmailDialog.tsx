@@ -831,7 +831,7 @@ function buildHtmlMultiQuantityEmail(params: {
 
   return `
 <div style="margin:0;padding:0;background:#ffffff;color:${MAIL_TEXT};font-family:${FONT};font-size:12.5px;line-height:1.4;">
-  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:920px;border-collapse:collapse;font-family:${FONT};">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:${tableWidth}px;border-collapse:collapse;font-family:${FONT};">
     <tr>
       <td style="padding:0 0 12px 0;color:${MAIL_TEXT};">
         <p style="margin:0 0 8px 0;">${greeting}</p>
