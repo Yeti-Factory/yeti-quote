@@ -757,11 +757,19 @@ function buildHtmlMultiQuantityEmail(params: {
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
-  const columnWidth = Math.max(118, Math.min(160, 520 / Math.max(1, summaries.length)));
+  const textColWidth = 460;
+  const quantityColWidth =
+    summaries.length === 1
+      ? 120
+      : Math.max(
+          110,
+          Math.min(150, Math.floor((920 - textColWidth - 20) / Math.max(1, summaries.length)) - 20),
+        );
+  const tableWidth = textColWidth + 20 + summaries.length * (quantityColWidth + 20);
 
   const detailHtml = (details: string[] | undefined) =>
     details?.length
-      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;">
+      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;max-width:${textColWidth - 30}px;">
           ${details.map(buildDetailHtml).join("")}
         </div>`
       : "";
@@ -776,28 +784,28 @@ function buildHtmlMultiQuantityEmail(params: {
       ? `<tr>
       <td style="padding:0 0 14px 0;">
         <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(title)}</div>
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+        <table cellpadding="0" cellspacing="0" width="${tableWidth}" style="width:${tableWidth}px;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;width:${textColWidth}px;">Désignation</th>
               ${summaries
                 .map(
                   (summary) =>
-                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
+                    `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${quantityColWidth}px;">${escapeHtml(summary.label)}</th>`,
                 )
                 .join("")}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
-                <div style="font-weight:700;">${escapeHtml(totalLabel)}</div>
+              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;width:${textColWidth}px;max-width:${textColWidth}px;">
+                <div style="font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:normal;">${escapeHtml(totalLabel)}</div>
                 ${detailHtml(details)}
               </td>
               ${summaries
                 .map((summary) => {
                   const total = totalForSummary(summary);
-                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">
+                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${quantityColWidth}px;">
                     <div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
                     <div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
                   </td>`;
@@ -812,11 +820,11 @@ function buildHtmlMultiQuantityEmail(params: {
 
   const totalsRow = (label: string, valueForSummary: (summary: OfferScenarioSummary) => number) => `
     <tr>
-      <td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:12px;font-weight:700;">${escapeHtml(label)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:12px;font-weight:700;width:${textColWidth}px;">${escapeHtml(label)}</td>
       ${summaries
         .map(
           (summary) =>
-            `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
+            `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;width:${quantityColWidth}px;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
         )
         .join("")}
     </tr>`;
