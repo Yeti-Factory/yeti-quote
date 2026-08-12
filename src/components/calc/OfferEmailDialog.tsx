@@ -1047,8 +1047,9 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       vat,
       totalTTC,
     });
+    const previewWidth = 760;
 
-    return { subject, plainText, html };
+    return { subject, plainText, html, previewWidth };
   }, [dossier, meta, output, payload, scenario, scenarioItems, selectedItem]);
 
   async function copyBody() {
