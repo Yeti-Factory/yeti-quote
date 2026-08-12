@@ -542,7 +542,7 @@ function buildHtmlEmail(params: {
   const hasOptions = optionRows.length > 0;
   const detailHtml = (details: string[] | undefined) =>
     details?.length
-      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;">
+      ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:11px;line-height:1.35;max-width:${MAIL_DETAIL_WIDTH}px;white-space:normal;overflow-wrap:break-word;word-break:normal;">
           ${details.map(buildDetailHtml).join("")}
         </div>`
       : "";
