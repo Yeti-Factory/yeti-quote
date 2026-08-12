@@ -71,6 +71,11 @@ const MAIL_MUTED = "#666666";
 const MAIL_BORDER = "#eadfd7";
 const MAIL_SOFT = "#fff7f0";
 
+const MAIL_DESIGNATION_WIDTH = 460;
+const MAIL_DETAIL_WIDTH = 430;
+const MAIL_PRICE_COL_MIN = 118;
+const MAIL_PRICE_COL_MAX = 160;
+
 function escapeHtml(value: unknown) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
