@@ -897,11 +897,11 @@ function buildHtmlMultiQuantityEmail(params: {
             ${totalsRow("Total général HT", (summary) => summary.totalHT)}
             ${totalsRow("TVA 20 %", (summary) => summary.vat)}
             <tr>
-              <td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};color:${MAIL_TEXT};font-size:12px;font-weight:700;">Total TTC</td>
+              <td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};color:${MAIL_TEXT};font-size:12px;font-weight:700;width:${textColWidth}px;">Total TTC</td>
               ${summaries
                 .map(
                   (summary) =>
-                    `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
+                    `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;width:${quantityColWidth}px;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
                 )
                 .join("")}
             </tr>
