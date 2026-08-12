@@ -762,15 +762,15 @@ function buildHtmlMultiQuantityEmail(params: {
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
-  const textColWidth = 460;
-  const quantityColWidth =
-    summaries.length === 1
-      ? 120
-      : Math.max(
-          110,
-          Math.min(150, Math.floor((920 - textColWidth - 20) / Math.max(1, summaries.length)) - 20),
-        );
-  const tableWidth = textColWidth + 20 + summaries.length * (quantityColWidth + 20);
+  const textColWidth = MAIL_DESIGNATION_WIDTH;
+  const columnWidth = Math.min(
+    MAIL_PRICE_COL_MAX,
+    Math.max(
+      MAIL_PRICE_COL_MIN,
+      Math.floor((920 - MAIL_DESIGNATION_WIDTH) / Math.max(1, summaries.length)),
+    ),
+  );
+  const tableWidth = MAIL_DESIGNATION_WIDTH + columnWidth * summaries.length + 2;
 
   const detailHtml = (details: string[] | undefined) =>
     details?.length
