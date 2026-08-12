@@ -546,13 +546,13 @@ function buildHtmlEmail(params: {
       .map(
         (row) => `
         <tr>
-          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
-            <div style="font-weight:700;">${escapeHtml(row.designation)}</div>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;width:460px;max-width:460px;">
+            <div style="font-weight:700;white-space:normal;overflow-wrap:break-word;word-break:normal;">${escapeHtml(row.designation)}</div>
             ${detailHtml(row.details)}
           </td>
-          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;width:62px;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:105px;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;font-weight:700;width:120px;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
         </tr>`,
       )
       .join("");
@@ -561,10 +561,10 @@ function buildHtmlEmail(params: {
       ? `<tr>
       <td style="padding:0 0 14px 0;">
         <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(title)}</div>
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+        <table cellpadding="0" cellspacing="0" width="760" style="width:760px;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <thead>
             <tr>
-              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;width:460px;">Désignation</th>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:62px;">Qté</th>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:105px;">PU HT</th>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:120px;">Total HT</th>
