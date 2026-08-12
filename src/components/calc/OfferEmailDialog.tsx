@@ -425,11 +425,11 @@ function buildDetailHtml(detail: string) {
   const { label, description } = splitDetail(detail);
   if (!label) return "";
   const descriptionHtml = escapeHtml(description).replace(/\r?\n/g, "<br />");
-  return `<div style="margin:2px 0;max-width:430px;">
-    <div style="white-space:normal;overflow-wrap:break-word;word-break:normal;">&bull;&nbsp;${escapeHtml(label)}</div>
+  return `<div style="margin:2px 0;max-width:${MAIL_DETAIL_WIDTH}px;white-space:normal;overflow-wrap:break-word;word-break:normal;">
+    <div style="max-width:${MAIL_DETAIL_WIDTH}px;white-space:normal;overflow-wrap:break-word;word-break:normal;">&bull;&nbsp;${escapeHtml(label)}</div>
     ${
       description
-        ? `<div style="margin:2px 0 0 12px;max-width:430px;color:${MAIL_MUTED};line-height:1.35;white-space:normal;overflow-wrap:break-word;word-break:normal;">${descriptionHtml}</div>`
+        ? `<div style="margin:2px 0 0 12px;max-width:${MAIL_DETAIL_WIDTH}px;color:${MAIL_MUTED};line-height:1.35;white-space:normal;overflow-wrap:break-word;word-break:normal;">${descriptionHtml}</div>`
         : ""
     }
   </div>`;
