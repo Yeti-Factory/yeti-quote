@@ -720,8 +720,17 @@ function buildPlainTextMultiQuantityEmail(params: {
   objet: string;
   summaries: OfferScenarioSummary[];
   transportIncluded: boolean;
+  outillageIncluded: boolean;
 }) {
-  const { clientName, contactName, reference, objet, summaries, transportIncluded } = params;
+  const {
+    clientName,
+    contactName,
+    reference,
+    objet,
+    summaries,
+    transportIncluded,
+    outillageIncluded,
+  } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
@@ -752,6 +761,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     "Conditions :",
     "Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.",
     buildTransportCondition(transportIncluded),
+    outillageIncluded ? "Outillage inclus." : "",
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
     "Le Yeti vous remercie pour votre confiance.",
@@ -768,9 +778,18 @@ function buildHtmlMultiQuantityEmail(params: {
   objet: string;
   summaries: OfferScenarioSummary[];
   transportIncluded: boolean;
+  outillageIncluded: boolean;
 }) {
-  const { clientName, contactName, clientEmail, reference, objet, summaries, transportIncluded } =
-    params;
+  const {
+    clientName,
+    contactName,
+    clientEmail,
+    reference,
+    objet,
+    summaries,
+    transportIncluded,
+    outillageIncluded,
+  } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
@@ -932,6 +951,7 @@ function buildHtmlMultiQuantityEmail(params: {
         <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
         <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
         <p style="margin:0 0 5px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
+        ${outillageIncluded ? `<p style="margin:0 0 5px 0;">Outillage inclus.</p>` : ""}
         <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
@@ -992,6 +1012,13 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
           const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
           return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
         });
+      const outillageIncluded =
+        Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
+        scenarioItems.some((item) => {
+          const outillageGlobal = Number(item.scenario.outillageGlobal) || 0;
+          const outillageUnit = Number(item.scenario.outillageUnit) || 0;
+          return Math.abs(outillageGlobal) > 0.005 || Math.abs(outillageUnit) > 0.005;
+        });
       const plainText = buildPlainTextMultiQuantityEmail({
         clientName,
         contactName,
@@ -999,6 +1026,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         objet,
         summaries,
         transportIncluded,
+        outillageIncluded,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -1008,6 +1036,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         objet,
         summaries,
         transportIncluded,
+        outillageIncluded,
       });
       const columnWidth = Math.min(
         MAIL_PRICE_COL_MAX,
