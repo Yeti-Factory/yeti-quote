@@ -185,6 +185,10 @@ function buildStandardRows(
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
   addRow(rows, "Transport / Packaging", quantite, tpUnit * (1 + tpMarge / 100));
 
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = Number(scenario.outillageMargePct) || 0;
+  addRow(rows, "Outillage", quantite, outillageUnit * (1 + outillageMarge / 100));
+
   const sourcingUnit = Number(scenario.commissionSourcingUnit) || 0;
   const sourcingMarge = resolveMargePct(null, quantiteMarge, defaultMarge);
   addRow(rows, "Commission sourcing", quantite, sourcingUnit * (1 + sourcingMarge / 100));
@@ -269,6 +273,15 @@ function buildContraRows(
     "Transport / Packaging",
     quantite,
     pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
+  );
+
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = margeFor(payload?.outillage?.margePct, payload?.outillage?.margeConfirmed);
+  addRow(
+    rows,
+    "Outillage",
+    quantite,
+    pvFromContraSharedRaw(outillageUnit, coefContra, outillageMarge),
   );
 
   addRow(rows, "Commission sourcing", quantite, Number(scenario.commissionSourcingUnit) || 0);

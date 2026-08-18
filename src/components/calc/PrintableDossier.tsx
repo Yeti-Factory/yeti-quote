@@ -3,9 +3,11 @@ import {
   resolveMargePct,
   normalizeQuantites,
   normalizeTransportPackaging,
+  normalizeOutillage,
   getPrixAchat,
   type Quantite,
   type TransportPackaging,
+  type Outillage,
 } from "@/lib/calculs/types";
 import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
@@ -276,6 +278,93 @@ function TransportPackagingTable({
   );
 }
 
+function OutillageTable({
+  quantites,
+  outillage,
+  contraCoefPct,
+  defaultMargePct,
+  useDefaultMarginWhenEmpty = false,
+}: {
+  quantites: Quantite[];
+  outillage?: Outillage;
+  /** If provided (Contra), PV follows the historical Excel shared-margin coefficient. */
+  contraCoefPct?: number;
+  defaultMargePct?: number;
+  useDefaultMarginWhenEmpty?: boolean;
+}) {
+  const qs = normalizeQuantites(quantites);
+  const out = normalizeOutillage(outillage);
+  if (qs.length === 0 || Math.abs(Number(out.montantGlobal) || 0) < 0.005) return null;
+  const hasMargin = out.margePct !== null && out.margePct !== undefined;
+  const isContra = contraCoefPct !== undefined;
+  const defaultMargin = defaultMargePct ?? 0;
+  const marginLabel = hasMargin
+    ? `Marge ${Number(out.margePct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`
+    : useDefaultMarginWhenEmpty
+      ? `Marge quantité / défaut ${defaultMargin.toLocaleString("fr-FR", {
+          maximumFractionDigits: 2,
+        })} %`
+      : "Sans marge (refacturé au coût)";
+
+  return (
+    <section>
+      <h2>Outillage — {marginLabel}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Ligne</th>
+            {qs.map((q, i) => (
+              <th key={i} className="num">
+                Qté {q.qty.toLocaleString("fr-FR")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Montant global fixe</td>
+            {qs.map((_q, i) => (
+              <td key={i} className="num">
+                {fmtEUR(out.montantGlobal)}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td>Coût unitaire</td>
+            {qs.map((q, i) => {
+              const unit = q.qty > 0 ? out.montantGlobal / q.qty : 0;
+              return (
+                <td key={i} className="num">
+                  {q.qty > 0 ? fmtEUR(unit) : "—"}
+                </td>
+              );
+            })}
+          </tr>
+          <tr>
+            <td>PV unitaire répercuté</td>
+            {qs.map((q, i) => {
+              const unit = q.qty > 0 ? out.montantGlobal / q.qty : 0;
+              const effectiveMargin = useDefaultMarginWhenEmpty
+                ? resolveMargePct(out.margePct, q.margePct, defaultMargin)
+                : hasMargin
+                  ? Number(out.margePct)
+                  : 0;
+              const pv = isContra
+                ? pvFromContraSharedRaw(unit, contraCoefPct ?? 0, effectiveMargin)
+                : unit * (1 + effectiveMargin / 100);
+              return (
+                <td key={i} className="num">
+                  {q.qty > 0 ? fmtEUR(pv) : "—"}
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: number }) {
   const scenarios = (output?.scenarios ?? []).filter((s: any) => s.quantite > 0);
   if (scenarios.length === 0) return null;
@@ -318,6 +407,14 @@ function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: num
               </td>
             ))}
           </tr>
+          <tr>
+            <td>Outillage /u</td>
+            {scenarios.map((s: any, i: number) => (
+              <td key={i} className="num">
+                {fmtEUR(s.contraOutillageUnit ?? 0)}
+              </td>
+            ))}
+          </tr>
           <tr className="total-row">
             <td className="strong">Base unitaire avant marge Contra</td>
             {scenarios.map((s: any, i: number) => (
@@ -353,10 +450,10 @@ function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: num
         </tbody>
       </table>
       <div style={{ fontSize: "8pt", color: "#555", marginTop: "3pt" }}>
-        Base unitaire = achat brut + forfaits + Transport / Packaging. Prix facturé Contra = base ×{" "}
-        {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}. Ce prix facturé
-        est le prix d'achat final utilisé par Yeti pour calculer le prix de vente client (marge
-        résiduelle Yeti).
+        Base unitaire = achat brut + forfaits + Transport / Packaging + outillage. Prix facturé
+        Contra = base × {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}.
+        Ce prix facturé est le prix d'achat final utilisé par Yeti pour calculer le prix de vente
+        client (marge résiduelle Yeti).
       </div>
     </section>
   );
@@ -386,8 +483,16 @@ function ResultsTable({ output }: { output: any }) {
     fmt?: (v: number) => string;
     strong?: boolean;
     highlight?: boolean;
+    optional?: boolean;
   }[] = [
     { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR },
+    {
+      label: "Transport / Packaging /u",
+      key: "transportPackagingUnit",
+      fmt: fmtEUR,
+      optional: true,
+    },
+    { label: "Outillage /u", key: "outillageUnit", fmt: fmtEUR, optional: true },
     {
       label: "Prix vente net unitaire",
       key: "prixVenteNetUnit",
@@ -412,6 +517,9 @@ function ResultsTable({ output }: { output: any }) {
     { label: "Marge nette", key: "margeNet", fmt: fmtEUR, strong: true },
     { label: "% Marge", key: "margePct", fmt: fmtPct, strong: true },
   ];
+  const visibleRows = rows.filter(
+    (r) => !r.optional || scenarios.some((s: any) => Math.abs(Number(s[r.key]) || 0) > 0.005),
+  );
   const critical = scenarios.filter((s: any) => s.margePct < 0.2).length;
   const alert = scenarios.some((s: any) => s.alerteMarge);
   return (
@@ -468,7 +576,7 @@ function ResultsTable({ output }: { output: any }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {visibleRows.map((r) => (
             <tr
               key={r.key}
               className={r.strong ? "total-row" : ""}
@@ -524,6 +632,11 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
       />
+      <OutillageTable
+        quantites={payload.quantites}
+        outillage={payload.outillage}
+        defaultMargePct={p.coef_marge_pct}
+      />
       <ParamsBlock
         entries={[
           ["Marge par défaut", `${p.coef_marge_pct} %`],
@@ -568,6 +681,13 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
+        contraCoefPct={p.coef_contra_pct}
+        defaultMargePct={p.coef_contra_pct}
+        useDefaultMarginWhenEmpty
+      />
+      <OutillageTable
+        quantites={payload.quantites}
+        outillage={payload.outillage}
         contraCoefPct={p.coef_contra_pct}
         defaultMargePct={p.coef_contra_pct}
         useDefaultMarginWhenEmpty

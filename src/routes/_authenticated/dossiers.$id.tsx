@@ -62,6 +62,7 @@ function defaultPayload(type: string, params: any) {
         { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null },
       ],
       transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      outillage: { montantGlobal: 0, margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -75,6 +76,7 @@ function defaultPayload(type: string, params: any) {
         { fournisseur: "", libelle: "", commentaire: "", montantGlobal: 0, margePct: null },
       ],
       transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      outillage: { montantGlobal: 0, margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
@@ -153,6 +155,7 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
       transportInclus: false,
       margePct: null,
     },
+    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
     params,
   };
 }
@@ -204,6 +207,7 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
       transportInclus: false,
       margePct: null,
     },
+    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
     params,
   };
 }

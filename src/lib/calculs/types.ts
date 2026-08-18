@@ -133,6 +133,30 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
   };
 }
 
+/**
+ * Outillage: one fixed global amount, identical for every quantity scenario.
+ * Unit cost = montantGlobal / quantite[i].
+ */
+export type Outillage = {
+  montantGlobal: number;
+  /** Optional margin override (%). Each calculator defines the empty-value fallback. */
+  margePct?: number | null;
+  /** Contra: true when the user explicitly confirmed a margin different from the standard. */
+  margeConfirmed?: boolean;
+};
+
+/** Backward-compat + shape normalization. */
+export function normalizeOutillage(input: unknown): Outillage {
+  const o = input && typeof input === "object" ? (input as any) : {};
+  const raw = Number(o.montantGlobal);
+  const m = o.margePct;
+  return {
+    montantGlobal: Number.isFinite(raw) ? raw : 0,
+    margePct: m === undefined || m === null || m === "" ? null : Number(m),
+    margeConfirmed: o.margeConfirmed === true,
+  };
+}
+
 export type QuantityResult = {
   quantite: number;
   prixUnitaireAchat: number;
@@ -148,6 +172,12 @@ export type QuantityResult = {
   transportPackagingSansMarge?: boolean;
   /** Effective margin (%) applied to Transport / Packaging (0 when "sans marge"). */
   transportPackagingMargePct?: number;
+  outillageUnit?: number;
+  outillageGlobal?: number;
+  /** True when Outillage is billed to the client without any margin. */
+  outillageSansMarge?: boolean;
+  /** Effective margin (%) applied to Outillage (0 when "sans marge"). */
+  outillageMargePct?: number;
   totalPrixUnitaire: number;
   totalCA: number;
   totalDepenses: number;
@@ -162,6 +192,7 @@ export type QuantityResult = {
   contraAchatBrutUnit?: number;
   contraForfaitUnit?: number;
   contraTransportUnit?: number;
+  contraOutillageUnit?: number;
   contraBaseUnit?: number;
   contraPrixFactureUnit?: number;
   contraPrixFactureGlobal?: number;

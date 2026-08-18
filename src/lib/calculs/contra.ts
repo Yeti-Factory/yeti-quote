@@ -5,8 +5,14 @@ import type {
   CalcOutput,
   Quantite,
   TransportPackaging,
+  Outillage,
 } from "./types";
-import { normalizeQuantites, normalizeTransportPackaging, getPrixAchat } from "./types";
+import {
+  normalizeQuantites,
+  normalizeTransportPackaging,
+  normalizeOutillage,
+  getPrixAchat,
+} from "./types";
 
 export type ContraParams = {
   /**
@@ -36,6 +42,7 @@ export type ContraInput = {
   achatsContra: LineItem[];
   forfaitsContra: LineForfait[];
   transportPackaging?: TransportPackaging;
+  outillage?: Outillage;
   /** @deprecated legacy field kept for old dossiers — ignored by calc. */
   achatsAutres?: LineItem[];
   params: ContraParams;
@@ -94,6 +101,7 @@ export function resolveContraMargePct(
 export function sanitizeContraInput(input: ContraInput): ContraInput {
   const keep = (m: number | null | undefined, c: boolean | undefined) => effectiveContraMarge(m, c);
   const tp = input.transportPackaging;
+  const outillage = input.outillage;
   return {
     ...input,
     params: { ...input.params, coef_contra_pct: effectiveContraCoefPct(input.params) },
@@ -113,6 +121,11 @@ export function sanitizeContraInput(input: ContraInput): ContraInput {
       ...(tp ?? { montantsGlobaux: [] }),
       montantsGlobaux: tp?.montantsGlobaux ?? [],
       margePct: keep(tp?.margePct, tp?.margeConfirmed),
+    },
+    outillage: {
+      ...(outillage ?? { montantGlobal: 0 }),
+      montantGlobal: outillage?.montantGlobal ?? 0,
+      margePct: keep(outillage?.margePct, outillage?.margeConfirmed),
     },
   };
 }
@@ -156,6 +169,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
 
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
+  const outillage = normalizeOutillage(input.outillage);
   const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
   const coefContra = params.coef_contra_pct; // markup Contra
   const contraFactor = 1 + coefContra / 100;
@@ -170,9 +184,11 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     const rawForfaitUnit = Q > 0 ? sumForfaitsGlobal / Q : 0;
     const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
+    const outillageGlobal = Number(outillage.montantGlobal) || 0;
+    const outillageUnit = Q > 0 ? outillageGlobal / Q : 0;
 
-    // 2) Bon de commande Contra — Contra prend sa marge sur (achats + forfaits + TP)
-    const baseUnitContra = rawAchatUnit + rawForfaitUnit + tpUnit;
+    // 2) Bon de commande Contra — Contra prend sa marge sur (achats + forfaits + TP + outillage)
+    const baseUnitContra = rawAchatUnit + rawForfaitUnit + tpUnit + outillageUnit;
     const prixFactureContraUnit = baseUnitContra * contraFactor;
     const prixFactureContraGlobal = prixFactureContraUnit * Q;
 
@@ -207,10 +223,20 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     const mTP = resolveContraMargePct(tp.margePct, tp.margeConfirmed, mq, mqConfirmed);
     const pvUnitTP = pvFromContraSharedRaw(tpUnit, coefContra, mTP);
 
+    // Outillage : frais fixe unique, divisé par la quantité, puis partage Contra/Yeti.
+    const mOutillage = resolveContraMargePct(
+      outillage.margePct,
+      outillage.margeConfirmed,
+      mq,
+      mqConfirmed,
+    );
+    const pvUnitOutillage = pvFromContraSharedRaw(outillageUnit, coefContra, mOutillage);
+
     // Commission sourcing — refacturée au coût.
     const pvUnitSourcing = commSourcingUnit;
 
-    const prixVenteNetUnit = pvUnitAchats + pvUnitForfaits + pvUnitTP + pvUnitSourcing;
+    const prixVenteNetUnit =
+      pvUnitAchats + pvUnitForfaits + pvUnitTP + pvUnitOutillage + pvUnitSourcing;
 
     // Coût réel Yeti = prix facturé Contra + commission sourcing
     const prixUnitaireAchat = prixFactureContraUnit + commSourcingUnit;
@@ -241,6 +267,10 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
       transportPackagingGlobal: tpGlobal,
       transportPackagingSansMarge: false,
       transportPackagingMargePct: mTP,
+      outillageUnit,
+      outillageGlobal,
+      outillageSansMarge: false,
+      outillageMargePct: mOutillage,
       totalPrixUnitaire,
       totalCA,
       totalDepenses,
@@ -254,6 +284,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
       contraAchatBrutUnit: rawAchatUnit,
       contraForfaitUnit: rawForfaitUnit,
       contraTransportUnit: tpUnit,
+      contraOutillageUnit: outillageUnit,
       contraBaseUnit: baseUnitContra,
       contraPrixFactureUnit: prixFactureContraUnit,
       contraPrixFactureGlobal: prixFactureContraGlobal,
