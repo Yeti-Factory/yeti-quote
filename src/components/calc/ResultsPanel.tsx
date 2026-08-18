@@ -168,14 +168,14 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 bg-secondary text-secondary-foreground">
-              <th className="text-left px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider">
+            <tr className="border-b-2 bg-muted text-primary">
+              <th className="text-left px-3 py-2.5 font-bold text-[11px] uppercase tracking-wider">
                 Indicateur
               </th>
               {scenarios.map((s, i) => (
                 <th
                   key={i}
-                  className="text-right px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider"
+                  className="text-right px-3 py-2.5 font-bold text-[11px] uppercase tracking-wider"
                 >
                   Qté {s.quantite.toLocaleString("fr-FR")}
                 </th>

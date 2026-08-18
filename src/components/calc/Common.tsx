@@ -233,7 +233,7 @@ export function LinesTable({
         </Button>
       </div>
       <div className="border-2 rounded-md overflow-hidden calc-table">
-        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
           <div>Fournisseur</div>
           <div>Libellé</div>
           <div className="text-right">
@@ -394,7 +394,7 @@ export function LinesGridTable({
           <div className="overflow-x-auto">
             <div style={{ minWidth: `calc(${310 + qCount * 110 + 110 + 36}px)` }}>
               <div
-                className="grid gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider"
+                className="grid gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider"
                 style={{ gridTemplateColumns: tmpl }}
               >
                 <div>Fournisseur</div>
@@ -626,7 +626,7 @@ export function TransportPackagingBlock({
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
-          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
             <div>Quantité</div>
             <div className="text-right">Montant global (€)</div>
             <div className="text-right">Coût unitaire</div>
@@ -790,7 +790,7 @@ export function OutillageBlock({
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
-          <div className="grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+          <div className="grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
             <div>Scénario</div>
             <div className="text-right">Coût unitaire</div>
           </div>
