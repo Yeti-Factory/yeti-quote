@@ -131,7 +131,6 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Devis client">Devis client</SelectItem>
                 <SelectItem value="Devis">Devis</SelectItem>
                 <SelectItem value="Devis/Proforma">Devis/Proforma</SelectItem>
                 <SelectItem value="Commande">Commande</SelectItem>

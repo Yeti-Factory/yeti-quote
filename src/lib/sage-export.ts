@@ -198,7 +198,7 @@ export function getDefaultSageArticleCode(dossier: any) {
 }
 
 export function getDefaultSagePieceType() {
-  return "Devis client";
+  return "Devis";
 }
 
 function buildStandardRows(params: {
