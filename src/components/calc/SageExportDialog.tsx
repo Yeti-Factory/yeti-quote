@@ -54,7 +54,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
     getDefaultSageArticleCode(dossier),
   );
   const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
-  const [includeHeader, setIncludeHeader] = useState(false);
+  const [includeHeader, setIncludeHeader] = useState(true);
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -137,7 +137,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             <div>
               <Label htmlFor="sage-include-header">Inclure la ligne de titre</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Laissez décoché si votre format Sage n'ignore pas une première ligne d'en-tête.
+                À laisser coché si Sage est paramétré pour ignorer la première ligne du fichier.
               </p>
             </div>
           </div>

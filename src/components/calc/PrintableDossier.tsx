@@ -769,6 +769,48 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
       })}
 
       <section>
+        <h2 className="orange">Prix de vente HT par ligne</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: "16%" }}>Groupe</th>
+              <th style={{ width: "16%" }}>Fournisseur</th>
+              <th>Libellé</th>
+              <th className="num" style={{ width: "14%" }}>
+                Prix achat
+              </th>
+              <th className="num" style={{ width: "14%" }}>
+                Prix vente HT
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {payload.sections.flatMap((sec, si) =>
+              sec.lignes.map((line, li) => {
+                const g = out.extra.groupes[si];
+                return (
+                  <tr key={`${si}-${li}`}>
+                    <td>{sec.libelle}</td>
+                    <td>{line.fournisseur ?? ""}</td>
+                    <td>{line.libelle}</td>
+                    <td className="num">{fmtEUR(Number(line.prixUnitaire) || 0)}</td>
+                    <td className="num strong" style={{ color: "#E65100" }}>
+                      {fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}
+                    </td>
+                  </tr>
+                );
+              }),
+            )}
+            <tr className="total-row">
+              <td colSpan={3}>Total stand</td>
+              <td className="num">{fmtEUR(out.extra.totalAchatGroupes)}</td>
+              <td className="num">{fmtEUR(out.extra.totalPvGroupes)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
         <h2>Récapitulatif stand</h2>
         <table>
           <thead>
