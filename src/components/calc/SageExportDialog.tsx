@@ -58,7 +58,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode(dossier));
   const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
   const [includeHeader, setIncludeHeader] = useState(true);
-  const [includeSageOptions, setIncludeSageOptions] = useState(true);
+  const [includeSageOptions, setIncludeSageOptions] = useState(false);
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -106,8 +106,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         includeSageOptions,
       },
     });
-    if (result === "saved") toast.success("CSV Sage enregistré");
-    else if (result === "downloaded") toast.success("CSV Sage téléchargé");
+    if (result === "saved") toast.success("Fichier Sage enregistré");
+    else if (result === "downloaded") toast.success("Fichier Sage téléchargé");
   }
 
   function exportDiagnosticPack() {
@@ -142,15 +142,15 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       <DialogTrigger asChild>
         <Button variant="outline">
           <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-          Export Sage CSV
+          Export Sage
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] p-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-3">
           <DialogTitle>Exporter pour import Sage</DialogTitle>
           <DialogDescription>
-            Première version CSV pour l'import paramétrable Sage. Les lignes sont construites depuis
-            les éléments et groupes du dossier Yeti Quote.
+            Fichier texte tabulé conforme à l'exemple d'import paramétrable Sage. Les lignes sont
+            construites depuis les éléments et groupes du dossier Yeti Quote.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,8 +159,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le format officiel simple contient : type de ligne,
             type de pièce, numéro, date, code client, nom client, code article, quantité, prix HT et
-            TVA. L'option Sage <strong>-NoStock</strong> est ajoutée sur l'en-tête pour éviter les
-            blocages de stock/dépôt.
+            TVA. Le fichier normal utilise des tabulations et les décimales avec un point, comme
+            dans l'exemple Sage.
           </div>
 
           <div className="flex items-start gap-3 rounded-md border px-3 py-2">
@@ -193,8 +193,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             <div>
               <Label htmlFor="sage-include-options">Ajouter l'option Sage -NoStock</Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                À laisser coché si votre format d'import contient la rubrique Option. Sage
-                recommande cette valeur pour ne pas mettre à jour les stocks lors de l'import.
+                À cocher seulement si votre format d'import contient la rubrique Option. Sage
+                accepte cette valeur pour ne pas mettre à jour les stocks lors de l'import.
               </p>
             </div>
           </div>
@@ -332,7 +332,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             Exporter pack test Sage
           </Button>
           <Button onClick={exportCsv} disabled={rows.length === 0}>
-            Télécharger le CSV Sage
+            Télécharger le fichier Sage
           </Button>
         </div>
       </DialogContent>

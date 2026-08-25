@@ -56,8 +56,8 @@ type SavePickerOptions = {
 };
 
 const SAGE_PIECE_HEADERS = [
-  "Type de ligne",
-  "Type piece",
+  "Type de Ligne",
+  "Type pièce",
   "Numero",
   "Date",
   "Code_cli",
@@ -69,8 +69,8 @@ const SAGE_PIECE_HEADERS = [
 ] as const;
 
 const SAGE_PIECE_HEADERS_WITH_DEPOT = [
-  "Type de ligne",
-  "Type piece",
+  "Type de Ligne",
+  "Type pièce",
   "Numero",
   "Date",
   "Code_cli",
@@ -486,10 +486,10 @@ export function makeSageQuoteCsv(params: {
   const pieceType = cleanText(params.options?.pieceType || getDefaultSagePieceType());
   const includeHeader = params.options?.includeHeader === true;
   const repeatHeaderOnDetailLines = params.options?.repeatHeaderOnDetailLines === true;
-  const decimalSeparator = params.options?.decimalSeparator ?? "comma";
+  const decimalSeparator = params.options?.decimalSeparator ?? "dot";
   const includeDepotColumn = params.options?.includeDepotColumn === true && Boolean(depotCode);
-  const includeSageOptions = params.options?.includeSageOptions !== false;
-  const delimiter = params.options?.columnSeparator === "tab" ? "\t" : ";";
+  const includeSageOptions = params.options?.includeSageOptions === true;
+  const delimiter = params.options?.columnSeparator === "semicolon" ? ";" : "\t";
   const headers = [
     ...(includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS),
     ...(includeSageOptions ? ["Option"] : []),
@@ -562,11 +562,11 @@ export function makeSageQuoteFilename(params: {
   );
   const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
   const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
-  return `sage-devis-${reference}-${client}-${objet}.csv`;
+  return `sage-devis-${reference}-${client}-${objet}.txt`;
 }
 
 function createCsvBlob(csv: string) {
-  return new Blob([csv], { type: "text/csv;charset=utf-8" });
+  return new Blob([csv], { type: "text/plain;charset=utf-8" });
 }
 
 function downloadCsv(filename: string, blob: Blob) {
@@ -603,8 +603,8 @@ export async function saveSageQuoteCsv(params: {
         suggestedName: filename,
         types: [
           {
-            description: "CSV Sage",
-            accept: { "text/csv": [".csv"] },
+            description: "Fichier texte Sage",
+            accept: { "text/plain": [".txt"] },
           },
         ],
       });
@@ -630,7 +630,7 @@ export function downloadSageQuoteDiagnosticCsvs(params: {
   scenarioIndex: number;
   options?: SageExportOptions;
 }) {
-  const baseFilename = makeSageQuoteFilename(params).replace(/\.csv$/i, "");
+  const baseFilename = makeSageQuoteFilename(params).replace(/\.(csv|txt)$/i, "");
   const baseOptions = params.options ?? {};
   const variants: Array<{ suffix: string; extension: "csv" | "txt"; options: SageExportOptions }> =
     [
