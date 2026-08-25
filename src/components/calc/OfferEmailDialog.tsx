@@ -300,16 +300,29 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
     const sectionLines = payload?.sections?.[index]?.lignes ?? [];
     const hasInputLines = sectionLines.length > 0;
     if (!hasInputLines && !(Number(group?.pvTotal) > 0)) continue;
-    addRow(
-      rows,
-      group?.libelle || `Groupe ${index + 1}`,
-      quantite,
-      Number(group?.pvTotal) || 0,
-      sectionLines.map((line: any, lineIndex: number) =>
-        buildLineDetail(line, `Ligne ${lineIndex + 1}`),
-      ),
-      isOptionLabel(group?.libelle || payload?.sections?.[index]?.libelle),
-    );
+    const groupLabel =
+      group?.libelle || payload?.sections?.[index]?.libelle || `Groupe ${index + 1}`;
+    const groupIsOption = isOptionLabel(groupLabel);
+
+    if (hasInputLines) {
+      sectionLines.forEach((line: any, lineIndex: number) => {
+        const lineLabel = cleanLabel(line?.libelle, `${groupLabel} - ligne ${lineIndex + 1}`);
+        const linePv = Number(group?.lignes?.[lineIndex]?.pvTotal) || 0;
+        addRow(
+          rows,
+          lineLabel,
+          quantite,
+          linePv,
+          [
+            `Section : ${groupLabel}`,
+            ...(cleanLabel(line?.descriptif, "") ? [cleanLabel(line?.descriptif, "")] : []),
+          ],
+          groupIsOption || isOptionLabel(lineLabel),
+        );
+      });
+    } else {
+      addRow(rows, groupLabel, quantite, Number(group?.pvTotal) || 0, [], groupIsOption);
+    }
   }
 
   addRow(

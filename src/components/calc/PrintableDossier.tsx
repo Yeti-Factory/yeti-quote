@@ -732,12 +732,15 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                   <th className="num" style={{ width: "14%" }}>
                     Prix achat
                   </th>
+                  <th className="num" style={{ width: "14%" }}>
+                    Prix vente HT
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {sec.lignes.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: "center", color: "#666" }}>
+                    <td colSpan={4} style={{ textAlign: "center", color: "#666" }}>
                       Aucune ligne.
                     </td>
                   </tr>
@@ -747,15 +750,17 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                     <td>{l.fournisseur ?? ""}</td>
                     <td>{l.libelle}</td>
                     <td className="num">{fmtEUR(Number(l.prixUnitaire) || 0)}</td>
+                    <td className="num">{fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}</td>
                   </tr>
                 ))}
                 <tr className="total-row">
                   <td colSpan={2}>Total groupe</td>
                   <td className="num">{fmtEUR(g?.achatTotal ?? 0)}</td>
+                  <td className="num">{fmtEUR(g?.pvTotal ?? 0)}</td>
                 </tr>
                 <tr className="total-row">
-                  <td colSpan={2}>Prix de vente groupe</td>
-                  <td className="num">{fmtEUR(g?.pvTotal ?? 0)}</td>
+                  <td colSpan={3}>Marge groupe</td>
+                  <td className="num">{fmtPct((g?.margePct ?? p.coef_marge_pct) / 100)}</td>
                 </tr>
               </tbody>
             </table>

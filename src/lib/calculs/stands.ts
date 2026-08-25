@@ -54,6 +54,10 @@ export type StandsGroupResult = {
   achatTotal: number;
   margePct: number;
   pvTotal: number;
+  lignes: Array<{
+    achat: number;
+    pvTotal: number;
+  }>;
 };
 
 export type StandsExtra = {
@@ -73,7 +77,11 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
     // creation extra applies globally
     const facteur = (1 + margePct / 100) * (1 + params.marge_crea_pct / 100);
     const pvTotal = achatTotal * facteur;
-    return { libelle: sec.libelle, achatTotal, margePct, pvTotal };
+    const lignes = sec.lignes.map((l) => {
+      const achat = Number(l.prixUnitaire) || 0;
+      return { achat, pvTotal: achat * facteur };
+    });
+    return { libelle: sec.libelle, achatTotal, margePct, pvTotal, lignes };
   });
 
   const totalAchatGroupes = groupes.reduce((s, g) => s + g.achatTotal, 0);
