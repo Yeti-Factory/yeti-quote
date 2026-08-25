@@ -35,6 +35,7 @@ export type SageExportOptions = {
   decimalSeparator?: "comma" | "dot";
   columnSeparator?: "semicolon" | "tab";
   includeDepotColumn?: boolean;
+  includeSageOptions?: boolean;
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -487,8 +488,12 @@ export function makeSageQuoteCsv(params: {
   const repeatHeaderOnDetailLines = params.options?.repeatHeaderOnDetailLines === true;
   const decimalSeparator = params.options?.decimalSeparator ?? "comma";
   const includeDepotColumn = params.options?.includeDepotColumn === true && Boolean(depotCode);
+  const includeSageOptions = params.options?.includeSageOptions !== false;
   const delimiter = params.options?.columnSeparator === "tab" ? "\t" : ";";
-  const headers = includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS;
+  const headers = [
+    ...(includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS),
+    ...(includeSageOptions ? ["Option"] : []),
+  ];
   const numericStartIndex = includeDepotColumn ? 8 : 7;
   const header = headers.map((label) => csvText(label, delimiter)).join(delimiter);
   const pieceHeader = [
@@ -503,6 +508,7 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
     "",
+    ...(includeSageOptions ? ["-NoStock"] : []),
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
@@ -520,6 +526,7 @@ export function makeSageQuoteCsv(params: {
           csvNumber(row.quantite, 3, decimalSeparator),
           csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
           csvNumber(row.tauxTVA, 2, decimalSeparator),
+          ...(includeSageOptions ? [""] : []),
         ]
       : [
           "L",
@@ -533,6 +540,7 @@ export function makeSageQuoteCsv(params: {
           csvNumber(row.quantite, 3, decimalSeparator),
           csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
           csvNumber(row.tauxTVA, 2, decimalSeparator),
+          ...(includeSageOptions ? [""] : []),
         ]
     )
       .map((value, index) =>

@@ -58,6 +58,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode(dossier));
   const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
   const [includeHeader, setIncludeHeader] = useState(true);
+  const [includeSageOptions, setIncludeSageOptions] = useState(true);
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -102,6 +103,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         pieceType,
         includeHeader,
         includeDepotColumn: Boolean(depotCode.trim()),
+        includeSageOptions,
       },
     });
     if (result === "saved") toast.success("CSV Sage enregistré");
@@ -129,6 +131,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         depotCode,
         pieceType,
         includeHeader,
+        includeSageOptions,
       },
     });
     toast.success("Pack test Sage téléchargé : essayez les fichiers dans l'ordre 01, 02, 03...");
@@ -156,7 +159,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le format officiel simple contient : type de ligne,
             type de pièce, numéro, date, code client, nom client, code article, quantité, prix HT et
-            TVA. Le dépôt n'est pas envoyé sauf si vous renseignez le champ dépôt ci-dessous.
+            TVA. L'option Sage <strong>-NoStock</strong> est ajoutée sur l'en-tête pour éviter les
+            blocages de stock/dépôt.
           </div>
 
           <div className="flex items-start gap-3 rounded-md border px-3 py-2">
@@ -175,6 +179,22 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 Si le rapport Sage parle de la ligne 2, cela peut viser l'en-tête <strong>E</strong>{" "}
                 quand cette case est cochée, ou la première ligne <strong>L</strong> quand elle est
                 décochée.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-md border px-3 py-2">
+            <Checkbox
+              id="sage-include-options"
+              checked={includeSageOptions}
+              onCheckedChange={(checked) => setIncludeSageOptions(checked === true)}
+              className="mt-0.5"
+            />
+            <div>
+              <Label htmlFor="sage-include-options">Ajouter l'option Sage -NoStock</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                À laisser coché si votre format d'import contient la rubrique Option. Sage
+                recommande cette valeur pour ne pas mettre à jour les stocks lors de l'import.
               </p>
             </div>
           </div>
