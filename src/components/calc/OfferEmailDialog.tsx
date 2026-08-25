@@ -298,23 +298,13 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
     const groupLabel =
       group?.libelle || payload?.sections?.[index]?.libelle || `Groupe ${index + 1}`;
     const groupIsOption = isOptionLabel(groupLabel);
+    const details = hasInputLines
+      ? sectionLines.map((line: any, lineIndex: number) =>
+          buildLineDetail(line, `${groupLabel} - ligne ${lineIndex + 1}`),
+        )
+      : [];
 
-    if (hasInputLines) {
-      sectionLines.forEach((line: any, lineIndex: number) => {
-        const lineLabel = cleanLabel(line?.libelle, `${groupLabel} - ligne ${lineIndex + 1}`);
-        const linePv = Number(group?.lignes?.[lineIndex]?.pvTotal) || 0;
-        addRow(
-          rows,
-          lineLabel,
-          quantite,
-          linePv,
-          cleanLabel(line?.descriptif, "") ? [cleanLabel(line?.descriptif, "")] : [],
-          groupIsOption || isOptionLabel(lineLabel),
-        );
-      });
-    } else {
-      addRow(rows, groupLabel, quantite, Number(group?.pvTotal) || 0, [], groupIsOption);
-    }
+    addRow(rows, groupLabel, quantite, Number(group?.pvTotal) || 0, details, groupIsOption);
   }
 
   addRow(
