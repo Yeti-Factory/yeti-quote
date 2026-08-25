@@ -481,7 +481,6 @@ export function makeSageQuoteCsv(params: {
       "",
       "",
       "",
-      "",
       defaultArticleCode,
       csvNumber(row.quantite, 3),
       csvNumber(row.prixUnitaireHT, 2),
