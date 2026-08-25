@@ -25,6 +25,11 @@ export type SageExportRow = {
   option: string;
 };
 
+export type SageExportOptions = {
+  sageClientCode?: string;
+  defaultArticleCode?: string;
+};
+
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
 
 type FileSystemFileHandleLike = {
@@ -42,45 +47,23 @@ type SavePickerOptions = {
   }>;
 };
 
-const CSV_HEADERS: Array<keyof SageExportRow> = [
-  "reference",
-  "dateDevis",
-  "codeClientSage",
-  "client",
-  "contact",
-  "email",
-  "objet",
-  "typeDossier",
-  "numeroLigne",
-  "codeArticle",
-  "designation",
-  "description",
-  "quantite",
-  "prixUnitaireHT",
-  "tauxTVA",
-  "montantHT",
-  "option",
-];
-
-const CSV_LABELS: Record<keyof SageExportRow, string> = {
-  reference: "Reference",
-  dateDevis: "Date devis",
-  codeClientSage: "Code client Sage",
-  client: "Client",
-  contact: "Contact",
-  email: "Email",
-  objet: "Objet",
-  typeDossier: "Type dossier",
-  numeroLigne: "Numero ligne",
-  codeArticle: "Code article",
-  designation: "Designation",
-  description: "Description",
-  quantite: "Quantite",
-  prixUnitaireHT: "Prix unitaire HT",
-  tauxTVA: "Taux TVA",
-  montantHT: "Montant HT",
-  option: "Option",
-};
+const SAGE_PIECE_HEADERS = [
+  "Type de ligne",
+  "Type piece",
+  "Numero piece",
+  "Date piece",
+  "Code client",
+  "Nom client",
+  "Objet",
+  "Code article",
+  "Designation",
+  "Description",
+  "Quantite",
+  "Prix unitaire HT",
+  "Taux TVA",
+  "Montant HT",
+  "Option",
+] as const;
 
 function cleanText(value: unknown) {
   return String(value ?? "")
@@ -201,6 +184,15 @@ function commonRowBase(params: {
     montantHT: (Number(quantity) || 0) * (Number(unitPrice) || 0),
     option: params.option ? "Oui" : "Non",
   };
+}
+
+export function getSageClientCode(dossier: any) {
+  const client = dossier?.clients ?? {};
+  return cleanText(client.code_sage ?? client.codeSage ?? client.code_client_sage ?? "");
+}
+
+export function getDefaultSageArticleCode(dossier: any) {
+  return dossier?.type === "stands" ? "ART0016" : "YQ-DIVERS";
 }
 
 function buildStandardRows(params: {
@@ -451,20 +443,59 @@ export function makeSageQuoteCsv(params: {
   payload: any;
   output: any;
   scenarioIndex: number;
+  options?: SageExportOptions;
 }) {
   const rows = buildSageQuoteRows(params);
-  const header = CSV_HEADERS.map((key) => csvText(CSV_LABELS[key])).join(";");
-  const body = rows.map((row) =>
-    CSV_HEADERS.map((key) => {
-      const value = row[key];
-      if (key === "quantite") return csvNumber(value, 3);
-      if (key === "prixUnitaireHT" || key === "tauxTVA" || key === "montantHT") {
-        return csvNumber(value, 2);
-      }
-      return csvText(value);
-    }).join(";"),
+  const client = params.dossier?.clients ?? {};
+  const datePiece = new Date().toLocaleDateString("fr-FR");
+  const sageClientCode = cleanText(
+    params.options?.sageClientCode || getSageClientCode(params.dossier),
   );
-  return "\ufeff" + [header, ...body].join("\r\n") + "\r\n";
+  const defaultArticleCode = cleanText(
+    params.options?.defaultArticleCode || getDefaultSageArticleCode(params.dossier),
+  );
+  const header = SAGE_PIECE_HEADERS.map((label) => csvText(label)).join(";");
+  const pieceHeader = [
+    "E",
+    "Devis",
+    "",
+    datePiece,
+    sageClientCode,
+    cleanText(client.entreprise),
+    cleanText(params.meta.objet || params.dossier?.objet),
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]
+    .map(csvText)
+    .join(";");
+  const detailRows = rows.map((row) =>
+    [
+      "L",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      defaultArticleCode,
+      row.designation,
+      row.description,
+      csvNumber(row.quantite, 3),
+      csvNumber(row.prixUnitaireHT, 2),
+      csvNumber(row.tauxTVA, 2),
+      csvNumber(row.montantHT, 2),
+      row.option,
+    ]
+      .map((value, index) => (index >= 10 && index <= 13 ? String(value) : csvText(value)))
+      .join(";"),
+  );
+  return "\ufeff" + [header, pieceHeader, ...detailRows].join("\r\n") + "\r\n";
 }
 
 export function makeSageQuoteFilename(params: {
@@ -501,6 +532,7 @@ export async function saveSageQuoteCsv(params: {
   payload: any;
   output: any;
   scenarioIndex: number;
+  options?: SageExportOptions;
 }): Promise<SageSaveResult> {
   const csv = makeSageQuoteCsv(params);
   const filename = makeSageQuoteFilename(params);

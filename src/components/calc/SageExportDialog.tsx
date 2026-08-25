@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,7 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fmtEUR } from "@/lib/format";
-import { buildSageQuoteRows, saveSageQuoteCsv } from "@/lib/sage-export";
+import {
+  buildSageQuoteRows,
+  getDefaultSageArticleCode,
+  getSageClientCode,
+  saveSageQuoteCsv,
+} from "@/lib/sage-export";
 
 type SageExportDialogProps = {
   dossier: any;
@@ -41,6 +47,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
     [output],
   );
   const [scenarioIndex, setScenarioIndex] = useState(() => String(scenarioItems[0]?.index ?? 0));
+  const [sageClientCode, setSageClientCode] = useState(() => getSageClientCode(dossier));
+  const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
+    getDefaultSageArticleCode(dossier),
+  );
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -60,12 +70,24 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Aucune ligne Sage à exporter.");
       return;
     }
+    if (!sageClientCode.trim()) {
+      toast.error("Renseignez le code client Sage.");
+      return;
+    }
+    if (!defaultArticleCode.trim()) {
+      toast.error("Renseignez le code article Sage.");
+      return;
+    }
     const result = await saveSageQuoteCsv({
       dossier,
       meta,
       payload,
       output,
       scenarioIndex: selectedIndex,
+      options: {
+        sageClientCode,
+        defaultArticleCode,
+      },
     });
     if (result === "saved") toast.success("CSV Sage enregistré");
     else if (result === "downloaded") toast.success("CSV Sage téléchargé");
@@ -89,6 +111,34 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
+            Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
+            <strong>L</strong> pour le détail. Le code client et le code article doivent déjà
+            exister dans Sage.
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label>Code client Sage *</Label>
+              <Input
+                value={sageClientCode}
+                onChange={(event) => setSageClientCode(event.target.value)}
+                placeholder="Ex. CL0006"
+              />
+            </div>
+            <div>
+              <Label>Code article Sage générique *</Label>
+              <Input
+                value={defaultArticleCode}
+                onChange={(event) => setDefaultArticleCode(event.target.value)}
+                placeholder="Ex. YQ-DIVERS"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Utilisé sur toutes les lignes importées. Cet article doit exister dans Sage.
+              </p>
+            </div>
+          </div>
+
           {scenarioItems.length > 1 && (
             <div className="max-w-xs">
               <Label>Quantité à exporter</Label>
