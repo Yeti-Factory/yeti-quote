@@ -24,6 +24,7 @@ import {
 import { fmtEUR } from "@/lib/format";
 import {
   buildSageQuoteRows,
+  downloadSageQuoteDiagnosticCsvs,
   getDefaultSageArticleCode,
   getDefaultSagePieceType,
   getSageClientCode,
@@ -103,6 +104,31 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
     else if (result === "downloaded") toast.success("CSV Sage téléchargé");
   }
 
+  function exportDiagnosticPack() {
+    if (rows.length === 0) {
+      toast.error("Aucune ligne Sage à exporter.");
+      return;
+    }
+    if (!sageClientCode.trim() || !defaultArticleCode.trim() || !pieceType.trim()) {
+      toast.error("Renseignez le type de pièce, le code client et le code article Sage.");
+      return;
+    }
+    downloadSageQuoteDiagnosticCsvs({
+      dossier,
+      meta,
+      payload,
+      output,
+      scenarioIndex: selectedIndex,
+      options: {
+        sageClientCode,
+        defaultArticleCode,
+        pieceType,
+        includeHeader,
+      },
+    });
+    toast.success("Pack test Sage téléchargé : essayez les fichiers dans l'ordre 01, 02, 03...");
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -124,7 +150,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le code client et le code article doivent déjà
-            exister dans Sage.
+            exister dans Sage. En cas de rejet, utilisez le pack test : il génère plusieurs
+            variantes pour identifier le format accepté par votre import Sage.
           </div>
 
           <div className="flex items-start gap-3 rounded-md border px-3 py-2">
@@ -165,8 +192,12 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <Input
                 value={sageClientCode}
                 onChange={(event) => setSageClientCode(event.target.value)}
-                placeholder="Ex. CL0006"
+                placeholder="Ex. 154 ou CL0006"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Utilisez le code exact de la fiche client Sage Gestion commerciale, sans préfixe,
+                suffixe ou espace ajouté.
+              </p>
             </div>
             <div>
               <Label>Code article Sage pour toutes les lignes *</Label>
@@ -258,7 +289,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           </div>
         </div>
 
-        <div className="border-t bg-background px-6 py-4 flex justify-end">
+        <div className="border-t bg-background px-6 py-4 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={exportDiagnosticPack} disabled={rows.length === 0}>
+            Exporter pack test Sage
+          </Button>
           <Button onClick={exportCsv} disabled={rows.length === 0}>
             Télécharger le CSV Sage
           </Button>
