@@ -210,7 +210,7 @@ export function getSageClientCode(dossier: any) {
 
 export function getDefaultSageArticleCode(dossier: any) {
   void dossier;
-  return "ARTDIVERS";
+  return "ART0016";
 }
 
 export function getDefaultSageDepotCode(dossier: any) {
@@ -486,7 +486,7 @@ export function makeSageQuoteCsv(params: {
   const includeHeader = params.options?.includeHeader === true;
   const repeatHeaderOnDetailLines = params.options?.repeatHeaderOnDetailLines === true;
   const decimalSeparator = params.options?.decimalSeparator ?? "comma";
-  const includeDepotColumn = params.options?.includeDepotColumn === true;
+  const includeDepotColumn = params.options?.includeDepotColumn === true && Boolean(depotCode);
   const delimiter = params.options?.columnSeparator === "tab" ? "\t" : ";";
   const headers = includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS;
   const numericStartIndex = includeDepotColumn ? 8 : 7;
@@ -498,11 +498,11 @@ export function makeSageQuoteCsv(params: {
     datePiece,
     sageClientCode,
     cleanText(client.entreprise),
-    "",
-    "",
-    "",
-    "",
     ...(includeDepotColumn ? [""] : []),
+    "",
+    "",
+    "",
+    "",
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
