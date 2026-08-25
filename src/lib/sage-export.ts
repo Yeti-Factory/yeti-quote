@@ -63,6 +63,7 @@ const SAGE_PIECE_HEADERS = [
   "Code_cli",
   "Nom_Cli",
   "Code article",
+  "Désignation",
   "Quantite",
   "PU HT",
   "Taux TVA",
@@ -77,6 +78,7 @@ const SAGE_PIECE_HEADERS_WITH_DEPOT = [
   "Nom_Cli",
   "Code article",
   "Depot",
+  "Désignation",
   "Quantite",
   "PU HT",
   "Taux TVA",
@@ -166,6 +168,10 @@ function commercialConditions(payload: any, scenario: any) {
     hasTransport(payload, scenario) ? "Transport inclus" : "EXW depart nos ateliers",
     hasOutillage(payload, scenario) ? "Outillage inclus" : "",
   ].filter(Boolean);
+}
+
+function sageLineDesignation(row: SageExportRow) {
+  return [row.designation, row.description].map(cleanText).filter(Boolean).join(" - ");
 }
 
 function commonRowBase(params: {
@@ -494,7 +500,7 @@ export function makeSageQuoteCsv(params: {
     ...(includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS),
     ...(includeSageOptions ? ["Option"] : []),
   ];
-  const numericStartIndex = includeDepotColumn ? 8 : 7;
+  const numericStartIndex = includeDepotColumn ? 9 : 8;
   const header = headers.map((label) => csvText(label, delimiter)).join(delimiter);
   const pieceHeader = [
     "E",
@@ -504,6 +510,7 @@ export function makeSageQuoteCsv(params: {
     sageClientCode,
     cleanText(client.entreprise),
     ...(includeDepotColumn ? [""] : []),
+    "",
     "",
     "",
     "",
@@ -523,6 +530,7 @@ export function makeSageQuoteCsv(params: {
           cleanText(client.entreprise),
           defaultArticleCode,
           ...(includeDepotColumn ? [depotCode] : []),
+          sageLineDesignation(row),
           csvNumber(row.quantite, 3, decimalSeparator),
           csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
           csvNumber(row.tauxTVA, 2, decimalSeparator),
@@ -537,6 +545,7 @@ export function makeSageQuoteCsv(params: {
           "",
           defaultArticleCode,
           ...(includeDepotColumn ? [depotCode] : []),
+          sageLineDesignation(row),
           csvNumber(row.quantite, 3, decimalSeparator),
           csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
           csvNumber(row.tauxTVA, 2, decimalSeparator),

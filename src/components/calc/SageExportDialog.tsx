@@ -158,9 +158,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le format officiel simple contient : type de ligne,
-            type de pièce, numéro, date, code client, nom client, code article, quantité, prix HT et
-            TVA. Le fichier normal utilise des tabulations et les décimales avec un point, comme
-            dans l'exemple Sage.
+            type de pièce, numéro, date, code client, nom client, code article, désignation,
+            quantité, prix HT et TVA. La désignation contient le nom de la ligne puis son
+            descriptif, comme sur le devis Sage.
           </div>
 
           <div className="flex items-start gap-3 rounded-md border px-3 py-2">
