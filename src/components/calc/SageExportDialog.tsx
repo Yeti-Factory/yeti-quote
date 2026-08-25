@@ -26,6 +26,7 @@ import {
   buildSageQuoteRows,
   downloadSageQuoteDiagnosticCsvs,
   getDefaultSageArticleCode,
+  getDefaultSageDepotCode,
   getDefaultSagePieceType,
   getSageClientCode,
   saveSageQuoteCsv,
@@ -54,6 +55,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
     getDefaultSageArticleCode(dossier),
   );
+  const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode(dossier));
   const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
   const [includeHeader, setIncludeHeader] = useState(true);
   const selectedIndex = Number(scenarioIndex) || 0;
@@ -83,6 +85,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Renseignez le code article Sage.");
       return;
     }
+    if (!depotCode.trim()) {
+      toast.error("Renseignez le code dépôt Sage.");
+      return;
+    }
     if (!pieceType.trim()) {
       toast.error("Renseignez le type de pièce Sage.");
       return;
@@ -96,8 +102,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       options: {
         sageClientCode,
         defaultArticleCode,
+        depotCode,
         pieceType,
         includeHeader,
+        includeDepotColumn: true,
       },
     });
     if (result === "saved") toast.success("CSV Sage enregistré");
@@ -109,8 +117,13 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Aucune ligne Sage à exporter.");
       return;
     }
-    if (!sageClientCode.trim() || !defaultArticleCode.trim() || !pieceType.trim()) {
-      toast.error("Renseignez le type de pièce, le code client et le code article Sage.");
+    if (
+      !sageClientCode.trim() ||
+      !defaultArticleCode.trim() ||
+      !depotCode.trim() ||
+      !pieceType.trim()
+    ) {
+      toast.error("Renseignez le type de pièce, le code client, le code article et le dépôt Sage.");
       return;
     }
     downloadSageQuoteDiagnosticCsvs({
@@ -122,6 +135,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       options: {
         sageClientCode,
         defaultArticleCode,
+        depotCode,
         pieceType,
         includeHeader,
       },
@@ -149,9 +163,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
-            <strong>L</strong> pour le détail. Le code client et le code article doivent déjà
-            exister dans Sage. En cas de rejet, utilisez le pack test : il génère plusieurs
-            variantes pour identifier le format accepté par votre import Sage.
+            <strong>L</strong> pour le détail. Le code client, le code article et le code dépôt
+            doivent déjà exister dans Sage. En cas de rejet, utilisez le pack test : il génère
+            plusieurs variantes pour identifier le format accepté par votre import Sage.
           </div>
 
           <div className="flex items-start gap-3 rounded-md border px-3 py-2">
@@ -207,7 +221,19 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 placeholder="ARTDIVERS"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Chaque ligne exportée utilisera ce code. La valeur par défaut est ARTDIVERS.
+                Chaque ligne utilisera ce code. Il doit exister dans Sage : utilisez ART0016 si
+                ARTDIVERS n'a pas encore été créé.
+              </p>
+            </div>
+            <div>
+              <Label>Code dépôt Sage *</Label>
+              <Input
+                value={depotCode}
+                onChange={(event) => setDepotCode(event.target.value)}
+                placeholder="Ex. 01, DEPOT, PRINCIPAL..."
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Code exact du dépôt dans Sage, menu Structure / Dépôts de stockage.
               </p>
             </div>
           </div>
