@@ -139,27 +139,23 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <p className="mt-1 text-xs text-muted-foreground">
                 À laisser coché si Sage est paramétré pour ignorer la première ligne du fichier.
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Si le rapport Sage parle de la ligne 2, cela peut viser l'en-tête <strong>E</strong>{" "}
+                quand cette case est cochée, ou la première ligne <strong>L</strong> quand elle est
+                décochée.
+              </p>
             </div>
           </div>
 
           <div>
             <Label>Type de pièce Sage *</Label>
-            <Select value={pieceType} onValueChange={setPieceType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Devis">Devis</SelectItem>
-                <SelectItem value="Devis/Proforma">Devis/Proforma</SelectItem>
-                <SelectItem value="Commande">Commande</SelectItem>
-                <SelectItem value="Bon de livraison">Bon de livraison</SelectItem>
-                <SelectItem value="Facture">Facture</SelectItem>
-                <SelectItem value="Avoir">Avoir</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              value={pieceType}
+              onChange={(event) => setPieceType(event.target.value)}
+              placeholder="Ex. Devis, D, DE, DV..."
+            />
             <p className="mt-1 text-xs text-muted-foreground">
-              Si Sage refuse encore le type de pièce, essayez la valeur exacte configurée dans votre
-              import Sage.
+              Champ libre : renseignez exactement la valeur attendue par votre format d'import Sage.
             </p>
           </div>
 
