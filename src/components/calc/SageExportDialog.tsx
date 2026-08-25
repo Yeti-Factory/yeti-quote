@@ -24,6 +24,7 @@ import { fmtEUR } from "@/lib/format";
 import {
   buildSageQuoteRows,
   getDefaultSageArticleCode,
+  getDefaultSagePieceType,
   getSageClientCode,
   saveSageQuoteCsv,
 } from "@/lib/sage-export";
@@ -51,6 +52,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
     getDefaultSageArticleCode(dossier),
   );
+  const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -78,6 +80,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Renseignez le code article Sage.");
       return;
     }
+    if (!pieceType.trim()) {
+      toast.error("Renseignez le type de pièce Sage.");
+      return;
+    }
     const result = await saveSageQuoteCsv({
       dossier,
       meta,
@@ -87,6 +93,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       options: {
         sageClientCode,
         defaultArticleCode,
+        pieceType,
       },
     });
     if (result === "saved") toast.success("CSV Sage enregistré");
@@ -117,6 +124,28 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             exister dans Sage.
           </div>
 
+          <div>
+            <Label>Type de pièce Sage *</Label>
+            <Select value={pieceType} onValueChange={setPieceType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Devis client">Devis client</SelectItem>
+                <SelectItem value="Devis">Devis</SelectItem>
+                <SelectItem value="Devis/Proforma">Devis/Proforma</SelectItem>
+                <SelectItem value="Commande">Commande</SelectItem>
+                <SelectItem value="Bon de livraison">Bon de livraison</SelectItem>
+                <SelectItem value="Facture">Facture</SelectItem>
+                <SelectItem value="Avoir">Avoir</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Si Sage refuse encore le type de pièce, essayez la valeur exacte configurée dans votre
+              import Sage.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Code client Sage *</Label>
@@ -127,14 +156,14 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               />
             </div>
             <div>
-              <Label>Code article Sage générique *</Label>
+              <Label>Code article Sage pour toutes les lignes *</Label>
               <Input
                 value={defaultArticleCode}
                 onChange={(event) => setDefaultArticleCode(event.target.value)}
-                placeholder="Ex. YQ-DIVERS"
+                placeholder="ARTDIVERS"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Utilisé sur toutes les lignes importées. Cet article doit exister dans Sage.
+                Chaque ligne exportée utilisera ce code. La valeur par défaut est ARTDIVERS.
               </p>
             </div>
           </div>

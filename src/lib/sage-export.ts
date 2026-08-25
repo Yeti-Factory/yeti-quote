@@ -28,6 +28,7 @@ export type SageExportRow = {
 export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
+  pieceType?: string;
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -192,7 +193,12 @@ export function getSageClientCode(dossier: any) {
 }
 
 export function getDefaultSageArticleCode(dossier: any) {
-  return dossier?.type === "stands" ? "ART0016" : "YQ-DIVERS";
+  void dossier;
+  return "ARTDIVERS";
+}
+
+export function getDefaultSagePieceType() {
+  return "Devis client";
 }
 
 function buildStandardRows(params: {
@@ -454,10 +460,11 @@ export function makeSageQuoteCsv(params: {
   const defaultArticleCode = cleanText(
     params.options?.defaultArticleCode || getDefaultSageArticleCode(params.dossier),
   );
+  const pieceType = cleanText(params.options?.pieceType || getDefaultSagePieceType());
   const header = SAGE_PIECE_HEADERS.map((label) => csvText(label)).join(";");
   const pieceHeader = [
     "E",
-    "Devis",
+    pieceType,
     "",
     datePiece,
     sageClientCode,
