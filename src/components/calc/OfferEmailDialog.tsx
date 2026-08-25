@@ -313,10 +313,7 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
           lineLabel,
           quantite,
           linePv,
-          [
-            `Section : ${groupLabel}`,
-            ...(cleanLabel(line?.descriptif, "") ? [cleanLabel(line?.descriptif, "")] : []),
-          ],
+          cleanLabel(line?.descriptif, "") ? [cleanLabel(line?.descriptif, "")] : [],
           groupIsOption || isOptionLabel(lineLabel),
         );
       });
