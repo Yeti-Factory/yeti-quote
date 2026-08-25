@@ -101,8 +101,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           Export Sage CSV
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3">
           <DialogTitle>Exporter pour import Sage</DialogTitle>
           <DialogDescription>
             Première version CSV pour l'import paramétrable Sage. Les lignes sont construites depuis
@@ -110,7 +110,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le code client et le code article doivent déjà
@@ -158,8 +158,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             </div>
           )}
 
-          <div className="rounded-md border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full min-w-[620px] text-sm">
               <thead>
                 <tr className="bg-muted text-primary">
                   <th className="text-left px-3 py-2 font-bold uppercase text-[11px]">
@@ -214,12 +214,12 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               )}
             </table>
           </div>
+        </div>
 
-          <div className="flex justify-end">
-            <Button onClick={exportCsv} disabled={rows.length === 0}>
-              Télécharger le CSV Sage
-            </Button>
-          </div>
+        <div className="border-t bg-background px-6 py-4 flex justify-end">
+          <Button onClick={exportCsv} disabled={rows.length === 0}>
+            Télécharger le CSV Sage
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
