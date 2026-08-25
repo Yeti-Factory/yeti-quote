@@ -476,11 +476,12 @@ export function makeSageQuoteCsv(params: {
   const detailRows = rows.map((row) =>
     [
       "L",
-      pieceType,
       "",
-      datePiece,
-      sageClientCode,
-      cleanText(client.entreprise),
+      "",
+      "",
+      "",
+      "",
+      "",
       defaultArticleCode,
       csvNumber(row.quantite, 3),
       csvNumber(row.prixUnitaireHT, 2),
