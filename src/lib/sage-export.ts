@@ -51,19 +51,14 @@ type SavePickerOptions = {
 const SAGE_PIECE_HEADERS = [
   "Type de ligne",
   "Type piece",
-  "Numero piece",
-  "Date piece",
-  "Code client",
-  "Nom client",
-  "Objet",
+  "Numero",
+  "Date",
+  "Code_cli",
+  "Nom_Cli",
   "Code article",
-  "Designation",
-  "Description",
   "Quantite",
-  "Prix unitaire HT",
+  "PU HT",
   "Taux TVA",
-  "Montant HT",
-  "Option",
 ] as const;
 
 function cleanText(value: unknown) {
@@ -469,11 +464,6 @@ export function makeSageQuoteCsv(params: {
     datePiece,
     sageClientCode,
     cleanText(client.entreprise),
-    cleanText(params.meta.objet || params.dossier?.objet),
-    "",
-    "",
-    "",
-    "",
     "",
     "",
     "",
@@ -484,22 +474,17 @@ export function makeSageQuoteCsv(params: {
   const detailRows = rows.map((row) =>
     [
       "L",
-      pieceType,
       "",
-      datePiece,
-      sageClientCode,
-      cleanText(client.entreprise),
+      "",
+      "",
+      "",
       "",
       defaultArticleCode,
-      row.designation,
-      row.description,
       csvNumber(row.quantite, 3),
       csvNumber(row.prixUnitaireHT, 2),
       csvNumber(row.tauxTVA, 2),
-      csvNumber(row.montantHT, 2),
-      row.option,
     ]
-      .map((value, index) => (index >= 10 && index <= 13 ? String(value) : csvText(value)))
+      .map((value, index) => (index >= 7 && index <= 9 ? String(value) : csvText(value)))
       .join(";"),
   );
   return "\ufeff" + [header, pieceHeader, ...detailRows].join("\r\n") + "\r\n";
