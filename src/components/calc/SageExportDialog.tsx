@@ -3,6 +3,7 @@ import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
     getDefaultSageArticleCode(dossier),
   );
   const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
+  const [includeHeader, setIncludeHeader] = useState(false);
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -94,6 +96,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         sageClientCode,
         defaultArticleCode,
         pieceType,
+        includeHeader,
       },
     });
     if (result === "saved") toast.success("CSV Sage enregistré");
@@ -122,6 +125,21 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
             <strong>L</strong> pour le détail. Le code client et le code article doivent déjà
             exister dans Sage.
+          </div>
+
+          <div className="flex items-start gap-3 rounded-md border px-3 py-2">
+            <Checkbox
+              id="sage-include-header"
+              checked={includeHeader}
+              onCheckedChange={(checked) => setIncludeHeader(checked === true)}
+              className="mt-0.5"
+            />
+            <div>
+              <Label htmlFor="sage-include-header">Inclure la ligne de titre</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Laissez décoché si votre format Sage n'ignore pas une première ligne d'en-tête.
+              </p>
+            </div>
           </div>
 
           <div>

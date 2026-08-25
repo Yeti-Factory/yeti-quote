@@ -29,6 +29,7 @@ export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
   pieceType?: string;
+  includeHeader?: boolean;
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -456,6 +457,7 @@ export function makeSageQuoteCsv(params: {
     params.options?.defaultArticleCode || getDefaultSageArticleCode(params.dossier),
   );
   const pieceType = cleanText(params.options?.pieceType || getDefaultSagePieceType());
+  const includeHeader = params.options?.includeHeader === true;
   const header = SAGE_PIECE_HEADERS.map((label) => csvText(label)).join(";");
   const pieceHeader = [
     "E",
@@ -474,11 +476,11 @@ export function makeSageQuoteCsv(params: {
   const detailRows = rows.map((row) =>
     [
       "L",
+      pieceType,
       "",
-      "",
-      "",
-      "",
-      "",
+      datePiece,
+      sageClientCode,
+      cleanText(client.entreprise),
       defaultArticleCode,
       csvNumber(row.quantite, 3),
       csvNumber(row.prixUnitaireHT, 2),
@@ -487,7 +489,8 @@ export function makeSageQuoteCsv(params: {
       .map((value, index) => (index >= 7 && index <= 9 ? String(value) : csvText(value)))
       .join(";"),
   );
-  return "\ufeff" + [header, pieceHeader, ...detailRows].join("\r\n") + "\r\n";
+  const lines = includeHeader ? [header, pieceHeader, ...detailRows] : [pieceHeader, ...detailRows];
+  return lines.join("\r\n") + "\r\n";
 }
 
 export function makeSageQuoteFilename(params: {
