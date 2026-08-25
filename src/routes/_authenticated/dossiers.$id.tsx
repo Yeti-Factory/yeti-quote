@@ -37,6 +37,7 @@ import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
+import { SageExportDialog } from "@/components/calc/SageExportDialog";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
@@ -622,6 +623,9 @@ function DossierDetail() {
             <div className="flex gap-2">
               {dossier.type !== "kits" && output && (
                 <OfferEmailDialog dossier={dossier} meta={meta} payload={payload} output={output} />
+              )}
+              {dossier.type !== "kits" && output && (
+                <SageExportDialog dossier={dossier} meta={meta} payload={payload} output={output} />
               )}
               <Button variant="outline" onClick={() => window.print()}>
                 <Printer className="w-4 h-4 mr-1.5" />

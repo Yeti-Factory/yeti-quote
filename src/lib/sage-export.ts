@@ -1,0 +1,537 @@
+import {
+  pvFromContraSharedRaw,
+  resolveContraMargePct,
+  sanitizeContraInput,
+} from "@/lib/calculs/contra";
+import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
+
+export type SageExportRow = {
+  reference: string;
+  dateDevis: string;
+  codeClientSage: string;
+  client: string;
+  contact: string;
+  email: string;
+  objet: string;
+  typeDossier: string;
+  numeroLigne: number;
+  codeArticle: string;
+  designation: string;
+  description: string;
+  quantite: number;
+  prixUnitaireHT: number;
+  tauxTVA: number;
+  montantHT: number;
+  option: string;
+};
+
+type SageSaveResult = "saved" | "downloaded" | "cancelled";
+
+type FileSystemFileHandleLike = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+type SavePickerOptions = {
+  suggestedName?: string;
+  types?: Array<{
+    description: string;
+    accept: Record<string, string[]>;
+  }>;
+};
+
+const CSV_HEADERS: Array<keyof SageExportRow> = [
+  "reference",
+  "dateDevis",
+  "codeClientSage",
+  "client",
+  "contact",
+  "email",
+  "objet",
+  "typeDossier",
+  "numeroLigne",
+  "codeArticle",
+  "designation",
+  "description",
+  "quantite",
+  "prixUnitaireHT",
+  "tauxTVA",
+  "montantHT",
+  "option",
+];
+
+const CSV_LABELS: Record<keyof SageExportRow, string> = {
+  reference: "Reference",
+  dateDevis: "Date devis",
+  codeClientSage: "Code client Sage",
+  client: "Client",
+  contact: "Contact",
+  email: "Email",
+  objet: "Objet",
+  typeDossier: "Type dossier",
+  numeroLigne: "Numero ligne",
+  codeArticle: "Code article",
+  designation: "Designation",
+  description: "Description",
+  quantite: "Quantite",
+  prixUnitaireHT: "Prix unitaire HT",
+  tauxTVA: "Taux TVA",
+  montantHT: "Montant HT",
+  option: "Option",
+};
+
+function cleanText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\r?\n+/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function safeFilenamePart(value: unknown, fallback: string) {
+  const cleaned = cleanText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return cleaned || fallback;
+}
+
+function csvText(value: unknown) {
+  const text = cleanText(value);
+  if (/[;"\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function csvNumber(value: unknown, decimals = 2) {
+  const n = Number(value) || 0;
+  return n.toLocaleString("fr-FR", {
+    useGrouping: false,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+function isOptionLabel(value: unknown) {
+  return cleanText(value).toLowerCase().includes("option");
+}
+
+function selectedScenario(output: any, scenarioIndex: number) {
+  const scenarios = Array.isArray(output?.scenarios) ? output.scenarios : [];
+  return (
+    scenarios[scenarioIndex] ?? scenarios.find((scenario: any) => Number(scenario?.quantite) > 0)
+  );
+}
+
+function lineDetails(lines: any[]) {
+  return lines
+    .map((line) => {
+      const label = cleanText(line?.libelle);
+      const description = cleanText(line?.descriptif);
+      return [label, description].filter(Boolean).join(" : ");
+    })
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function scenarioQuantity(scenario: any) {
+  return Number(scenario?.quantite) || 0;
+}
+
+function rowUnitFromTotal(total: number, quantity: number) {
+  return quantity > 0 ? total / quantity : total;
+}
+
+function hasTransport(payload: any, scenario: any) {
+  return (
+    payload?.transportPackaging?.transportInclus === true ||
+    Math.abs(Number(scenario?.transportPackagingGlobal) || 0) > 0.005 ||
+    Math.abs(Number(scenario?.transportPackagingUnit) || 0) > 0.005
+  );
+}
+
+function hasOutillage(payload: any, scenario: any) {
+  return (
+    Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
+    Math.abs(Number(scenario?.outillageGlobal) || 0) > 0.005 ||
+    Math.abs(Number(scenario?.outillageUnit) || 0) > 0.005
+  );
+}
+
+function commercialConditions(payload: any, scenario: any) {
+  return [
+    hasTransport(payload, scenario) ? "Transport inclus" : "EXW depart nos ateliers",
+    hasOutillage(payload, scenario) ? "Outillage inclus" : "",
+  ].filter(Boolean);
+}
+
+function commonRowBase(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  lineNumber: number;
+  codeArticle: string;
+  designation: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  option?: boolean;
+}): SageExportRow {
+  const { dossier, meta, lineNumber, codeArticle, designation, description, quantity, unitPrice } =
+    params;
+  const client = dossier?.clients ?? {};
+  const reference = cleanText(meta.reference || dossier?.reference);
+  return {
+    reference,
+    dateDevis: new Date().toLocaleDateString("fr-FR"),
+    codeClientSage: cleanText(client.code_sage ?? client.codeSage ?? ""),
+    client: cleanText(client.entreprise),
+    contact: cleanText(dossier?.contact || client.contact),
+    email: cleanText(dossier?.email || client.email),
+    objet: cleanText(meta.objet || dossier?.objet),
+    typeDossier: cleanText(dossier?.type),
+    numeroLigne: lineNumber,
+    codeArticle,
+    designation: cleanText(designation),
+    description: cleanText(description),
+    quantite: Number(quantity) || 0,
+    prixUnitaireHT: Number(unitPrice) || 0,
+    tauxTVA: 20,
+    montantHT: (Number(quantity) || 0) * (Number(unitPrice) || 0),
+    option: params.option ? "Oui" : "Non",
+  };
+}
+
+function buildStandardRows(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}) {
+  const { dossier, meta, payload, output, scenarioIndex } = params;
+  const scenario = selectedScenario(output, scenarioIndex);
+  if (!scenario) return [];
+
+  const quantity = scenarioQuantity(scenario);
+  const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
+  const defaultMarge = Number(payload?.params?.coef_marge_pct) || 0;
+  const mainLines: any[] = [];
+  const optionLines: any[] = [];
+  let optionsTotal = 0;
+
+  for (const line of payload?.achatsPrincipaux ?? []) {
+    const achat = getPrixAchat(line, scenarioIndex);
+    const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
+    const unit = achat * (1 + marge / 100);
+    if (isOptionLabel(line?.libelle)) {
+      optionLines.push(line);
+      optionsTotal += unit * quantity;
+    } else {
+      mainLines.push(line);
+    }
+  }
+
+  const totalHT = Number(scenario.totalCA) || 0;
+  const mainTotal = totalHT - optionsTotal;
+  const rows = [
+    commonRowBase({
+      dossier,
+      meta,
+      lineNumber: 1,
+      codeArticle: "YQ-PRESTATION",
+      designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
+      description: [
+        ...(lineDetails(mainLines) ? [lineDetails(mainLines)] : []),
+        ...commercialConditions(payload, scenario),
+      ].join(" | "),
+      quantity,
+      unitPrice: rowUnitFromTotal(mainTotal, quantity),
+    }),
+  ];
+
+  if (Math.abs(optionsTotal) > 0.005) {
+    rows.push(
+      commonRowBase({
+        dossier,
+        meta,
+        lineNumber: rows.length + 1,
+        codeArticle: "YQ-OPTION",
+        designation: "Options",
+        description: lineDetails(optionLines),
+        quantity,
+        unitPrice: rowUnitFromTotal(optionsTotal, quantity),
+        option: true,
+      }),
+    );
+  }
+
+  return rows;
+}
+
+function buildContraRows(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}) {
+  const { dossier, meta, output, scenarioIndex } = params;
+  const payload = sanitizeContraInput(params.payload);
+  const scenario = selectedScenario(output, scenarioIndex);
+  if (!scenario) return [];
+
+  const quantity = scenarioQuantity(scenario);
+  const quantiteRow = payload?.quantites?.[scenarioIndex];
+  const quantiteMarge = quantiteRow?.margePct ?? null;
+  const quantiteConfirmed = quantiteRow?.margeConfirmed;
+  const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
+  const margeFor = (m: number | null | undefined, c: boolean | undefined) =>
+    resolveContraMargePct(m, c, quantiteMarge, quantiteConfirmed);
+  const mainLines: any[] = [];
+  const optionLines: any[] = [];
+  let optionsTotal = 0;
+
+  for (const line of payload?.achatsContra ?? []) {
+    const raw = getPrixAchat(line, scenarioIndex);
+    const unit = pvFromContraSharedRaw(
+      raw,
+      coefContra,
+      margeFor(line?.margePct, line?.margeConfirmed),
+    );
+    if (isOptionLabel(line?.libelle)) {
+      optionLines.push(line);
+      optionsTotal += unit * quantity;
+    } else {
+      mainLines.push(line);
+    }
+  }
+
+  for (const line of payload?.forfaitsContra ?? []) {
+    const share = quantity > 0 ? (Number(line?.montantGlobal) || 0) / quantity : 0;
+    const unit = pvFromContraSharedRaw(
+      share,
+      coefContra,
+      margeFor(line?.margePct, line?.margeConfirmed),
+    );
+    if (isOptionLabel(line?.libelle)) {
+      optionLines.push(line);
+      optionsTotal += unit * quantity;
+    } else {
+      mainLines.push(line);
+    }
+  }
+
+  const totalHT = Number(scenario.totalCA) || 0;
+  const mainTotal = totalHT - optionsTotal;
+  const rows = [
+    commonRowBase({
+      dossier,
+      meta,
+      lineNumber: 1,
+      codeArticle: "YQ-PRESTATION",
+      designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
+      description: [
+        ...(lineDetails(mainLines) ? [lineDetails(mainLines)] : []),
+        ...commercialConditions(payload, scenario),
+      ].join(" | "),
+      quantity,
+      unitPrice: rowUnitFromTotal(mainTotal, quantity),
+    }),
+  ];
+
+  if (Math.abs(optionsTotal) > 0.005) {
+    rows.push(
+      commonRowBase({
+        dossier,
+        meta,
+        lineNumber: rows.length + 1,
+        codeArticle: "YQ-OPTION",
+        designation: "Options",
+        description: lineDetails(optionLines),
+        quantity,
+        unitPrice: rowUnitFromTotal(optionsTotal, quantity),
+        option: true,
+      }),
+    );
+  }
+
+  return rows;
+}
+
+function buildStandRows(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}) {
+  const { dossier, meta, payload, output, scenarioIndex } = params;
+  const scenario = selectedScenario(output, scenarioIndex);
+  if (!scenario) return [];
+  const quantity = Number(scenario.quantite) || 1;
+  const groups = Array.isArray(output?.extra?.groupes) ? output.extra.groupes : [];
+  const rows: SageExportRow[] = [];
+
+  groups.forEach((group: any, index: number) => {
+    const unitPrice = Number(group?.pvTotal) || 0;
+    const section = payload?.sections?.[index];
+    const hasLines = Array.isArray(section?.lignes) && section.lignes.length > 0;
+    if (!hasLines && Math.abs(unitPrice) < 0.005) return;
+
+    rows.push(
+      commonRowBase({
+        dossier,
+        meta,
+        lineNumber: rows.length + 1,
+        codeArticle: isOptionLabel(group?.libelle) ? "YQ-OPTION" : "YQ-STAND",
+        designation: cleanText(group?.libelle || section?.libelle || `Section ${index + 1}`),
+        description: lineDetails(section?.lignes ?? []),
+        quantity,
+        unitPrice,
+        option: isOptionLabel(group?.libelle || section?.libelle),
+      }),
+    );
+  });
+
+  const coordination = Number(scenario.commissionRapporteurUnit) || 0;
+  if (Math.abs(coordination) > 0.005) {
+    rows.push(
+      commonRowBase({
+        dossier,
+        meta,
+        lineNumber: rows.length + 1,
+        codeArticle: "YQ-SUIVI",
+        designation: "Coordination / suivi projet",
+        description: "",
+        quantity,
+        unitPrice: coordination,
+      }),
+    );
+  }
+
+  const currentTotal = rows.reduce((sum, row) => sum + row.montantHT, 0);
+  const expectedTotal = Number(scenario.totalCA) || 0;
+  const delta = expectedTotal - currentTotal;
+  if (Math.abs(delta) > 0.01) {
+    rows.push(
+      commonRowBase({
+        dossier,
+        meta,
+        lineNumber: rows.length + 1,
+        codeArticle: "YQ-AJUST",
+        designation: "Ajustement calcul",
+        description: "",
+        quantity,
+        unitPrice: quantity > 0 ? delta / quantity : delta,
+      }),
+    );
+  }
+
+  return rows;
+}
+
+export function buildSageQuoteRows(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}) {
+  if (params.dossier?.type === "stands") return buildStandRows(params);
+  if (params.dossier?.type === "standard") return buildStandardRows(params);
+  if (params.dossier?.type === "contra") return buildContraRows(params);
+  return [];
+}
+
+export function makeSageQuoteCsv(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}) {
+  const rows = buildSageQuoteRows(params);
+  const header = CSV_HEADERS.map((key) => csvText(CSV_LABELS[key])).join(";");
+  const body = rows.map((row) =>
+    CSV_HEADERS.map((key) => {
+      const value = row[key];
+      if (key === "quantite") return csvNumber(value, 3);
+      if (key === "prixUnitaireHT" || key === "tauxTVA" || key === "montantHT") {
+        return csvNumber(value, 2);
+      }
+      return csvText(value);
+    }).join(";"),
+  );
+  return "\ufeff" + [header, ...body].join("\r\n") + "\r\n";
+}
+
+export function makeSageQuoteFilename(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+}) {
+  const reference = safeFilenamePart(
+    params.meta.reference || params.dossier?.reference,
+    "sans-reference",
+  );
+  const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
+  const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
+  return `sage-devis-${reference}-${client}-${objet}.csv`;
+}
+
+function createCsvBlob(csv: string) {
+  return new Blob([csv], { type: "text/csv;charset=utf-8" });
+}
+
+function downloadCsv(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function saveSageQuoteCsv(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+}): Promise<SageSaveResult> {
+  const csv = makeSageQuoteCsv(params);
+  const filename = makeSageQuoteFilename(params);
+  const blob = createCsvBlob(csv);
+  const picker = (
+    window as unknown as {
+      showSaveFilePicker?: (options?: SavePickerOptions) => Promise<FileSystemFileHandleLike>;
+    }
+  ).showSaveFilePicker;
+
+  if (picker) {
+    try {
+      const handle = await picker({
+        suggestedName: filename,
+        types: [
+          {
+            description: "CSV Sage",
+            accept: { "text/csv": [".csv"] },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return "saved";
+    } catch (error: any) {
+      if (error?.name === "AbortError") return "cancelled";
+      throw error;
+    }
+  }
+
+  downloadCsv(filename, blob);
+  return "downloaded";
+}
