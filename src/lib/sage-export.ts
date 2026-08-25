@@ -32,6 +32,7 @@ export type SageExportOptions = {
   includeHeader?: boolean;
   repeatHeaderOnDetailLines?: boolean;
   decimalSeparator?: "comma" | "dot";
+  columnSeparator?: "semicolon" | "tab";
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -81,9 +82,9 @@ function safeFilenamePart(value: unknown, fallback: string) {
   return cleaned || fallback;
 }
 
-function csvText(value: unknown) {
+function csvText(value: unknown, delimiter = ";") {
   const text = cleanText(value);
-  if (/[;"\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  if (text.includes(delimiter) || /["\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
 
@@ -463,7 +464,8 @@ export function makeSageQuoteCsv(params: {
   const includeHeader = params.options?.includeHeader === true;
   const repeatHeaderOnDetailLines = params.options?.repeatHeaderOnDetailLines === true;
   const decimalSeparator = params.options?.decimalSeparator ?? "comma";
-  const header = SAGE_PIECE_HEADERS.map((label) => csvText(label)).join(";");
+  const delimiter = params.options?.columnSeparator === "tab" ? "\t" : ";";
+  const header = SAGE_PIECE_HEADERS.map((label) => csvText(label, delimiter)).join(delimiter);
   const pieceHeader = [
     "E",
     pieceType,
@@ -476,8 +478,8 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
   ]
-    .map(csvText)
-    .join(";");
+    .map((value) => csvText(value, delimiter))
+    .join(delimiter);
   const detailRows = rows.map((row) =>
     (repeatHeaderOnDetailLines
       ? [
@@ -505,8 +507,8 @@ export function makeSageQuoteCsv(params: {
           csvNumber(row.tauxTVA, 2, decimalSeparator),
         ]
     )
-      .map((value, index) => (index >= 7 && index <= 9 ? String(value) : csvText(value)))
-      .join(";"),
+      .map((value, index) => (index >= 7 && index <= 9 ? String(value) : csvText(value, delimiter)))
+      .join(delimiter),
   );
   const lines = includeHeader ? [header, pieceHeader, ...detailRows] : [pieceHeader, ...detailRows];
   return lines.join("\r\n") + "\r\n";
@@ -592,45 +594,97 @@ export function downloadSageQuoteDiagnosticCsvs(params: {
 }) {
   const baseFilename = makeSageQuoteFilename(params).replace(/\.csv$/i, "");
   const baseOptions = params.options ?? {};
-  const variants: Array<{ suffix: string; options: SageExportOptions }> = [
-    {
-      suffix: "01-officiel-titre-virgule",
-      options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: false },
-    },
-    {
-      suffix: "02-officiel-sans-titre-virgule",
-      options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: false },
-    },
-    {
-      suffix: "03-complet-titre-virgule",
-      options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: true },
-    },
-    {
-      suffix: "04-complet-sans-titre-virgule",
-      options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: true },
-    },
-    {
-      suffix: "05-officiel-titre-point",
-      options: {
-        ...baseOptions,
-        includeHeader: true,
-        repeatHeaderOnDetailLines: false,
-        decimalSeparator: "dot",
+  const variants: Array<{ suffix: string; extension: "csv" | "txt"; options: SageExportOptions }> =
+    [
+      {
+        suffix: "01-officiel-titre-virgule",
+        extension: "csv",
+        options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: false },
       },
-    },
-    {
-      suffix: "06-devis-proforma-titre-virgule",
-      options: {
-        ...baseOptions,
-        pieceType: "Devis/Proforma",
-        includeHeader: true,
-        repeatHeaderOnDetailLines: false,
+      {
+        suffix: "02-officiel-sans-titre-virgule",
+        extension: "csv",
+        options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: false },
       },
-    },
-  ];
+      {
+        suffix: "03-complet-titre-virgule",
+        extension: "csv",
+        options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: true },
+      },
+      {
+        suffix: "04-complet-sans-titre-virgule",
+        extension: "csv",
+        options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: true },
+      },
+      {
+        suffix: "05-officiel-titre-point",
+        extension: "csv",
+        options: {
+          ...baseOptions,
+          includeHeader: true,
+          repeatHeaderOnDetailLines: false,
+          decimalSeparator: "dot",
+        },
+      },
+      {
+        suffix: "06-devis-proforma-titre-virgule",
+        extension: "csv",
+        options: {
+          ...baseOptions,
+          pieceType: "Devis/Proforma",
+          includeHeader: true,
+          repeatHeaderOnDetailLines: false,
+        },
+      },
+      {
+        suffix: "07-officiel-titre-tabulation",
+        extension: "txt",
+        options: {
+          ...baseOptions,
+          includeHeader: true,
+          repeatHeaderOnDetailLines: false,
+          columnSeparator: "tab",
+          decimalSeparator: "dot",
+        },
+      },
+      {
+        suffix: "08-officiel-sans-titre-tabulation",
+        extension: "txt",
+        options: {
+          ...baseOptions,
+          includeHeader: false,
+          repeatHeaderOnDetailLines: false,
+          columnSeparator: "tab",
+          decimalSeparator: "dot",
+        },
+      },
+      {
+        suffix: "09-complet-titre-tabulation",
+        extension: "txt",
+        options: {
+          ...baseOptions,
+          includeHeader: true,
+          repeatHeaderOnDetailLines: true,
+          columnSeparator: "tab",
+          decimalSeparator: "dot",
+        },
+      },
+      {
+        suffix: "10-devis-majuscule-titre-tabulation",
+        extension: "txt",
+        options: {
+          ...baseOptions,
+          pieceType: "DEVIS",
+          includeHeader: true,
+          repeatHeaderOnDetailLines: false,
+          columnSeparator: "tab",
+          decimalSeparator: "dot",
+        },
+      },
+    ];
 
   for (const variant of variants) {
     const csv = makeSageQuoteCsv({ ...params, options: variant.options });
-    downloadCsv(`${baseFilename}-${variant.suffix}.csv`, createCsvBlob(csv));
+    downloadCsv(`${baseFilename}-${variant.suffix}.${variant.extension}`, createCsvBlob(csv));
   }
 }
