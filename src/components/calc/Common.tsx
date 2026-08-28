@@ -5,7 +5,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus } from "lucide-react";
-import type { Quantite, LineItem, LineForfait, TransportPackaging } from "@/lib/calculs/types";
+import type {
+  Quantite,
+  LineItem,
+  LineForfait,
+  TransportPackaging,
+  Outillage,
+} from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
 /**
@@ -227,7 +233,7 @@ export function LinesTable({
         </Button>
       </div>
       <div className="border-2 rounded-md overflow-hidden calc-table">
-        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
           <div>Fournisseur</div>
           <div>Libellé</div>
           <div className="text-right">
@@ -388,7 +394,7 @@ export function LinesGridTable({
           <div className="overflow-x-auto">
             <div style={{ minWidth: `calc(${310 + qCount * 110 + 110 + 36}px)` }}>
               <div
-                className="grid gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider"
+                className="grid gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider"
                 style={{ gridTemplateColumns: tmpl }}
               >
                 <div>Fournisseur</div>
@@ -620,7 +626,7 @@ export function TransportPackagingBlock({
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
-          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-secondary text-secondary-foreground text-[11px] uppercase font-semibold tracking-wider">
+          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
             <div>Quantité</div>
             <div className="text-right">Montant global (€)</div>
             <div className="text-right">Coût unitaire</div>
@@ -655,6 +661,160 @@ export function TransportPackagingBlock({
       )}
       <p className="text-xs text-muted-foreground mt-2">
         Le montant global est divisé automatiquement par la quantité et ajouté au prix de vente
+        unitaire.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Outillage block: one fixed global amount shared by every quantity scenario.
+ * Displays computed unit cost read-only. Optional margin (%) override.
+ */
+export function OutillageBlock({
+  quantites,
+  value,
+  onChange,
+  defaultMargePct,
+  useDefaultMarginWhenEmpty = false,
+  margeGuard,
+}: {
+  quantites: Quantite[];
+  value: Outillage;
+  onChange: (v: Outillage) => void;
+  defaultMargePct?: number;
+  useDefaultMarginWhenEmpty?: boolean;
+  margeGuard?: MargeGuard;
+}) {
+  const montantGlobal = Number(value?.montantGlobal) || 0;
+
+  function fmtEuro(n: number) {
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 2,
+    });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div>
+          <Label className="text-sm font-semibold">Outillage</Label>
+          <p className="text-xs text-muted-foreground">
+            {margeGuard
+              ? `Frais fixe partagé Contra/Yeti — marge standard ${margeGuard.standardPct} %.`
+              : useDefaultMarginWhenEmpty
+                ? "Marge vide : priorité marge quantité, puis marge par défaut."
+                : "Marge optionnelle — laissée vide, l'outillage est refacturé sans marge."}
+          </p>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <div className="w-52">
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Montant global (€)"
+              value={montantGlobal || ""}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  montantGlobal: e.target.value === "" ? 0 : Number(e.target.value),
+                })
+              }
+              className="text-right tabular-nums"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1 text-right">
+              Même valeur pour toutes les quantités.
+            </p>
+          </div>
+          <div className="w-48">
+            {margeGuard ? (
+              <>
+                <GuardedMargeInput
+                  margePct={value?.margePct}
+                  margeConfirmed={value?.margeConfirmed}
+                  guard={margeGuard}
+                  placeholder="Marge %"
+                  className="text-right tabular-nums"
+                  onCommit={(m, c) =>
+                    onChange({
+                      ...value,
+                      montantGlobal,
+                      margePct: m,
+                      margeConfirmed: c,
+                    })
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margeConfirmed === true
+                    ? `Marge confirmée ${Number(value.margePct)} %`
+                    : `Marge standard ${margeGuard.standardPct} %`}
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Marge % (facultatif)"
+                  value={value?.margePct ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      montantGlobal,
+                      margePct: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  className="text-right tabular-nums"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {value?.margePct === null || value?.margePct === undefined
+                    ? useDefaultMarginWhenEmpty
+                      ? "Marge quantité / défaut"
+                      : "Sans marge (au coût)"
+                    : `Marge ${Number(value.margePct)} %`}
+                  {defaultMargePct !== undefined ? ` · déf. ${defaultMargePct} %` : ""}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {quantites.length === 0 ? (
+        <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
+          Ajoutez au moins une quantité pour calculer le coût unitaire de l'outillage.
+        </div>
+      ) : (
+        <div className="border-2 rounded-md overflow-hidden calc-table">
+          <div className="grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
+            <div>Scénario</div>
+            <div className="text-right">Coût unitaire</div>
+          </div>
+          {quantites.map((q, i) => {
+            const Q = Number(q.qty) || 0;
+            const unit = Q > 0 ? montantGlobal / Q : 0;
+            return (
+              <div
+                key={i}
+                className="calc-row grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 items-center border-b last:border-b-0"
+              >
+                <div className="text-sm">
+                  Col. {i + 1} · Qté {Q ? Q.toLocaleString("fr-FR") : "—"}
+                </div>
+                <div className="text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  {Q > 0 ? fmtEuro(unit) : "—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground mt-2">
+        Le montant global fixe est divisé automatiquement par chaque quantité et intégré au prix
         unitaire.
       </p>
     </div>

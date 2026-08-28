@@ -8,14 +8,15 @@ import {
   LinesGridTable,
   QuantitesRow,
   TransportPackagingBlock,
+  OutillageBlock,
 } from "@/components/calc/Common";
 import type { MargeGuard } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
-import { Layers, ShoppingCart, Package, Truck, Settings2 } from "lucide-react";
+import { Layers, ShoppingCart, Package, Truck, Wrench, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
 import { CONTRA_STANDARD_MARGE_PCT, effectiveContraCoefPct } from "@/lib/calculs/contra";
-import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
-import { normalizeTransportPackaging } from "@/lib/calculs/types";
+import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
+import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 const GUARD: MargeGuard = { standardPct: CONTRA_STANDARD_MARGE_PCT };
@@ -28,6 +29,7 @@ export function ContraForm({
   onChange: (v: ContraInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
+  const outillage = normalizeOutillage(value.outillage);
   const coefEffectif = effectiveContraCoefPct(value.params);
   const [coefDraft, setCoefDraft] = useState<string>(String(coefEffectif));
   useEffect(() => {
@@ -69,6 +71,9 @@ export function ContraForm({
   }
   function setTP(next: TransportPackaging) {
     onChange({ ...value, transportPackaging: next });
+  }
+  function setOutillage(next: Outillage) {
+    onChange({ ...value, outillage: next });
   }
   return (
     <div className="space-y-5">
@@ -123,6 +128,21 @@ export function ContraForm({
             quantites={value.quantites}
             value={tp}
             onChange={setTP}
+            useDefaultMarginWhenEmpty
+            margeGuard={GUARD}
+          />
+        </div>
+        <div>
+          <SectionHeader
+            title="Outillage"
+            subtitle="frais fixe unique, divisé par la quantité"
+            tone="accent"
+            icon={<Wrench className="w-3.5 h-3.5" />}
+          />
+          <OutillageBlock
+            quantites={value.quantites}
+            value={outillage}
+            onChange={setOutillage}
             useDefaultMarginWhenEmpty
             margeGuard={GUARD}
           />

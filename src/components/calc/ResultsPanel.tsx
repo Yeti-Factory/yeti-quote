@@ -11,6 +11,7 @@ const ROWS: {
   fmt?: (v: number) => string;
   emphasize?: boolean;
   highlight?: boolean;
+  optional?: boolean;
   group?: "cost" | "sale" | "margin";
 }[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR, group: "cost" },
@@ -18,8 +19,10 @@ const ROWS: {
     label: "Transport / Packaging /u",
     key: "transportPackagingUnit",
     fmt: fmtEUR,
+    optional: true,
     group: "cost",
   },
+  { label: "Outillage /u", key: "outillageUnit", fmt: fmtEUR, optional: true, group: "cost" },
   {
     label: "Prix vente net unitaire",
     key: "prixVenteNetUnit",
@@ -153,6 +156,9 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
     );
   }
   const criticalCount = scenarios.filter((s) => s.margePct < 0.2).length;
+  const visibleRows = ROWS.filter(
+    (row) => !row.optional || scenarios.some((s) => typeof s[row.key] === "number"),
+  );
   return (
     <Card className="p-0 overflow-hidden calc-section emphasis">
       <div className="p-4 pb-0">
@@ -162,14 +168,14 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 bg-secondary text-secondary-foreground">
-              <th className="text-left px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider">
+            <tr className="border-b-2 bg-muted text-primary">
+              <th className="text-left px-3 py-2.5 font-bold text-[11px] uppercase tracking-wider">
                 Indicateur
               </th>
               {scenarios.map((s, i) => (
                 <th
                   key={i}
-                  className="text-right px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider"
+                  className="text-right px-3 py-2.5 font-bold text-[11px] uppercase tracking-wider"
                 >
                   Qté {s.quantite.toLocaleString("fr-FR")}
                 </th>
@@ -177,8 +183,8 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
             </tr>
           </thead>
           <tbody>
-            {ROWS.map((r, idx) => {
-              const prev = ROWS[idx - 1];
+            {visibleRows.map((r, idx) => {
+              const prev = visibleRows[idx - 1];
               const groupChanged = prev && prev.group !== r.group;
               return (
                 <tr
@@ -260,6 +266,14 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                   ))}
                 </tr>
                 <tr className="border-b">
+                  <td className="px-3 py-2">Outillage /u</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="px-3 py-2 text-right tabular-nums">
+                      {fmtEUR(s.contraOutillageUnit ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b">
                   <td className="px-3 py-2 font-medium">Base unitaire avant marge Contra</td>
                   {scenarios.map((s, i) => (
                     <td key={i} className="px-3 py-2 text-right tabular-nums font-medium">
@@ -300,6 +314,18 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                   colSpan={scenarios.length + 1}
                 >
                   Transport / Packaging refacturé <strong>sans marge</strong> (au coût).
+                </td>
+              </tr>
+            )}
+            {scenarios.some(
+              (s) => s.outillageSansMarge && Math.abs(s.outillageGlobal ?? 0) > 0.005,
+            ) && (
+              <tr className="border-b">
+                <td
+                  className="px-3 py-2 text-[11px] italic text-muted-foreground"
+                  colSpan={scenarios.length + 1}
+                >
+                  Outillage refacturé <strong>sans marge</strong> (au coût).
                 </td>
               </tr>
             )}

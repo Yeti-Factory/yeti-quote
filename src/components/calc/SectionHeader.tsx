@@ -5,9 +5,9 @@ type Tone = "orange" | "dark" | "muted" | "accent";
 
 const toneClasses: Record<Tone, string> = {
   orange: "bg-primary text-primary-foreground",
-  dark: "bg-secondary text-secondary-foreground",
-  muted: "bg-muted text-foreground border border-border",
-  accent: "bg-accent text-accent-foreground border border-primary/30",
+  dark: "bg-muted text-primary border border-border",
+  muted: "bg-muted text-primary border border-border",
+  accent: "bg-muted text-primary border border-primary/30",
 };
 
 export function SectionHeader({
@@ -29,7 +29,7 @@ export function SectionHeader({
     <div
       className={cn(
         "flex items-center justify-between gap-3 px-3 py-2 rounded-md mb-3",
-        "text-xs font-semibold uppercase tracking-wider",
+        "text-xs font-bold uppercase tracking-wider",
         toneClasses[tone],
         className,
       )}

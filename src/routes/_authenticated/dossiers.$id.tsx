@@ -37,6 +37,7 @@ import { StandsForm } from "@/components/calc/StandsForm";
 import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
+import { SageExportDialog } from "@/components/calc/SageExportDialog";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
@@ -62,6 +63,7 @@ function defaultPayload(type: string, params: any) {
         { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null },
       ],
       transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      outillage: { montantGlobal: 0, margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -75,6 +77,7 @@ function defaultPayload(type: string, params: any) {
         { fournisseur: "", libelle: "", commentaire: "", montantGlobal: 0, margePct: null },
       ],
       transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      outillage: { montantGlobal: 0, margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
@@ -153,6 +156,7 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
       transportInclus: false,
       margePct: null,
     },
+    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
     params,
   };
 }
@@ -204,6 +208,7 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
       transportInclus: false,
       margePct: null,
     },
+    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
     params,
   };
 }
@@ -618,6 +623,9 @@ function DossierDetail() {
             <div className="flex gap-2">
               {dossier.type !== "kits" && output && (
                 <OfferEmailDialog dossier={dossier} meta={meta} payload={payload} output={output} />
+              )}
+              {dossier.type !== "kits" && output && (
+                <SageExportDialog dossier={dossier} meta={meta} payload={payload} output={output} />
               )}
               <Button variant="outline" onClick={() => window.print()}>
                 <Printer className="w-4 h-4 mr-1.5" />

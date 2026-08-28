@@ -154,11 +154,12 @@ export function StandsForm({
                 </Button>
               </div>
             </div>
-            <div className="border rounded-md">
-              <div className="grid grid-cols-[160px_1fr_140px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+            <div className="border rounded-md overflow-x-auto">
+              <div className="grid min-w-[760px] grid-cols-[160px_1fr_140px_140px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
                 <div>Fournisseur</div>
                 <div>Libellé</div>
                 <div className="text-right">Prix achat</div>
+                <div className="text-right">Prix vente HT</div>
                 <div />
               </div>
               {sec.lignes.length === 0 && (
@@ -170,7 +171,7 @@ export function StandsForm({
                 {sec.lignes.map((l, li) => (
                   <div
                     key={li}
-                    className="grid grid-cols-[160px_1fr_140px_36px] gap-2 px-2 py-1.5 items-center"
+                    className="grid min-w-[760px] grid-cols-[160px_1fr_140px_140px_36px] gap-2 px-2 py-1.5 items-center"
                   >
                     <Input
                       value={l.fournisseur ?? ""}
@@ -208,6 +209,9 @@ export function StandsForm({
                         onChange({ ...value, sections: next });
                       }}
                     />
+                    <div className="h-9 rounded-md border bg-primary/5 px-3 py-2 text-right font-semibold tabular-nums text-primary">
+                      {fmtEUR(groupe?.lignes?.[li]?.pvTotal ?? 0)}
+                    </div>
                     <Button
                       size="icon"
                       variant="ghost"

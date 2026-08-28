@@ -5,10 +5,12 @@ import type {
   CalcOutput,
   Quantite,
   TransportPackaging,
+  Outillage,
 } from "./types";
 import {
   normalizeQuantites,
   normalizeTransportPackaging,
+  normalizeOutillage,
   resolveMargePct,
   getPrixAchat,
 } from "./types";
@@ -27,6 +29,7 @@ export type StandardInput = {
   quantites: Quantite[];
   achatsPrincipaux: LineItem[];
   transportPackaging?: TransportPackaging;
+  outillage?: Outillage;
   /** @deprecated legacy field kept for old dossiers — ignored by calc. */
   achatsAnnexes?: LineForfait[];
   params: StandardParams;
@@ -46,6 +49,7 @@ export function calculerStandard(input: StandardInput): CalcOutput {
   const { achatsPrincipaux, params } = input;
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
+  const outillage = normalizeOutillage(input.outillage);
 
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
@@ -53,7 +57,9 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + getPrixAchat(l, qi), 0);
     const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
-    const baseAchatUnit = sumPrincipaux + tpUnit;
+    const outillageGlobal = Number(outillage.montantGlobal) || 0;
+    const outillageUnit = Q > 0 ? outillageGlobal / Q : 0;
+    const baseAchatUnit = sumPrincipaux + tpUnit + outillageUnit;
 
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
@@ -78,6 +84,9 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     const tpHasMargin = tp.margePct !== null && tp.margePct !== undefined;
     const mTP = tpHasMargin ? Number(tp.margePct) : 0;
     pvUnit += tpUnit * (1 + mTP / 100);
+    const outillageHasMargin = outillage.margePct !== null && outillage.margePct !== undefined;
+    const mOutillage = outillageHasMargin ? Number(outillage.margePct) : 0;
+    pvUnit += outillageUnit * (1 + mOutillage / 100);
     // Sourcing commission → marge par défaut (quantité > défaut) — comportement historique.
     const mSourcing = resolveMargePct(null, mq, params.coef_marge_pct);
     pvUnit += commSourcingUnit * (1 + mSourcing / 100);
@@ -107,6 +116,10 @@ export function calculerStandard(input: StandardInput): CalcOutput {
       transportPackagingGlobal: tpGlobal,
       transportPackagingSansMarge: !tpHasMargin,
       transportPackagingMargePct: mTP,
+      outillageUnit,
+      outillageGlobal,
+      outillageSansMarge: !outillageHasMargin,
+      outillageMargePct: mOutillage,
       totalPrixUnitaire,
       totalCA,
       totalDepenses,

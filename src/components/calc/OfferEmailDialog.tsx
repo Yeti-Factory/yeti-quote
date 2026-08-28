@@ -180,6 +180,10 @@ function buildStandardRows(
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
   addRow(rows, "Transport / Packaging", quantite, tpUnit * (1 + tpMarge / 100));
 
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = Number(scenario.outillageMargePct) || 0;
+  addRow(rows, "Outillage", quantite, outillageUnit * (1 + outillageMarge / 100));
+
   const sourcingUnit = Number(scenario.commissionSourcingUnit) || 0;
   const sourcingMarge = resolveMargePct(null, quantiteMarge, defaultMarge);
   addRow(rows, "Commission sourcing", quantite, sourcingUnit * (1 + sourcingMarge / 100));
@@ -266,6 +270,15 @@ function buildContraRows(
     pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
   );
 
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = margeFor(payload?.outillage?.margePct, payload?.outillage?.margeConfirmed);
+  addRow(
+    rows,
+    "Outillage",
+    quantite,
+    pvFromContraSharedRaw(outillageUnit, coefContra, outillageMarge),
+  );
+
   addRow(rows, "Commission sourcing", quantite, Number(scenario.commissionSourcingUnit) || 0);
   addRow(rows, "Commission rapporteur", quantite, Number(scenario.commissionRapporteurUnit) || 0);
   addRow(rows, "Frais fixes", quantite, quantite > 0 ? Number(scenario.fraisFixes) / quantite : 0);
@@ -282,16 +295,16 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
     const sectionLines = payload?.sections?.[index]?.lignes ?? [];
     const hasInputLines = sectionLines.length > 0;
     if (!hasInputLines && !(Number(group?.pvTotal) > 0)) continue;
-    addRow(
-      rows,
-      group?.libelle || `Groupe ${index + 1}`,
-      quantite,
-      Number(group?.pvTotal) || 0,
-      sectionLines.map((line: any, lineIndex: number) =>
-        buildLineDetail(line, `Ligne ${lineIndex + 1}`),
-      ),
-      isOptionLabel(group?.libelle || payload?.sections?.[index]?.libelle),
-    );
+    const groupLabel =
+      group?.libelle || payload?.sections?.[index]?.libelle || `Groupe ${index + 1}`;
+    const groupIsOption = isOptionLabel(groupLabel);
+    const details = hasInputLines
+      ? sectionLines.map((line: any, lineIndex: number) =>
+          buildLineDetail(line, `${groupLabel} - ligne ${lineIndex + 1}`),
+        )
+      : [];
+
+    addRow(rows, groupLabel, quantite, Number(group?.pvTotal) || 0, details, groupIsOption);
   }
 
   addRow(
@@ -702,8 +715,17 @@ function buildPlainTextMultiQuantityEmail(params: {
   objet: string;
   summaries: OfferScenarioSummary[];
   transportIncluded: boolean;
+  outillageIncluded: boolean;
 }) {
-  const { clientName, contactName, reference, objet, summaries, transportIncluded } = params;
+  const {
+    clientName,
+    contactName,
+    reference,
+    objet,
+    summaries,
+    transportIncluded,
+    outillageIncluded,
+  } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
@@ -734,6 +756,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     "Conditions :",
     "Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.",
     buildTransportCondition(transportIncluded),
+    outillageIncluded ? "Outillage inclus." : "",
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
     "Le Yeti vous remercie pour votre confiance.",
@@ -750,9 +773,18 @@ function buildHtmlMultiQuantityEmail(params: {
   objet: string;
   summaries: OfferScenarioSummary[];
   transportIncluded: boolean;
+  outillageIncluded: boolean;
 }) {
-  const { clientName, contactName, clientEmail, reference, objet, summaries, transportIncluded } =
-    params;
+  const {
+    clientName,
+    contactName,
+    clientEmail,
+    reference,
+    objet,
+    summaries,
+    transportIncluded,
+    outillageIncluded,
+  } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
@@ -797,7 +829,7 @@ function buildHtmlMultiQuantityEmail(params: {
               ${summaries
                 .map((summary) => {
                   const total = totalForSummary(summary);
-                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">
+                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
                     <div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
                     <div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
                   </td>`;
@@ -816,7 +848,7 @@ function buildHtmlMultiQuantityEmail(params: {
       ${summaries
         .map(
           (summary) =>
-            `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
+            `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
         )
         .join("")}
     </tr>`;
@@ -893,7 +925,7 @@ function buildHtmlMultiQuantityEmail(params: {
               ${summaries
                 .map(
                   (summary) =>
-                    `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
+                    `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
                 )
                 .join("")}
             </tr>
@@ -906,6 +938,7 @@ function buildHtmlMultiQuantityEmail(params: {
         <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
         <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
         <p style="margin:0 0 5px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
+        ${outillageIncluded ? `<p style="margin:0 0 5px 0;">Outillage inclus.</p>` : ""}
         <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
@@ -966,6 +999,13 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
           const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
           return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
         });
+      const outillageIncluded =
+        Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
+        scenarioItems.some((item) => {
+          const outillageGlobal = Number(item.scenario.outillageGlobal) || 0;
+          const outillageUnit = Number(item.scenario.outillageUnit) || 0;
+          return Math.abs(outillageGlobal) > 0.005 || Math.abs(outillageUnit) > 0.005;
+        });
       const plainText = buildPlainTextMultiQuantityEmail({
         clientName,
         contactName,
@@ -973,6 +1013,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         objet,
         summaries,
         transportIncluded,
+        outillageIncluded,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -982,9 +1023,11 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         objet,
         summaries,
         transportIncluded,
+        outillageIncluded,
       });
+      const previewWidth = 920;
 
-      return { subject, plainText, html };
+      return { subject, plainText, html, previewWidth };
     }
 
     if (!scenario || !selectedItem) return null;
@@ -1026,8 +1069,9 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       vat,
       totalTTC,
     });
+    const previewWidth = 760;
 
-    return { subject, plainText, html };
+    return { subject, plainText, html, previewWidth };
   }, [dossier, meta, output, payload, scenario, scenarioItems, selectedItem]);
 
   async function copyBody() {
@@ -1117,7 +1161,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
 
           <div className="rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
             <div
-              className="min-w-[720px]"
+              style={{ minWidth: offer?.previewWidth ?? 920 }}
               dangerouslySetInnerHTML={{ __html: offer?.html ?? "" }}
             />
           </div>

@@ -2,12 +2,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LinesGridTable, QuantitesRow, TransportPackagingBlock } from "@/components/calc/Common";
+import {
+  LinesGridTable,
+  QuantitesRow,
+  TransportPackagingBlock,
+  OutillageBlock,
+} from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
-import { Layers, ShoppingCart, Truck, Settings2 } from "lucide-react";
+import { Layers, ShoppingCart, Truck, Wrench, Settings2 } from "lucide-react";
 import type { StandardInput, StandardParams } from "@/lib/calculs/standard";
-import type { Quantite, TransportPackaging } from "@/lib/calculs/types";
-import { normalizeTransportPackaging } from "@/lib/calculs/types";
+import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
+import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
 
 export function StandardForm({
@@ -18,6 +23,7 @@ export function StandardForm({
   onChange: (v: StandardInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
+  const outillage = normalizeOutillage(value.outillage);
   function setParams(p: Partial<StandardParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
@@ -35,6 +41,9 @@ export function StandardForm({
   }
   function setTP(next: TransportPackaging) {
     onChange({ ...value, transportPackaging: next });
+  }
+  function setOutillage(next: Outillage) {
+    onChange({ ...value, outillage: next });
   }
   return (
     <div className="space-y-5">
@@ -74,6 +83,20 @@ export function StandardForm({
             quantites={value.quantites}
             value={tp}
             onChange={setTP}
+            defaultMargePct={value.params.coef_marge_pct}
+          />
+        </div>
+        <div>
+          <SectionHeader
+            title="Outillage"
+            subtitle="frais fixe unique, divisé par la quantité"
+            tone="muted"
+            icon={<Wrench className="w-3.5 h-3.5" />}
+          />
+          <OutillageBlock
+            quantites={value.quantites}
+            value={outillage}
+            onChange={setOutillage}
             defaultMargePct={value.params.coef_marge_pct}
           />
         </div>
