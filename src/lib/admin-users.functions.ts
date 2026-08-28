@@ -4,10 +4,9 @@ import { requireNativeAuth } from "@/integrations/native/auth-middleware";
 
 const createUserSchema = z.object({
   email: z.string().trim().email().max(255),
-  password: z.string().min(8).max(200),
+  password: z.string().min(12).max(200),
   fullName: z.string().trim().min(1).max(200),
   isAdmin: z.boolean(),
-  mustChangePassword: z.boolean(),
 });
 
 export const createUserFn = createServerFn({ method: "POST" })
@@ -20,7 +19,12 @@ export const createUserFn = createServerFn({ method: "POST" })
       import("@/lib/db.server"),
     ]);
     const created = await auth.api.createUser({
-      body: { email: data.email, password: data.password, name: data.fullName, role: data.isAdmin ? "admin" : "user" },
+      body: {
+        email: data.email,
+        password: data.password,
+        name: data.fullName,
+        role: data.isAdmin ? "admin" : "user",
+      },
     });
     const newUserId = created.user.id;
     await pool.query(
@@ -33,5 +37,5 @@ export const createUserFn = createServerFn({ method: "POST" })
        ON CONFLICT (user_id, role) DO NOTHING`,
       [newUserId, data.isAdmin ? "admin" : "user"],
     );
-    return { ok: true, userId: newUserId, passwordResetRequired: data.mustChangePassword };
+    return { ok: true, userId: newUserId };
   });

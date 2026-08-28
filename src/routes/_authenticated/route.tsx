@@ -18,11 +18,6 @@ function AuthenticatedLayout() {
         navigate({ to: "/auth", replace: true });
         return;
       }
-      const meta = (data.session.user.user_metadata ?? {}) as { must_change_password?: boolean };
-      if (meta.must_change_password) {
-        navigate({ to: "/auth", search: { mode: "change-password" }, replace: true });
-        return;
-      }
       setReady(true);
     });
     const { data: sub } = backend.auth.onAuthStateChange((_e, s) => {

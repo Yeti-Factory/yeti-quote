@@ -10,6 +10,7 @@
     "build:node": "vite build",
     "preview": "vite preview",
     "migrate": "node server/migrate.mjs",
+    "set-password": "node server/set-password.mjs",
     "start": "npm run migrate && node .output/server/index.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."

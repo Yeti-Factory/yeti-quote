@@ -1,18 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, MailPlus } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { sendInstallInviteFn } from "@/lib/install-invites.functions";
+import { Eye, EyeOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
@@ -149,9 +138,7 @@ function UsersPanel() {
         .eq("role", "admin");
       if (error) return toast.error(error.message);
     } else {
-      const { error } = await backend
-        .from("user_roles")
-        .insert({ user_id: userId, role: "admin" });
+      const { error } = await backend.from("user_roles").insert({ user_id: userId, role: "admin" });
       if (error) return toast.error(error.message);
     }
     toast.success("Rôle mis à jour");
@@ -190,16 +177,9 @@ function UsersPanel() {
                     ))}
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <div className="inline-flex gap-2">
-                      <InviteButton userId={u.id} email={u.email} />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleAdmin(u.id, isAdmin)}
-                      >
-                        {isAdmin ? "Retirer admin" : "Promouvoir admin"}
-                      </Button>
-                    </div>
+                    <Button size="sm" variant="outline" onClick={() => toggleAdmin(u.id, isAdmin)}>
+                      {isAdmin ? "Retirer admin" : "Promouvoir admin"}
+                    </Button>
                   </td>
                 </tr>
               );
@@ -211,56 +191,6 @@ function UsersPanel() {
   );
 }
 
-function InviteButton({ userId, email }: { userId: string; email: string }) {
-  const sendInvite = useServerFn(sendInstallInviteFn);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function send() {
-    setBusy(true);
-    try {
-      const res = await sendInvite({ data: { userId } });
-      const link =
-        (res as { installUrl?: string })?.installUrl ?? "https://yeti-quote.yeti-lab.fr/install";
-      toast.success(`Lien envoyé : ${link}`);
-      setOpen(false);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Envoi échoué");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        title="Envoyer invitation d'installation"
-      >
-        <MailPlus className="w-4 h-4" />
-      </Button>
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Envoyer une invitation d'installation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Envoyer une invitation d'installation à <strong>{email}</strong> ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={send} disabled={busy}>
-              {busy ? "Envoi…" : "Envoyer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
-
 function CreateUserForm() {
   const qc = useQueryClient();
   const createUser = useServerFn(createUserFn);
@@ -268,13 +198,12 @@ function CreateUserForm() {
   const [email, setEmail] = useState("a.bousseau@yeti-factory.com");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(true);
-  const [mustChange, setMustChange] = useState(true);
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 8) return toast.error("Mot de passe : 8 caractères minimum");
+    if (password.length < 12) return toast.error("Mot de passe : 12 caractères minimum");
     setBusy(true);
     try {
       await createUser({
@@ -283,7 +212,6 @@ function CreateUserForm() {
           password,
           fullName,
           isAdmin,
-          mustChangePassword: mustChange,
         },
       });
       toast.success("Utilisateur créé");
@@ -322,7 +250,7 @@ function CreateUserForm() {
           />
         </div>
         <div className="md:col-span-2">
-          <Label htmlFor="cu-pw">Mot de passe provisoire</Label>
+          <Label htmlFor="cu-pw">Mot de passe</Label>
           <div className="relative">
             <Input
               id="cu-pw"
@@ -330,10 +258,10 @@ function CreateUserForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={12}
               autoComplete="new-password"
               className="pr-10"
-              placeholder="Saisir un mot de passe provisoire"
+              placeholder="Saisir un mot de passe"
             />
             <button
               type="button"
@@ -352,13 +280,7 @@ function CreateUserForm() {
           </Label>
           <Switch id="cu-admin" checked={isAdmin} onCheckedChange={setIsAdmin} />
         </div>
-        <div className="flex items-center justify-between border rounded-md px-3 py-2">
-          <Label htmlFor="cu-change" className="cursor-pointer">
-            Changer au login
-          </Label>
-          <Switch id="cu-change" checked={mustChange} onCheckedChange={setMustChange} />
-        </div>
-        <div className="md:col-span-2 flex justify-end">
+        <div className="flex items-center justify-end">
           <Button type="submit" disabled={busy}>
             {busy ? "…" : "Créer l'utilisateur"}
           </Button>

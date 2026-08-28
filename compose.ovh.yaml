@@ -14,9 +14,6 @@ services:
       - BETTER_AUTH_SECRET=${SERVICE_BASE64_64_BETTERAUTH}
       - BETTER_AUTH_URL=${APP_BASE_URL}
       - TRUSTED_ORIGINS=${APP_BASE_URL}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - EMAIL_FROM=${EMAIL_FROM:-Yeti Factory <no-reply@yeti-factory.com>}
-      - APP_PUBLIC_URL=${APP_BASE_URL}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 15s
