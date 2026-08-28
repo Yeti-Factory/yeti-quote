@@ -5,8 +5,8 @@ import pg from "pg";
 import { hashPassword } from "better-auth/crypto";
 
 const { Pool } = pg;
-const exportDir = process.env.YETI_QUOTE_EXPORT_DIR;
-if (!exportDir) throw new Error("YETI_QUOTE_EXPORT_DIR est requis");
+const exportDir = process.argv[2] || process.env.YETI_QUOTE_EXPORT_DIR;
+if (!exportDir) throw new Error("Un chemin d'export ou YETI_QUOTE_EXPORT_DIR est requis");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
