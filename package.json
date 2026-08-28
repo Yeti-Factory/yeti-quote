@@ -10,6 +10,7 @@
     "build:node": "vite build",
     "preview": "vite preview",
     "migrate": "node server/migrate.mjs",
+    "create-reset-link": "node server/create-password-reset-link.mjs",
     "set-password": "node server/set-password.mjs",
     "start": "npm run migrate && node .output/server/index.mjs",
     "lint": "eslint .",
