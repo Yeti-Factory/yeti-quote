@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -64,7 +64,7 @@ function ClientsPage() {
   const { data: clients } = useQuery({
     queryKey: ["clients", q],
     queryFn: async () => {
-      let req = supabase
+      let req = backend
         .from("clients")
         .select("id, entreprise, contact, email, telephone, updated_at, dossiers(count)")
         .order("updated_at", { ascending: false });
@@ -173,12 +173,12 @@ export function ClientDialog({
       };
 
       if (initial?.id) {
-        const { error } = await supabase.from("clients").update(clientPayload).eq("id", initial.id);
+        const { error } = await backend.from("clients").update(clientPayload).eq("id", initial.id);
         if (error) throw error;
         toast.success("Client mis à jour");
         onSaved?.(initial.id);
       } else {
-        const { data, error } = await supabase
+        const { data, error } = await backend
           .from("clients")
           .insert({ ...clientPayload, created_by: user!.id })
           .select("id")

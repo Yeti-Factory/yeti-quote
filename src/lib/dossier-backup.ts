@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/native/types";
 
 type ClientRow = Database["public"]["Tables"]["clients"]["Row"];
 type DossierRow = Database["public"]["Tables"]["dossiers"]["Row"];

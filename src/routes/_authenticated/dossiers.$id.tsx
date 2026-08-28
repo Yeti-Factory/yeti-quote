@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -244,7 +244,7 @@ function DossierDetail() {
   const { data: dossier } = useQuery({
     queryKey: ["dossier", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await backend
         .from("dossiers")
         .select(
           "*, clients(id, entreprise, contact, email, telephone, adresse, notes, created_at, updated_at)",
@@ -259,7 +259,7 @@ function DossierDetail() {
   const { data: defaults } = useQuery({
     queryKey: ["app_defaults"],
     queryFn: async () => {
-      const { data } = await supabase.from("app_defaults").select("key,value");
+      const { data } = await backend.from("app_defaults").select("key,value");
       return Object.fromEntries((data ?? []).map((r: any) => [r.key, r.value]));
     },
   });
@@ -431,7 +431,7 @@ function DossierDetail() {
       results: output,
       params: cleanPayload.params,
     };
-    const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
+    const { error } = await backend.from("dossiers").update(update).eq("id", dossier.id);
     if (error) return toast.error(error.message);
     toast.success(nextStatut === "valide" ? "Dossier validé" : "Enregistré");
     const savedMeta = nextStatut ? { ...meta, statut: nextStatut } : meta;
@@ -476,7 +476,7 @@ function DossierDetail() {
         results: nextResults,
         params: nextPayload.params,
       };
-      const { error } = await supabase.from("dossiers").update(update).eq("id", dossier.id);
+      const { error } = await backend.from("dossiers").update(update).eq("id", dossier.id);
       if (error) throw error;
 
       qc.setQueryData(["dossier", id], (current: any) =>
@@ -499,7 +499,7 @@ function DossierDetail() {
   async function duplicate() {
     if (!dossier) return;
     const nextVersion = ((dossier as any).version ?? 1) + 1;
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from("dossiers")
       .insert({
         reference: "",
@@ -528,7 +528,7 @@ function DossierDetail() {
     const standardPayload = contraToStandardPayload(payload as ContraInput, defaults?.standard);
     const standardResults = calculerStandard(standardPayload);
     const nextVersion = ((dossier as any).version ?? 1) + 1;
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from("dossiers")
       .insert({
         reference: "",
@@ -570,7 +570,7 @@ function DossierDetail() {
 
   async function del() {
     if (!dossier) return;
-    const { error } = await supabase.from("dossiers").delete().eq("id", dossier.id);
+    const { error } = await backend.from("dossiers").delete().eq("id", dossier.id);
     if (error) return toast.error(error.message);
     toast.success("Dossier supprimé");
     navigate({ to: "/dossiers" });

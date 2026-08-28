@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
 import { parseDossierBackup, type DossierBackup } from "@/lib/dossier-backup";
-import type { Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/native/types";
 
 export const Route = createFileRoute("/_authenticated/dossiers/")({
   component: DossiersList,
@@ -52,7 +52,7 @@ function DossiersList() {
   const { data: dossiers } = useQuery({
     queryKey: ["dossiers", q, type, statut],
     queryFn: async () => {
-      let req = supabase
+      let req = backend
         .from("dossiers")
         .select(
           "id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)",
@@ -69,7 +69,7 @@ function DossiersList() {
   });
 
   async function deleteDossier(id: string) {
-    const { error } = await supabase.from("dossiers").delete().eq("id", id);
+    const { error } = await backend.from("dossiers").delete().eq("id", id);
     if (error) {
       toast.error(`Suppression impossible : ${error.message}`);
       return;
@@ -121,7 +121,7 @@ function DossiersList() {
       notes: backup.client.notes ?? null,
     };
 
-    const { data: clientById, error: clientByIdError } = await supabase
+    const { data: clientById, error: clientByIdError } = await backend
       .from("clients")
       .select("id")
       .eq("id", backup.client.id)
@@ -131,7 +131,7 @@ function DossiersList() {
     let targetClientId = clientById?.id ?? "";
 
     if (!targetClientId && backup.client.email) {
-      const { data: clientByEmail, error: clientByEmailError } = await supabase
+      const { data: clientByEmail, error: clientByEmailError } = await backend
         .from("clients")
         .select("id")
         .eq("email", backup.client.email)
@@ -142,7 +142,7 @@ function DossiersList() {
     }
 
     if (!targetClientId) {
-      const { data: clientByName, error: clientByNameError } = await supabase
+      const { data: clientByName, error: clientByNameError } = await backend
         .from("clients")
         .select("id")
         .eq("entreprise", backup.client.entreprise)
@@ -153,13 +153,13 @@ function DossiersList() {
     }
 
     if (targetClientId) {
-      const { error } = await supabase
+      const { error } = await backend
         .from("clients")
         .update(clientFields)
         .eq("id", targetClientId);
       if (error) throw error;
     } else {
-      const { data: insertedClient, error } = await supabase
+      const { data: insertedClient, error } = await backend
         .from("clients")
         .insert({
           id: backup.client.id,
@@ -189,7 +189,7 @@ function DossiersList() {
       version: backup.dossier.version ?? 1,
     };
 
-    const { data: dossierById, error: dossierByIdError } = await supabase
+    const { data: dossierById, error: dossierByIdError } = await backend
       .from("dossiers")
       .select("id")
       .eq("id", backup.dossier.id)
@@ -197,7 +197,7 @@ function DossiersList() {
     if (dossierByIdError) throw dossierByIdError;
 
     if (dossierById?.id) {
-      const { error } = await supabase
+      const { error } = await backend
         .from("dossiers")
         .update(dossierFields)
         .eq("id", dossierById.id);
@@ -206,7 +206,7 @@ function DossiersList() {
     }
 
     if (backup.dossier.reference.trim()) {
-      const { data: dossierByRef, error: dossierByRefError } = await supabase
+      const { data: dossierByRef, error: dossierByRefError } = await backend
         .from("dossiers")
         .select("id")
         .eq("reference", backup.dossier.reference)
@@ -215,7 +215,7 @@ function DossiersList() {
       if (dossierByRefError) throw dossierByRefError;
 
       if (dossierByRef?.id) {
-        const { error } = await supabase
+        const { error } = await backend
           .from("dossiers")
           .update(dossierFields)
           .eq("id", dossierByRef.id);
@@ -224,7 +224,7 @@ function DossiersList() {
       }
     }
 
-    const { data: insertedDossier, error } = await supabase
+    const { data: insertedDossier, error } = await backend
       .from("dossiers")
       .insert({
         id: backup.dossier.id,

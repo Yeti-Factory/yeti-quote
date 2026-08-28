@@ -1,45 +1,54 @@
-# ---- Coolify ----
+# Déploiement Coolify — Yeti Quote Builder
 
-# Backend / calcul de prix Yeti Factory — repo prêt Docker.
+Ce dépôt contient désormais l’application et son backend PostgreSQL natif. Aucun service externe de base de données ou d’authentification n’est requis.
 
-#
+## Application
 
-# 1. Créer une application "Dockerfile" dans Coolify, source = ce repo Git.
+1. Créer une ressource Docker Compose dans Coolify à partir de ce dépôt.
+2. Utiliser `compose.ovh.yaml`.
+3. Associer le domaine `yeti-quote.yeti-factory.com` au service `app`, port `3000`.
+4. Le point de contrôle est `GET /`.
 
-# 2. Renseigner les variables d'environnement (voir .env.example).
+## Variables obligatoires
 
-# - VITE\_\* doivent être passées AUSSI en Build Arg (docker build --build-arg)
+Coolify génère automatiquement les secrets techniques grâce aux variables magiques présentes dans `compose.ovh.yaml` :
 
-# car Vite les inline dans le bundle client au moment du build.
+- `SERVICE_PASSWORD_64_POSTGRES`
+- `SERVICE_BASE64_64_BETTERAUTH`
 
-# - Les autres SUPABASE\_\* / SUPABASE_SERVICE_ROLE_KEY sont uniquement runtime.
+La variable suivante est à saisir :
 
-# 3. Port exposé : 3000 (voir Dockerfile / package.json > "start").
+- `APP_BASE_URL`, avec l’URL exacte de l’environnement (temporaire pendant la recette, puis domaine Yeti Factory lors de la bascule)
 
-# 4. Domaine : mapper yeti-quote.yeti-lab.fr vers l'app dans Coolify.
+Yeti Quote n’envoie aucun e-mail. Les créations et réinitialisations d’accès sont administrées localement sur le VPS.
 
-# 5. Health check : GET / (retourne la page de connexion).
+## Import initial
 
-#
+L’import se fait une seule fois, sur l’environnement isolé, avant la bascule DNS :
 
-# Rebuild automatique : activer le webhook GitHub dans Coolify.
+```sh
+node server/import-export.mjs /chemin/vers/yeti-quote-2026-08-28
+```
 
-#
+Le script vérifie le manifeste, importe les données métier et crée les comptes natifs. Les anciens mots de passe ne sont pas récupérables.
 
-# NOTE : le preset Nitro `node-server` est configuré directement dans
+## Réinitialisation locale d’un accès
 
-# `vite.config.ts`. `npm run build` fonctionne donc de la même façon en local
+Dans le terminal du conteneur `app`, saisir soi-même le nouveau mot de passe lorsqu’il est demandé par le shell :
 
-# et dans le conteneur Docker.
+```sh
+read -s -p "Nouveau mot de passe : " YETI_QUOTE_NEW_PASSWORD; echo
+export YETI_QUOTE_NEW_PASSWORD
+YETI_QUOTE_ADMIN_EMAIL="utilisateur@yeti-factory.com" npm run set-password
+unset YETI_QUOTE_NEW_PASSWORD
+```
 
-# ---- Emails / invitations d'installation PWA ----
+Le mot de passe n’est ni affiché ni envoyé à un service tiers. Toutes les sessions existantes du compte sont révoquées.
 
-# Variables runtime supplémentaires (à renseigner dans Coolify → Environment):
+## Ordre de bascule
 
-# - RESEND_API_KEY : clé API Resend (https://resend.com), server-only.
-
-# - EMAIL_FROM : "Yeti Factory <no-reply@yeti-lab.fr>" (le domaine doit être vérifié dans Resend).
-
-# - APP_PUBLIC_URL : "https://yeti-quote.yeti-lab.fr" (URL publique utilisée dans les liens d'installation).
-
-# Sans ces trois variables, la fonction serveur d'envoi d'invitation retourne une erreur explicite.
+1. Déployer sur une URL temporaire.
+2. Importer et comparer les compteurs attendus : 4 réglages, 7 clients, 17 dossiers, 2 profils et 3 rôles.
+3. Définir localement le mot de passe administrateur, puis tester connexion, consultation et création d’un devis.
+4. Basculer le domaine public seulement après validation.
+5. Conserver l’ancien service intact pendant la période de retour arrière.

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,9 @@ function Dashboard() {
     queryKey: ["dash-stats"],
     queryFn: async () => {
       const [dossiers, clients, valides] = await Promise.all([
-        supabase.from("dossiers").select("id", { count: "exact", head: true }).neq("type", "kits"),
-        supabase.from("clients").select("id", { count: "exact", head: true }),
-        supabase
+        backend.from("dossiers").select("id", { count: "exact", head: true }).neq("type", "kits"),
+        backend.from("clients").select("id", { count: "exact", head: true }),
+        backend
           .from("dossiers")
           .select("id", { count: "exact", head: true })
           .eq("statut", "valide")
@@ -36,7 +36,7 @@ function Dashboard() {
   const { data: dossiers } = useQuery({
     queryKey: ["dash-by-client"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await backend
         .from("dossiers")
         .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
         .neq("type", "kits")

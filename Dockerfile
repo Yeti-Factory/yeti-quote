@@ -4,9 +4,8 @@
 # .output/server/index.mjs avec Node.
 #
 # Variables d'environnement à définir dans Coolify :
-#   VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_PROJECT_ID
-#   SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_PROJECT_ID
-#   SUPABASE_SERVICE_ROLE_KEY  (server-only, requis si code admin s'en sert)
+#   DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, TRUSTED_ORIGINS
+#   RESEND_API_KEY, EMAIL_FROM, APP_PUBLIC_URL
 #   NITRO_PRESET=node-server   (déjà positionné ci-dessous à la build)
 #   PORT=3000                  (port d'écoute Node runtime)
 
@@ -21,15 +20,8 @@ COPY . .
 
 # Force Nitro à produire une sortie Node standalone
 ENV NITRO_PRESET=node-server
-# Les VITE_* doivent être présentes au moment du build (inlinées côté client)
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_PUBLISHABLE_KEY
-ARG VITE_SUPABASE_PROJECT_ID
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
-ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
-
 RUN npm run build
+RUN npm prune --omit=dev
 
 # ---------- Stage 2 : runtime ----------
 FROM node:22-alpine AS runner
@@ -39,6 +31,9 @@ ENV PORT=3000
 
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server ./server
 
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+CMD ["sh", "-c", "npm run migrate && node .output/server/index.mjs"]

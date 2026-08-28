@@ -1,1 +1,0 @@
-ALTER TABLE public.dossiers ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1;

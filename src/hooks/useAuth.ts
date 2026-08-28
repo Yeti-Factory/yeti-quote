@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import type { Session, User } from "@/integrations/native/session-types";
+import { backend } from "@/integrations/native/client";
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -8,11 +8,11 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = backend.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    backend.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setLoading(false);
@@ -33,7 +33,7 @@ export function useIsAdmin(userId: string | undefined) {
       return;
     }
     setLoading(true);
-    supabase
+    backend
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
