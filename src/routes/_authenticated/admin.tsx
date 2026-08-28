@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { sendInstallInviteFn } from "@/lib/install-invites.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -71,7 +71,7 @@ function CoefsPanel() {
   const { data } = useQuery({
     queryKey: ["admin_defaults"],
     queryFn: async () => {
-      const { data } = await supabase.from("app_defaults").select("*").order("key");
+      const { data } = await backend.from("app_defaults").select("*").order("key");
       // Kits est masqué de l'UI (conservé en base pour compat legacy).
       return (data ?? []).filter((d: any) => d.key !== "kits");
     },
@@ -92,7 +92,7 @@ function CoefsPanel() {
     } catch {
       return toast.error("JSON invalide");
     }
-    const { error } = await supabase.from("app_defaults").update({ value }).eq("key", key);
+    const { error } = await backend.from("app_defaults").update({ value }).eq("key", key);
     if (error) return toast.error(error.message);
     toast.success(`Coefficients ${key} mis à jour`);
     qc.invalidateQueries({ queryKey: ["app_defaults"] });
@@ -127,8 +127,8 @@ function UsersPanel() {
     queryKey: ["admin_users"],
     queryFn: async () => {
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, created_at"),
-        supabase.from("user_roles").select("user_id, role"),
+        backend.from("profiles").select("id, full_name, email, created_at"),
+        backend.from("user_roles").select("user_id, role"),
       ]);
       const roleMap = new Map<string, string[]>();
       (roles ?? []).forEach((r: any) => {
@@ -142,14 +142,14 @@ function UsersPanel() {
 
   async function toggleAdmin(userId: string, isAdmin: boolean) {
     if (isAdmin) {
-      const { error } = await supabase
+      const { error } = await backend
         .from("user_roles")
         .delete()
         .eq("user_id", userId)
         .eq("role", "admin");
       if (error) return toast.error(error.message);
     } else {
-      const { error } = await supabase
+      const { error } = await backend
         .from("user_roles")
         .insert({ user_id: userId, role: "admin" });
       if (error) return toast.error(error.message);

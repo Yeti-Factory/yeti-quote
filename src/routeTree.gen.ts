@@ -19,9 +19,11 @@ import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDossiersIndexRouteImport } from './routes/_authenticated/dossiers.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients.index'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedDossiersNewRouteImport } from './routes/_authenticated/dossiers.new'
 import { Route as AuthenticatedDossiersIdRouteImport } from './routes/_authenticated/dossiers.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
+import { Route as ApiDataDatasetOperationRouteImport } from './routes/api/data/$dataset/$operation'
 
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
@@ -74,6 +76,11 @@ const AuthenticatedClientsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedClientsRoute,
   } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedDossiersNewRoute =
   AuthenticatedDossiersNewRouteImport.update({
     id: '/new',
@@ -90,6 +97,11 @@ const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuthenticatedClientsRoute,
 } as any)
+const ApiDataDatasetOperationRoute = ApiDataDatasetOperationRouteImport.update({
+  id: '/api/data/$dataset/$operation',
+  path: '/api/data/$dataset/$operation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,8 +114,10 @@ export interface FileRoutesByFullPath {
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/dossiers/': typeof AuthenticatedDossiersIndexRoute
+  '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -114,8 +128,10 @@ export interface FileRoutesByTo {
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/dossiers': typeof AuthenticatedDossiersIndexRoute
+  '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -130,8 +146,10 @@ export interface FileRoutesById {
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/_authenticated/dossiers/new': typeof AuthenticatedDossiersNewRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/dossiers/': typeof AuthenticatedDossiersIndexRoute
+  '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -146,8 +164,10 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
+    | '/api/auth/$'
     | '/clients/'
     | '/dossiers/'
+    | '/api/data/$dataset/$operation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -158,8 +178,10 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
+    | '/api/auth/$'
     | '/clients'
     | '/dossiers'
+    | '/api/data/$dataset/$operation'
   id:
     | '__root__'
     | '/'
@@ -173,8 +195,10 @@ export interface FileRouteTypes {
     | '/_authenticated/clients/$id'
     | '/_authenticated/dossiers/$id'
     | '/_authenticated/dossiers/new'
+    | '/api/auth/$'
     | '/_authenticated/clients/'
     | '/_authenticated/dossiers/'
+    | '/api/data/$dataset/$operation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,6 +206,8 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   InstallRoute: typeof InstallRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDataDatasetOperationRoute: typeof ApiDataDatasetOperationRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -256,6 +282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedClientsRoute
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/dossiers/new': {
       id: '/_authenticated/dossiers/new'
       path: '/new'
@@ -276,6 +309,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/$id'
       preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
       parentRoute: typeof AuthenticatedClientsRoute
+    }
+    '/api/data/$dataset/$operation': {
+      id: '/api/data/$dataset/$operation'
+      path: '/api/data/$dataset/$operation'
+      fullPath: '/api/data/$dataset/$operation'
+      preLoaderRoute: typeof ApiDataDatasetOperationRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -332,6 +372,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   InstallRoute: InstallRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDataDatasetOperationRoute: ApiDataDatasetOperationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

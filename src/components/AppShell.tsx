@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    supabase
+    backend
       .from("profiles")
       .select("full_name,email")
       .eq("id", user.id)
@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     queryKey: ["sidebar-clients"],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await backend
         .from("clients")
         .select("id, entreprise")
         .order("entreprise", { ascending: true });
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await backend.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
 
@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Aucun client
                 </div>
               )}
-              {(clientsList ?? []).map((c) => {
+              {(clientsList ?? []).map((c: any) => {
                 const active = pathname === `/clients/${c.id}`;
                 return (
                   <Link

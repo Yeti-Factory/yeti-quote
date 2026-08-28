@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth, useIsAdmin } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -40,7 +40,7 @@ function ClientDetail() {
   const { data: client } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
+      const { data, error } = await backend.from("clients").select("*").eq("id", id).single();
       if (error) throw error;
       return data;
     },
@@ -49,7 +49,7 @@ function ClientDetail() {
   const { data: dossiers } = useQuery({
     queryKey: ["client-dossiers", id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await backend
         .from("dossiers")
         .select("id, reference, objet, type, statut, updated_at, version")
         .eq("client_id", id)
@@ -59,7 +59,7 @@ function ClientDetail() {
   });
 
   async function del() {
-    const { error } = await supabase.from("clients").delete().eq("id", id);
+    const { error } = await backend.from("clients").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Client supprimé");
     navigate({ to: "/clients" });

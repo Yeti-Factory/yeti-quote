@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,7 +91,7 @@ function AuthPage() {
     // Only auto-redirect away from /auth when session exists AND we are not in
     // a password change/reset flow (recovery hash sets a session too).
     if (mode === "reset-password" || mode === "change-password") return;
-    supabase.auth.getSession().then(({ data }) => {
+    backend.auth.getSession().then(({ data }) => {
       if (!data.session) return;
       const meta = (data.session.user.user_metadata ?? {}) as { must_change_password?: boolean };
       if (meta.must_change_password) {
@@ -133,7 +133,7 @@ function LoginForm() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await backend.auth.signInWithPassword({ email, password });
       if (error) throw error;
       const meta = (data.user?.user_metadata ?? {}) as { must_change_password?: boolean };
       if (meta.must_change_password) {
@@ -212,7 +212,7 @@ function ForgotForm() {
     setBusy(true);
     try {
       const redirectTo = `${window.location.origin}/auth?mode=reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      const { error } = await backend.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) throw error;
       setSent(true);
       toast.success("Email de réinitialisation envoyé");
@@ -281,11 +281,11 @@ function NewPasswordForm({ origin }: { origin: "reset" | "change" }) {
   const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // For the reset flow, Supabase parses the recovery hash and emits a
+    // The native authentication endpoint validates the reset token.
     // PASSWORD_RECOVERY event with an active session. For change-password,
     // the user is already signed in.
-    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setHasSession(!!s));
+    backend.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+    const { data: sub } = backend.auth.onAuthStateChange((_e, s) => setHasSession(!!s));
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -298,7 +298,7 @@ function NewPasswordForm({ origin }: { origin: "reset" | "change" }) {
     if (pw !== confirm) return toast.error("Les mots de passe ne correspondent pas");
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await backend.auth.updateUser({
         password: pw,
         data: { must_change_password: false },
       });

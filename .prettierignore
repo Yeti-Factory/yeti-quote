@@ -6,4 +6,4 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
-src/integrations/supabase/types.ts
+src/integrations/native/types.ts

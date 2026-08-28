@@ -1,24 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireNativeAuth } from "@/integrations/native/auth-middleware";
 
 const inviteSchema = z.object({
   userId: z.string().uuid(),
 });
 
 export const sendInstallInviteFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => inviteSchema.parse(data))
+  .middleware([requireNativeAuth])
+  .validator((data: unknown) => inviteSchema.parse(data))
   .handler(async ({ data, context }) => {
-    // Admin check
-    const { data: adminRow, error: adminErr } = await context.supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (adminErr) throw new Error("Vérification admin impossible");
-    if (!adminRow) throw new Error("Forbidden: admin required");
+    if (!context.isAdmin) throw new Error("Droits administrateur requis");
 
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     const EMAIL_FROM = process.env.EMAIL_FROM;
@@ -44,14 +36,13 @@ export const sendInstallInviteFn = createServerFn({ method: "POST" })
       );
     }
 
-    // Fetch target user email
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: profile, error: profileErr } = await supabaseAdmin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", data.userId)
-      .maybeSingle();
-    if (profileErr || !profile?.email) {
+    const { pool } = await import("@/lib/db.server");
+    const profileResult = await pool.query<{ email: string | null; full_name: string | null }>(
+      "SELECT email, full_name FROM profiles WHERE id = $1 LIMIT 1",
+      [data.userId],
+    );
+    const profile = profileResult.rows[0];
+    if (!profile?.email) {
       throw new Error("Utilisateur introuvable ou sans email");
     }
 

@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -13,7 +13,7 @@ function AuthenticatedLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    backend.auth.getSession().then(({ data }) => {
       if (!data.session) {
         navigate({ to: "/auth", replace: true });
         return;
@@ -25,7 +25,7 @@ function AuthenticatedLayout() {
       }
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = backend.auth.onAuthStateChange((_e, s) => {
       if (!s) navigate({ to: "/auth", replace: true });
     });
     return () => sub.subscription.unsubscribe();

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
 function IndexRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    backend.auth.getSession().then(({ data }) => {
       navigate({ to: data.session ? "/dashboard" : "/auth", replace: true });
     });
   }, [navigate]);

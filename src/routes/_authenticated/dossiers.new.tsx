@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/native/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -33,7 +33,7 @@ function NewDossier() {
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await backend
         .from("clients")
         .select("id, entreprise, contact, email")
         .order("entreprise");
@@ -54,8 +54,8 @@ function NewDossier() {
     if (!objet.trim()) return toast.error("L'objet est requis.");
     setBusy(true);
     try {
-      const client = clients?.find((c) => c.id === clientId);
-      const { data, error } = await supabase
+      const client = clients?.find((c: any) => c.id === clientId);
+      const { data, error } = await backend
         .from("dossiers")
         .insert({
           reference: reference.trim(),
@@ -98,7 +98,7 @@ function NewDossier() {
               <SelectValue placeholder="Sélectionner un client…" />
             </SelectTrigger>
             <SelectContent>
-              {(clients ?? []).map((c) => (
+              {(clients ?? []).map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.entreprise}
                 </SelectItem>
