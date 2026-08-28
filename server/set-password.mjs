@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
-import { hashPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 
 const { Pool } = pg;
 const email = String(process.env.YETI_QUOTE_ADMIN_EMAIL ?? "")
@@ -15,6 +15,7 @@ if (password.length < 12 || password.length > 128) {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
+let committed = false;
 
 try {
   await client.query("BEGIN");
@@ -25,6 +26,9 @@ try {
   if (!userId) throw new Error("Utilisateur introuvable");
 
   const passwordHash = await hashPassword(password);
+  if (!(await verifyPassword({ hash: passwordHash, password }))) {
+    throw new Error("La verification locale du mot de passe a echoue");
+  }
   const updated = await client.query(
     `UPDATE account SET password = $1, "updatedAt" = now()
      WHERE "userId" = $2 AND "providerId" = 'credential'`,
@@ -39,9 +43,31 @@ try {
   }
   await client.query('DELETE FROM "session" WHERE "userId" = $1', [userId]);
   await client.query("COMMIT");
-  console.log(JSON.stringify({ status: "password_updated", sessions_revoked: true }));
+  committed = true;
+
+  const loginResponse = await fetch("http://127.0.0.1:3000/api/auth/sign-in/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  await client.query('DELETE FROM "session" WHERE "userId" = $1', [userId]);
+  if (!loginResponse.ok) {
+    const detail = (await loginResponse.text()).slice(0, 300);
+    throw new Error(`La verification de connexion a echoue (${loginResponse.status}) ${detail}`);
+  }
+
+  console.log(
+    JSON.stringify({
+      status: "password_updated",
+      login_verified: true,
+      sessions_revoked: true,
+    }),
+  );
 } catch (error) {
-  await client.query("ROLLBACK");
+  if (!committed) await client.query("ROLLBACK");
   console.error(
     "Echec de la reinitialisation locale",
     error instanceof Error ? error.message : error,
