@@ -10,14 +10,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - SERVICE_URL_APP_3000
       - DATABASE_URL=postgresql://yeti_quote:${SERVICE_PASSWORD_64_POSTGRES}@database:5432/yeti_quote
       - BETTER_AUTH_SECRET=${SERVICE_BASE64_64_BETTERAUTH}
-      - BETTER_AUTH_URL=${SERVICE_URL_APP_3000}
-      - TRUSTED_ORIGINS=${SERVICE_URL_APP_3000}
+      - BETTER_AUTH_URL=${APP_BASE_URL}
+      - TRUSTED_ORIGINS=${APP_BASE_URL}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM:-Yeti Factory <no-reply@yeti-factory.com>}
-      - APP_PUBLIC_URL=${SERVICE_URL_APP_3000}
+      - APP_PUBLIC_URL=${APP_BASE_URL}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 15s

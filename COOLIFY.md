@@ -15,10 +15,10 @@ Coolify génère automatiquement les secrets techniques grâce aux variables mag
 
 - `SERVICE_PASSWORD_64_POSTGRES`
 - `SERVICE_BASE64_64_BETTERAUTH`
-- `SERVICE_URL_APP_3000`
 
-Seules les variables d’e-mail sont à saisir :
+Les variables suivantes sont à saisir :
 
+- `APP_BASE_URL`, avec l’URL exacte de l’environnement (temporaire pendant la recette, puis domaine Yeti Factory lors de la bascule)
 - `RESEND_API_KEY`
 - `EMAIL_FROM=Yeti Factory <no-reply@yeti-factory.com>`
 
