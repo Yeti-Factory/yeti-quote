@@ -620,7 +620,7 @@ function DossierDetail() {
           title={meta.objet || "(Sans objet)"}
           subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
           actions={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {dossier.type !== "kits" && output && (
                 <OfferEmailDialog dossier={dossier} meta={meta} payload={payload} output={output} />
               )}
