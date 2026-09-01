@@ -153,10 +153,7 @@ function DossiersList() {
     }
 
     if (targetClientId) {
-      const { error } = await backend
-        .from("clients")
-        .update(clientFields)
-        .eq("id", targetClientId);
+      const { error } = await backend.from("clients").update(clientFields).eq("id", targetClientId);
       if (error) throw error;
     } else {
       const { data: insertedClient, error } = await backend

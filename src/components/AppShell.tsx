@@ -1,12 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  LogOut,
-  Shield,
-  ChevronRight,
-} from "lucide-react";
+import { LayoutDashboard, Users, FolderKanban, LogOut, Shield, ChevronRight } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { backend } from "@/integrations/native/client";
@@ -21,9 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isAdmin } = useIsAdmin(user?.id);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [fullName, setFullName] = useState<string>("");
-  const [clientsOpen, setClientsOpen] = useState<boolean>(() =>
-    pathname.startsWith("/clients"),
-  );
+  const [clientsOpen, setClientsOpen] = useState<boolean>(() => pathname.startsWith("/clients"));
 
   useEffect(() => {
     if (pathname.startsWith("/clients")) setClientsOpen(true);
@@ -81,10 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="flex items-center">
-            <Link
-              to="/clients"
-              className={`${linkCls(pathname.startsWith("/clients"))} flex-1`}
-            >
+            <Link to="/clients" className={`${linkCls(pathname.startsWith("/clients"))} flex-1`}>
               <Users className="w-4 h-4" />
               Clients
             </Link>
@@ -102,9 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {clientsOpen && (
             <div className="ml-6 mt-0.5 mb-1 max-h-64 overflow-y-auto pr-1 border-l border-sidebar-border/60">
               {(clientsList ?? []).length === 0 && (
-                <div className="px-3 py-1.5 text-xs text-sidebar-foreground/50">
-                  Aucun client
-                </div>
+                <div className="px-3 py-1.5 text-xs text-sidebar-foreground/50">Aucun client</div>
               )}
               {(clientsList ?? []).map((c: any) => {
                 const active = pathname === `/clients/${c.id}`;
@@ -153,4 +139,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-

@@ -15,6 +15,7 @@ import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Package, Truck, Wrench, Settings2 } from "lucide-react";
 import type { ContraInput, ContraParams } from "@/lib/calculs/contra";
 import { CONTRA_STANDARD_MARGE_PCT, effectiveContraCoefPct } from "@/lib/calculs/contra";
+import { calculerContra } from "@/lib/calculs/contra";
 import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
 import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
@@ -83,6 +84,7 @@ export function ContraForm({
           quantites={value.quantites}
           onChange={handleQuantitesChange}
           margeGuard={GUARD}
+          scenarios={calculerContra(value).scenarios}
         />
       </Card>
 

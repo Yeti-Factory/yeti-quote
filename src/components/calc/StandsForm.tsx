@@ -39,6 +39,7 @@ export function StandsForm({
   }
 
   const out = calculerStands(value);
+  const primaryScenario = out.scenarios.find((s) => s.quantite > 0);
 
   return (
     <div className="space-y-4">
@@ -48,6 +49,7 @@ export function StandsForm({
           quantites={value.quantites}
           onChange={(q) => onChange({ ...value, quantites: q })}
           defaultMargePct={value.params.coef_marge_pct}
+          scenarios={out.scenarios}
         />
       </Card>
 
@@ -75,12 +77,14 @@ export function StandsForm({
                 <div className="font-medium tabular-nums">{fmtEUR(groupe?.achatTotal ?? 0)}</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase text-muted-foreground">Marge groupe %</div>
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  Coef. marge groupe %
+                </div>
                 <Input
                   type="number"
                   step="0.01"
                   className="h-8"
-                  placeholder="Marge groupe %"
+                  placeholder="Coef. marge groupe %"
                   value={sec.margePct ?? value.params.coef_marge_pct ?? ""}
                   onChange={(e) => {
                     const next = [...value.sections];
@@ -154,10 +158,10 @@ export function StandsForm({
                 </Button>
               </div>
             </div>
-            <div className="border rounded-md overflow-x-auto">
-              <div className="grid min-w-[760px] grid-cols-[160px_1fr_140px_140px_36px] gap-2 px-2 py-1.5 border-b bg-muted/40 text-xs uppercase text-muted-foreground">
-                <div>Fournisseur</div>
+            <div className="border-2 rounded-md overflow-x-auto calc-table">
+              <div className="grid min-w-[780px] grid-cols-[1fr_160px_140px_140px_36px] gap-2 px-2 py-1.5 border-b-2 bg-muted/40 text-xs uppercase font-bold text-primary">
                 <div>Libellé</div>
+                <div>Fournisseur</div>
                 <div className="text-right">Prix achat</div>
                 <div className="text-right">Prix vente HT</div>
                 <div />
@@ -171,8 +175,20 @@ export function StandsForm({
                 {sec.lignes.map((l, li) => (
                   <div
                     key={li}
-                    className="grid min-w-[760px] grid-cols-[160px_1fr_140px_140px_36px] gap-2 px-2 py-1.5 items-center"
+                    className="calc-row grid min-w-[780px] grid-cols-[1fr_160px_140px_140px_36px] gap-2 px-2 py-1.5 items-center border-b-2 last:border-b-0"
                   >
+                    <Input
+                      value={l.libelle}
+                      placeholder="Libellé"
+                      className="font-bold border-2"
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = { ...l, libelle: e.target.value };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
                     <Input
                       value={l.fournisseur ?? ""}
                       placeholder="Fournisseur"
@@ -181,17 +197,6 @@ export function StandsForm({
                         const next = [...value.sections];
                         const lignes = [...sec.lignes];
                         lignes[li] = { ...l, fournisseur: e.target.value };
-                        next[si] = { ...sec, lignes };
-                        onChange({ ...value, sections: next });
-                      }}
-                    />
-                    <Input
-                      value={l.libelle}
-                      placeholder="Libellé"
-                      onChange={(e) => {
-                        const next = [...value.sections];
-                        const lignes = [...sec.lignes];
-                        lignes[li] = { ...l, libelle: e.target.value };
                         next[si] = { ...sec, lignes };
                         onChange({ ...value, sections: next });
                       }}
@@ -284,7 +289,7 @@ export function StandsForm({
               <tr>
                 <th className="text-left px-3 py-2">Groupe</th>
                 <th className="text-right px-3 py-2">Achat</th>
-                <th className="text-right px-3 py-2">Marge</th>
+                <th className="text-right px-3 py-2">Coef. marge</th>
                 <th className="text-right px-3 py-2">Prix vente</th>
               </tr>
             </thead>
@@ -299,8 +304,8 @@ export function StandsForm({
                   </td>
                 </tr>
               ))}
-              <tr className="bg-primary/10 font-semibold border-t-2 border-primary/40">
-                <td className="px-3 py-2.5">Total stand</td>
+              <tr className="bg-primary/5 font-semibold border-t-2 border-primary/40">
+                <td className="px-3 py-2.5">Sous-total groupes</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   {fmtEUR(out.extra.totalAchatGroupes)}
                 </td>
@@ -309,6 +314,26 @@ export function StandsForm({
                   {fmtEUR(out.extra.totalPvGroupes)}
                 </td>
               </tr>
+              {primaryScenario && (
+                <>
+                  <tr className="bg-muted/40 font-semibold">
+                    <td className="px-3 py-2.5">Frais fixes ({value.params.frais_fixes_pct} %)</td>
+                    <td />
+                    <td />
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {fmtEUR(primaryScenario.fraisFixes)}
+                    </td>
+                  </tr>
+                  <tr className="bg-primary/10 font-bold border-t-2 border-primary/40">
+                    <td className="px-3 py-2.5">Total HT</td>
+                    <td />
+                    <td />
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {fmtEUR(primaryScenario.totalCA)}
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>

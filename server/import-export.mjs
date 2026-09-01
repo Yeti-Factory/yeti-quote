@@ -16,10 +16,16 @@ async function json(name) {
 
 async function upsert(client, table, row, jsonColumns = []) {
   const columns = Object.keys(row);
-  const values = columns.map((column) => jsonColumns.includes(column) ? JSON.stringify(row[column]) : row[column]);
-  const placeholders = columns.map((column, index) => `$${index + 1}${jsonColumns.includes(column) ? "::jsonb" : ""}`);
+  const values = columns.map((column) =>
+    jsonColumns.includes(column) ? JSON.stringify(row[column]) : row[column],
+  );
+  const placeholders = columns.map(
+    (column, index) => `$${index + 1}${jsonColumns.includes(column) ? "::jsonb" : ""}`,
+  );
   const conflict = table === "app_defaults" ? "key" : "id";
-  const updates = columns.filter((column) => column !== conflict).map((column) => `"${column}" = EXCLUDED."${column}"`);
+  const updates = columns
+    .filter((column) => column !== conflict)
+    .map((column) => `"${column}" = EXCLUDED."${column}"`);
   await client.query(
     `INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(",")})
      VALUES (${placeholders.join(",")})
@@ -29,10 +35,17 @@ async function upsert(client, table, row, jsonColumns = []) {
 }
 
 async function main() {
-  const [manifestText, defaults, clients, dossiers, profiles, roles, authUsers] = await Promise.all([
-    readFile(path.join(exportDir, "manifest.json"), "utf8"),
-    json("app_defaults"), json("clients"), json("dossiers"), json("profiles"), json("user_roles"), json("auth_users"),
-  ]);
+  const [manifestText, defaults, clients, dossiers, profiles, roles, authUsers] = await Promise.all(
+    [
+      readFile(path.join(exportDir, "manifest.json"), "utf8"),
+      json("app_defaults"),
+      json("clients"),
+      json("dossiers"),
+      json("profiles"),
+      json("user_roles"),
+      json("auth_users"),
+    ],
+  );
   const roleMap = new Map();
   for (const row of roles.rows) {
     const list = roleMap.get(row.user_id) ?? [];
@@ -46,7 +59,8 @@ async function main() {
     await client.query("BEGIN");
     for (const row of defaults.rows) await upsert(client, "app_defaults", row, ["value"]);
     for (const row of clients.rows) await upsert(client, "clients", row);
-    for (const row of dossiers.rows) await upsert(client, "dossiers", row, ["payload", "results", "params"]);
+    for (const row of dossiers.rows)
+      await upsert(client, "dossiers", row, ["payload", "results", "params"]);
 
     for (const legacy of authUsers.rows) {
       const email = String(legacy.email).trim().toLowerCase();

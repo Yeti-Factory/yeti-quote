@@ -127,8 +127,8 @@ function LineTable({
       <table>
         <thead>
           <tr>
-            <th style={{ width: "12%" }}>Fournisseur</th>
             <th>Libellé</th>
+            <th style={{ width: "12%" }}>Fournisseur</th>
             {isGrid ? (
               qs.map((q, i) => (
                 <th key={`a${i}`} className="num">
@@ -165,8 +165,8 @@ function LineTable({
             const globalAmount = Number(l.montantGlobal) || 0;
             return (
               <tr key={i}>
+                <td className="strong">{l.libelle}</td>
                 <td>{l.fournisseur ?? ""}</td>
-                <td>{l.libelle}</td>
                 {isGrid ? (
                   qs.map((_q, qi) => (
                     <td key={`a${qi}`} className="num">
@@ -727,8 +727,8 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: "18%" }}>Fournisseur</th>
                   <th>Libellé</th>
+                  <th style={{ width: "18%" }}>Fournisseur</th>
                   <th className="num" style={{ width: "14%" }}>
                     Prix achat
                   </th>
@@ -747,8 +747,8 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                 )}
                 {sec.lignes.map((l, li) => (
                   <tr key={li}>
+                    <td className="strong">{l.libelle}</td>
                     <td>{l.fournisseur ?? ""}</td>
-                    <td>{l.libelle}</td>
                     <td className="num">{fmtEUR(Number(l.prixUnitaire) || 0)}</td>
                     <td className="num">{fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}</td>
                   </tr>
@@ -774,8 +774,8 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
           <thead>
             <tr>
               <th style={{ width: "16%" }}>Groupe</th>
-              <th style={{ width: "16%" }}>Fournisseur</th>
               <th>Libellé</th>
+              <th style={{ width: "16%" }}>Fournisseur</th>
               <th className="num" style={{ width: "14%" }}>
                 Prix achat
               </th>
@@ -791,8 +791,8 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                 return (
                   <tr key={`${si}-${li}`}>
                     <td>{sec.libelle}</td>
+                    <td className="strong">{line.libelle}</td>
                     <td>{line.fournisseur ?? ""}</td>
-                    <td>{line.libelle}</td>
                     <td className="num">{fmtEUR(Number(line.prixUnitaire) || 0)}</td>
                     <td className="num strong" style={{ color: "#E65100" }}>
                       {fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}

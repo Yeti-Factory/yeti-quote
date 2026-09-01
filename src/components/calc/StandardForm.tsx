@@ -10,7 +10,7 @@ import {
 } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { Layers, ShoppingCart, Truck, Wrench, Settings2 } from "lucide-react";
-import type { StandardInput, StandardParams } from "@/lib/calculs/standard";
+import { calculerStandard, type StandardInput, type StandardParams } from "@/lib/calculs/standard";
 import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
 import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
 import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
@@ -53,6 +53,7 @@ export function StandardForm({
           quantites={value.quantites}
           onChange={handleQuantitesChange}
           defaultMargePct={value.params.coef_marge_pct}
+          scenarios={calculerStandard(value).scenarios}
         />
       </Card>
 

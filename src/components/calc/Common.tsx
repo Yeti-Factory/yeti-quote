@@ -11,6 +11,7 @@ import type {
   LineForfait,
   TransportPackaging,
   Outillage,
+  QuantityResult,
 } from "@/lib/calculs/types";
 import { reshapePrixParQuantite } from "@/lib/calculs/types";
 
@@ -93,12 +94,23 @@ export function QuantitesRow({
   onChange,
   defaultMargePct,
   margeGuard,
+  scenarios,
 }: {
   quantites: Quantite[];
   onChange: (v: Quantite[]) => void;
   defaultMargePct?: number;
   margeGuard?: MargeGuard;
+  scenarios?: QuantityResult[];
 }) {
+  function fmtEuro(n: number) {
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 2,
+    });
+  }
+
   function add() {
     onChange([
       ...quantites,
@@ -169,6 +181,17 @@ export function QuantitesRow({
                   }
                 />
               )}
+              {scenarios?.[i] && Number(scenarios[i].quantite) > 0 && (
+                <div className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1.5">
+                  <div className="text-[10px] uppercase text-muted-foreground">Total HT</div>
+                  <div className="text-sm font-bold tabular-nums text-primary">
+                    {fmtEuro(scenarios[i].totalCA)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {fmtEuro(scenarios[i].totalPrixUnitaire)} / u
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -233,9 +256,9 @@ export function LinesTable({
         </Button>
       </div>
       <div className="border-2 rounded-md overflow-hidden calc-table">
-        <div className="grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
-          <div>Fournisseur</div>
+        <div className="grid grid-cols-[minmax(240px,1fr)_160px_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
           <div>Libellé</div>
+          <div>Fournisseur</div>
           <div className="text-right">
             {field === "prixUnitaire" ? "Prix unitaire" : "Montant global"}
           </div>
@@ -251,18 +274,19 @@ export function LinesTable({
           {lines.map((l: any, i) => (
             <div
               key={i}
-              className="calc-row grid grid-cols-[160px_1fr_140px_120px_36px] gap-2 px-3 py-2 items-center border-b last:border-b-0"
+              className="calc-row grid grid-cols-[minmax(240px,1fr)_160px_140px_120px_36px] gap-2 px-3 py-2 items-center border-b-2 last:border-b-0"
             >
+              <Input
+                value={l.libelle}
+                placeholder="Libellé"
+                className="font-bold border-2"
+                onChange={(e) => update(i, "libelle", e.target.value)}
+              />
               <Input
                 value={l.fournisseur ?? ""}
                 placeholder="Fournisseur"
                 maxLength={20}
                 onChange={(e) => update(i, "fournisseur", e.target.value)}
-              />
-              <Input
-                value={l.libelle}
-                placeholder="Libellé"
-                onChange={(e) => update(i, "libelle", e.target.value)}
               />
               <Input
                 type="number"
@@ -375,7 +399,7 @@ export function LinesGridTable({
   }
 
   // Column widths
-  const tmpl = `160px minmax(240px,1fr) ${Array.from({ length: qCount }, () => "110px").join(" ")} 110px 36px`;
+  const tmpl = `minmax(260px,1fr) 160px ${Array.from({ length: qCount }, () => "110px").join(" ")} 110px 36px`;
 
   return (
     <div>
@@ -392,13 +416,13 @@ export function LinesGridTable({
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
           <div className="overflow-x-auto">
-            <div style={{ minWidth: `calc(${310 + qCount * 110 + 110 + 36}px)` }}>
+            <div style={{ minWidth: `calc(${420 + qCount * 110 + 110 + 36}px)` }}>
               <div
                 className="grid gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider"
                 style={{ gridTemplateColumns: tmpl }}
               >
-                <div>Fournisseur</div>
                 <div>Libellé</div>
+                <div>Fournisseur</div>
                 {quantites.map((q, i) => (
                   <div key={i} className="text-right">
                     Achat qté {(Number(q.qty) || 0).toLocaleString("fr-FR")}
@@ -417,19 +441,20 @@ export function LinesGridTable({
                 return (
                   <div
                     key={i}
-                    className="calc-row grid gap-2 px-3 py-2 items-center border-b last:border-b-0"
+                    className="calc-row grid gap-2 px-3 py-2 items-center border-b-2 last:border-b-0"
                     style={{ gridTemplateColumns: tmpl }}
                   >
+                    <Input
+                      value={l.libelle}
+                      placeholder="Libellé"
+                      className="font-bold border-2"
+                      onChange={(e) => update(i, { libelle: e.target.value })}
+                    />
                     <Input
                       value={l.fournisseur ?? ""}
                       placeholder="Fournisseur"
                       maxLength={20}
                       onChange={(e) => update(i, { fournisseur: e.target.value })}
-                    />
-                    <Input
-                      value={l.libelle}
-                      placeholder="Libellé"
-                      onChange={(e) => update(i, { libelle: e.target.value })}
                     />
                     {arr.map((v, col) => (
                       <Input

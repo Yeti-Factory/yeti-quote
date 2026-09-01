@@ -38,7 +38,9 @@ function Dashboard() {
     queryFn: async () => {
       const { data } = await backend
         .from("dossiers")
-        .select("id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)")
+        .select(
+          "id, reference, objet, type, statut, updated_at, version, client_id, clients(entreprise)",
+        )
         .neq("type", "kits")
         .order("updated_at", { ascending: false });
       return data ?? [];
@@ -135,7 +137,6 @@ function Dashboard() {
     </div>
   );
 }
-
 
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
   return (
