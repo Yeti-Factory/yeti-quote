@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://yeti_quote:${SERVICE_PASSWORD_64_POSTGRES}@database:5432/yeti_quote
+      - BETTER_AUTH_SECRET=${SERVICE_BASE64_64_BETTERAUTH}
+      - BETTER_AUTH_URL=${APP_BASE_URL}
+      - TRUSTED_ORIGINS=${APP_BASE_URL}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=yeti_quote
+      - POSTGRES_USER=yeti_quote
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_64_POSTGRES}
+    volumes:
+      - yeti_quote_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yeti_quote -d yeti_quote"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  yeti_quote_postgres:
