@@ -98,7 +98,7 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
     const budgetNet = prixVenteNetUnit * Q;
     const commRapUnit = prixVenteNetUnit * (params.commission_rapporteur_pct / 100);
     const commRapTotal = commRapUnit * Q;
-    const totalPrixUnitaire = prixVenteNetUnit + commRapUnit;
+    const totalPrixUnitaire = prixVenteNetUnit + commRapUnit + (Q > 0 ? fraisFixes / Q : 0);
     const totalCA = totalPrixUnitaire * Q;
     const totalDepenses = achatsTotal + commRapTotal + fraisFixes;
     const margeNet = totalCA - totalDepenses;
