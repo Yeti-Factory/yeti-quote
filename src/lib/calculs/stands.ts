@@ -49,6 +49,18 @@ export const STANDS_SECTIONS_DEFAUT = [
   "Options",
 ];
 
+export function isGenericStandSectionLabel(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text.length === 0 || /^groupe\s+\d+$/i.test(text);
+}
+
+export function resolveStandsSectionLabel(section: Pick<StandsSection, "libelle">, index: number) {
+  const label = String(section?.libelle ?? "").trim();
+  if (isGenericStandSectionLabel(label))
+    return STANDS_SECTIONS_DEFAUT[index] || `Groupe ${index + 1}`;
+  return label;
+}
+
 export type StandsGroupResult = {
   libelle: string;
   achatTotal: number;
@@ -71,7 +83,7 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   const quantites = normalizeQuantites(input.quantites);
 
   // Per-group results (independent of quantity — stands are typically 1 unit)
-  const groupes: StandsGroupResult[] = sections.map((sec) => {
+  const groupes: StandsGroupResult[] = sections.map((sec, index) => {
     const achatTotal = sec.lignes.reduce((a, l) => a + (Number(l.prixUnitaire) || 0), 0);
     const margePct = resolveMargePct(sec.margePct, null, params.coef_marge_pct);
     // creation extra applies globally
@@ -81,7 +93,13 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
       const achat = Number(l.prixUnitaire) || 0;
       return { achat, pvTotal: achat * facteur };
     });
-    return { libelle: sec.libelle, achatTotal, margePct, pvTotal, lignes };
+    return {
+      libelle: resolveStandsSectionLabel(sec, index),
+      achatTotal,
+      margePct,
+      pvTotal,
+      lignes,
+    };
   });
 
   const totalAchatGroupes = groupes.reduce((s, g) => s + g.achatTotal, 0);

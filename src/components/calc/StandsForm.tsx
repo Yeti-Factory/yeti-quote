@@ -17,7 +17,12 @@ import { QuantitesRow } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { fmtEUR, fmtPct } from "@/lib/format";
 import type { StandsInput, StandsParams } from "@/lib/calculs/stands";
-import { calculerStands } from "@/lib/calculs/stands";
+import {
+  calculerStands,
+  isGenericStandSectionLabel,
+  resolveStandsSectionLabel,
+  STANDS_SECTIONS_DEFAUT,
+} from "@/lib/calculs/stands";
 
 export function StandsForm({
   value,
@@ -55,17 +60,20 @@ export function StandsForm({
 
       {value.sections.map((sec, si) => {
         const groupe = out.extra.groupes[si];
+        const groupTitle = resolveStandsSectionLabel(sec, si);
         return (
           <Card key={si} className="p-4 calc-section">
             <SectionHeader
-              title={`Groupe ${si + 1}`}
+              title={groupTitle}
+              subtitle={`Groupe ${si + 1}`}
               tone="dark"
               icon={<LayoutGrid className="w-3.5 h-3.5" />}
             />
             <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_140px_auto] gap-3 items-center mb-3">
               <Input
-                value={sec.libelle}
-                className="font-medium"
+                value={isGenericStandSectionLabel(sec.libelle) ? groupTitle : sec.libelle}
+                placeholder={STANDS_SECTIONS_DEFAUT[si] || `Groupe ${si + 1}`}
+                className="font-bold border-2"
                 onChange={(e) => {
                   const next = [...value.sections];
                   next[si] = { ...sec, libelle: e.target.value };
