@@ -247,8 +247,9 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     const commRapTotal = commRapUnit * Q;
     const totalPrixUnitaire = prixVenteNetUnit + commRapUnit + (Q > 0 ? fraisFixes / Q : 0);
     const totalCA = totalPrixUnitaire * Q;
-    const totalDepenses = achatsTotal + commRapTotal + fraisFixes;
-    const margeNet = totalCA - totalDepenses;
+    // Les frais fixes sont un bonus ajouté au prix final : ils ne dégradent pas la marge affichée.
+    const totalDepenses = achatsTotal + commRapTotal;
+    const margeNet = budgetNet - achatsTotal;
     const margePct = budgetNet > 0 ? margeNet / budgetNet : 0;
 
     // Marge encaissée par Contra sur cette quantité (indicatif)

@@ -35,6 +35,7 @@ type OfferRow = {
   unitPrice: number;
   details?: string[];
   isOption?: boolean;
+  fixedFeesBasisUnit?: number;
 };
 
 type ScenarioItem = {
@@ -134,6 +135,7 @@ function addRow(
   unitPrice: number,
   details: string[] = [],
   isOption = false,
+  fixedFeesBasisUnit = 0,
 ) {
   if (!Number.isFinite(unitPrice) || Math.abs(unitPrice) < 0.005) return;
   rows.push({
@@ -142,6 +144,7 @@ function addRow(
     unitPrice,
     details: cleanDetails(details),
     isOption,
+    fixedFeesBasisUnit,
   });
 }
 
@@ -157,8 +160,10 @@ function buildStandardRows(
   const defaultMarge = Number(payload?.params?.coef_marge_pct) || 0;
 
   let achatsPrincipauxUnit = 0;
+  let achatsPrincipauxBasisUnit = 0;
   const achatsPrincipauxDetails: string[] = [];
   let optionsUnit = 0;
+  let optionsBasisUnit = 0;
   const optionsDetails: string[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
@@ -167,29 +172,54 @@ function buildStandardRows(
     const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsUnit += lineUnit;
+      optionsBasisUnit += achat;
       optionsDetails.push(lineDetail);
     } else {
       achatsPrincipauxUnit += lineUnit;
+      achatsPrincipauxBasisUnit += achat;
       achatsPrincipauxDetails.push(lineDetail);
     }
   }
-  addRow(rows, primaryDesignation, quantite, achatsPrincipauxUnit, achatsPrincipauxDetails);
-  addRow(rows, "Options", quantite, optionsUnit, optionsDetails, true);
+  addRow(
+    rows,
+    primaryDesignation,
+    quantite,
+    achatsPrincipauxUnit,
+    achatsPrincipauxDetails,
+    false,
+    achatsPrincipauxBasisUnit,
+  );
+  addRow(rows, "Options", quantite, optionsUnit, optionsDetails, true, optionsBasisUnit);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
-  addRow(rows, "Transport / Packaging", quantite, tpUnit * (1 + tpMarge / 100));
+  addRow(rows, "Transport / Packaging", quantite, tpUnit * (1 + tpMarge / 100), [], false, tpUnit);
 
   const outillageUnit = Number(scenario.outillageUnit) || 0;
   const outillageMarge = Number(scenario.outillageMargePct) || 0;
-  addRow(rows, "Outillage", quantite, outillageUnit * (1 + outillageMarge / 100));
+  addRow(
+    rows,
+    "Outillage",
+    quantite,
+    outillageUnit * (1 + outillageMarge / 100),
+    [],
+    false,
+    outillageUnit,
+  );
 
   const sourcingUnit = Number(scenario.commissionSourcingUnit) || 0;
   const sourcingMarge = resolveMargePct(null, quantiteMarge, defaultMarge);
-  addRow(rows, "Commission sourcing", quantite, sourcingUnit * (1 + sourcingMarge / 100));
+  addRow(
+    rows,
+    "Commission sourcing",
+    quantite,
+    sourcingUnit * (1 + sourcingMarge / 100),
+    [],
+    false,
+    sourcingUnit,
+  );
 
   addRow(rows, "Commission rapporteur", quantite, Number(scenario.commissionRapporteurUnit) || 0);
-  addRow(rows, "Frais fixes", quantite, quantite > 0 ? Number(scenario.fraisFixes) / quantite : 0);
 
   return rows;
 }
@@ -208,12 +238,15 @@ function buildContraRows(
   const quantiteMarge = quantiteRow?.margePct ?? null;
   const quantiteConfirmed = quantiteRow?.margeConfirmed;
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
+  const contraFactor = 1 + coefContra / 100;
   const margeFor = (m: number | null | undefined, c: boolean | undefined) =>
     resolveContraMargePct(m, c, quantiteMarge, quantiteConfirmed);
 
   let achatsContraUnit = 0;
+  let achatsContraBasisUnit = 0;
   const achatsContraDetails: string[] = [];
   let optionsContraUnit = 0;
+  let optionsContraBasisUnit = 0;
   const optionsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
@@ -222,18 +255,38 @@ function buildContraRows(
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsContraUnit += lineUnit;
+      optionsContraBasisUnit += raw * contraFactor;
       optionsContraDetails.push(lineDetail);
     } else {
       achatsContraUnit += lineUnit;
+      achatsContraBasisUnit += raw * contraFactor;
       achatsContraDetails.push(lineDetail);
     }
   }
-  addRow(rows, primaryDesignation, quantite, achatsContraUnit, achatsContraDetails);
-  addRow(rows, "Options Contra", quantite, optionsContraUnit, optionsContraDetails, true);
+  addRow(
+    rows,
+    primaryDesignation,
+    quantite,
+    achatsContraUnit,
+    achatsContraDetails,
+    false,
+    achatsContraBasisUnit,
+  );
+  addRow(
+    rows,
+    "Options Contra",
+    quantite,
+    optionsContraUnit,
+    optionsContraDetails,
+    true,
+    optionsContraBasisUnit,
+  );
 
   let forfaitsContraUnit = 0;
+  let forfaitsContraBasisUnit = 0;
   const forfaitsContraDetails: string[] = [];
   let optionsForfaitsUnit = 0;
+  let optionsForfaitsBasisUnit = 0;
   const optionsForfaitsDetails: string[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
@@ -242,13 +295,23 @@ function buildContraRows(
     const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsForfaitsUnit += lineUnit;
+      optionsForfaitsBasisUnit += share * contraFactor;
       optionsForfaitsDetails.push(lineDetail);
     } else {
       forfaitsContraUnit += lineUnit;
+      forfaitsContraBasisUnit += share * contraFactor;
       forfaitsContraDetails.push(lineDetail);
     }
   }
-  addRow(rows, "Forfaits Contra", quantite, forfaitsContraUnit, forfaitsContraDetails);
+  addRow(
+    rows,
+    "Forfaits Contra",
+    quantite,
+    forfaitsContraUnit,
+    forfaitsContraDetails,
+    false,
+    forfaitsContraBasisUnit,
+  );
   addRow(
     rows,
     "Options forfaitaires Contra",
@@ -256,6 +319,7 @@ function buildContraRows(
     optionsForfaitsUnit,
     optionsForfaitsDetails,
     true,
+    optionsForfaitsBasisUnit,
   );
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
@@ -268,6 +332,9 @@ function buildContraRows(
     "Transport / Packaging",
     quantite,
     pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
+    [],
+    false,
+    tpUnit * contraFactor,
   );
 
   const outillageUnit = Number(scenario.outillageUnit) || 0;
@@ -277,11 +344,21 @@ function buildContraRows(
     "Outillage",
     quantite,
     pvFromContraSharedRaw(outillageUnit, coefContra, outillageMarge),
+    [],
+    false,
+    outillageUnit * contraFactor,
   );
 
-  addRow(rows, "Commission sourcing", quantite, Number(scenario.commissionSourcingUnit) || 0);
+  addRow(
+    rows,
+    "Commission sourcing",
+    quantite,
+    Number(scenario.commissionSourcingUnit) || 0,
+    [],
+    false,
+    Number(scenario.commissionSourcingUnit) || 0,
+  );
   addRow(rows, "Commission rapporteur", quantite, Number(scenario.commissionRapporteurUnit) || 0);
-  addRow(rows, "Frais fixes", quantite, quantite > 0 ? Number(scenario.fraisFixes) / quantite : 0);
 
   return rows;
 }
@@ -304,7 +381,15 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
         )
       : [];
 
-    addRow(rows, groupLabel, quantite, Number(group?.pvTotal) || 0, details, groupIsOption);
+    addRow(
+      rows,
+      groupLabel,
+      quantite,
+      Number(group?.pvTotal) || 0,
+      details,
+      groupIsOption,
+      Number(group?.achatTotal) || 0,
+    );
   }
 
   addRow(
@@ -333,17 +418,52 @@ function buildOfferRows(
   return [];
 }
 
+function distributeFixedFees(rows: OfferRow[], scenario: any) {
+  const fixedFees = Number(scenario.fraisFixes) || 0;
+  if (Math.abs(fixedFees) < 0.005) return rows;
+
+  const bases = rows.map((row) => {
+    const quantity = Number(row.quantity) || 0;
+    const basisUnit = Number(row.fixedFeesBasisUnit) || 0;
+    return quantity > 0 && basisUnit > 0 ? basisUnit * quantity : 0;
+  });
+  const totalBasis = bases.reduce((sum, value) => sum + value, 0);
+  if (totalBasis <= 0) return rows;
+
+  return rows.map((row, index) => {
+    const quantity = Number(row.quantity) || 0;
+    if (quantity <= 0 || bases[index] <= 0) return row;
+    const fixedFeesShare = fixedFees * (bases[index] / totalBasis);
+    return {
+      ...row,
+      unitPrice: row.unitPrice + fixedFeesShare / quantity,
+    };
+  });
+}
+
 function reconcileRows(rows: OfferRow[], scenario: any) {
   const expectedTotal = Number(scenario.totalCA) || 0;
   const currentTotal = rows.reduce((sum, row) => sum + row.unitPrice * row.quantity, 0);
   const delta = expectedTotal - currentTotal;
-  const quantity = Number(scenario.quantite) || 1;
 
-  if (Math.abs(delta) > 0.01) {
-    addRow(rows, "Ajustement calcul", quantity, delta / quantity);
-  }
+  if (Math.abs(delta) <= 0.01) return rows;
 
-  return rows;
+  const bases = rows.map((row) => {
+    const total = Math.abs(row.unitPrice * row.quantity);
+    return Number.isFinite(total) ? total : 0;
+  });
+  const totalBasis = bases.reduce((sum, value) => sum + value, 0);
+  if (totalBasis <= 0) return rows;
+
+  return rows.map((row, index) => {
+    const quantity = Number(row.quantity) || 0;
+    if (quantity <= 0 || bases[index] <= 0) return row;
+    const deltaShare = delta * (bases[index] / totalBasis);
+    return {
+      ...row,
+      unitPrice: row.unitPrice + deltaShare / quantity,
+    };
+  });
 }
 
 function rowTotal(row: OfferRow) {
@@ -392,7 +512,10 @@ function buildScenarioSummary(
     item.index,
     primaryDesignation,
   );
-  return summarizeRows(reconcileRows(rawRows, item.scenario), item.scenario);
+  return summarizeRows(
+    reconcileRows(distributeFixedFees(rawRows, item.scenario), item.scenario),
+    item.scenario,
+  );
 }
 
 function buildPlainRows(rows: OfferRow[]) {
