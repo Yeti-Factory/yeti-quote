@@ -324,14 +324,16 @@ export function StandsForm({
               </tr>
               {primaryScenario && (
                 <>
-                  <tr className="bg-muted/40 font-semibold">
-                    <td className="px-3 py-2.5">Frais fixes ({value.params.frais_fixes_pct} %)</td>
-                    <td />
-                    <td />
-                    <td className="px-3 py-2.5 text-right tabular-nums">
-                      {fmtEUR(primaryScenario.fraisFixes)}
-                    </td>
-                  </tr>
+                  {Math.abs(primaryScenario.commissionRapporteurTotal) > 0.005 && (
+                    <tr className="bg-muted/40 font-semibold">
+                      <td className="px-3 py-2.5">Coordination / suivi projet</td>
+                      <td />
+                      <td />
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {fmtEUR(primaryScenario.commissionRapporteurTotal)}
+                      </td>
+                    </tr>
+                  )}
                   <tr className="bg-primary/10 font-bold border-t-2 border-primary/40">
                     <td className="px-3 py-2.5">Total HT</td>
                     <td />

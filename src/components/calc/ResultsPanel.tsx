@@ -32,7 +32,7 @@ const ROWS: {
     group: "sale",
   },
   { label: "Achats total", key: "achatsTotal", fmt: fmtEUR, group: "cost" },
-  { label: "Frais fixes", key: "fraisFixes", fmt: fmtEUR, group: "cost" },
+  { label: "Frais fixes ventilés", key: "fraisFixes", fmt: fmtEUR, group: "cost" },
   { label: "Comm. sourcing /u", key: "commissionSourcingUnit", fmt: fmtEUR, group: "cost" },
   { label: "Comm. rapporteur /u", key: "commissionRapporteurUnit", fmt: fmtEUR, group: "cost" },
   {

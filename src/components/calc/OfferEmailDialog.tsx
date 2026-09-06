@@ -385,7 +385,7 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
       rows,
       groupLabel,
       quantite,
-      Number(group?.pvTotal) || 0,
+      Number(group?.pvTotalHorsFrais ?? group?.pvTotal) || 0,
       details,
       groupIsOption,
       Number(group?.achatTotal) || 0,

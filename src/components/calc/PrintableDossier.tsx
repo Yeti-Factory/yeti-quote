@@ -63,6 +63,13 @@ function Header({ meta }: { meta: Meta }) {
   );
 }
 
+function fixedFeeUnitShare(scenario: any, baseUnit: number, totalBasisUnit: number) {
+  const fixedFees = Number(scenario?.fraisFixes) || 0;
+  const quantity = Number(scenario?.quantite) || 0;
+  if (quantity <= 0 || baseUnit <= 0 || totalBasisUnit <= 0) return 0;
+  return (fixedFees * (baseUnit / totalBasisUnit)) / quantity;
+}
+
 function QuantitesTable({
   quantites,
   defaultMargePct,
@@ -109,6 +116,7 @@ function LineTable({
   quantites,
   defaultMargePct,
   contraCoefPct,
+  fixedFeeUnitShare,
 }: {
   title: string;
   lines: any[];
@@ -117,6 +125,7 @@ function LineTable({
   defaultMargePct: number;
   /** If provided (Contra), PV follows the historical Excel shared-margin coefficient. */
   contraCoefPct?: number;
+  fixedFeeUnitShare?: (line: any, quantityIndex: number, baseUnit: number) => number;
 }) {
   const qs = normalizeQuantites(quantites);
   const isGrid = field === "prixUnitaire";
@@ -194,7 +203,7 @@ function LineTable({
                     : base * (1 + m / 100);
                   return (
                     <td key={`pv${qi}`} className="num">
-                      {fmtEUR(pv)}
+                      {fmtEUR(pv + (fixedFeeUnitShare?.(l, qi, base) ?? 0))}
                     </td>
                   );
                 })}
@@ -213,6 +222,7 @@ function TransportPackagingTable({
   contraCoefPct,
   defaultMargePct,
   useDefaultMarginWhenEmpty = false,
+  fixedFeeUnitShare,
 }: {
   quantites: Quantite[];
   transportPackaging?: TransportPackaging;
@@ -220,6 +230,7 @@ function TransportPackagingTable({
   contraCoefPct?: number;
   defaultMargePct?: number;
   useDefaultMarginWhenEmpty?: boolean;
+  fixedFeeUnitShare?: (quantityIndex: number, baseUnit: number) => number;
 }) {
   const qs = normalizeQuantites(quantites);
   if (qs.length === 0) return null;
@@ -268,7 +279,9 @@ function TransportPackagingTable({
                 <td>Qté {q.qty.toLocaleString("fr-FR")}</td>
                 <td className="num">{fmtEUR(g)}</td>
                 <td className="num">{q.qty > 0 ? fmtEUR(unit) : "—"}</td>
-                <td className="num">{q.qty > 0 ? fmtEUR(pv) : "—"}</td>
+                <td className="num">
+                  {q.qty > 0 ? fmtEUR(pv + (fixedFeeUnitShare?.(i, unit) ?? 0)) : "—"}
+                </td>
               </tr>
             );
           })}
@@ -284,6 +297,7 @@ function OutillageTable({
   contraCoefPct,
   defaultMargePct,
   useDefaultMarginWhenEmpty = false,
+  fixedFeeUnitShare,
 }: {
   quantites: Quantite[];
   outillage?: Outillage;
@@ -291,6 +305,7 @@ function OutillageTable({
   contraCoefPct?: number;
   defaultMargePct?: number;
   useDefaultMarginWhenEmpty?: boolean;
+  fixedFeeUnitShare?: (quantityIndex: number, baseUnit: number) => number;
 }) {
   const qs = normalizeQuantites(quantites);
   const out = normalizeOutillage(outillage);
@@ -354,7 +369,7 @@ function OutillageTable({
                 : unit * (1 + effectiveMargin / 100);
               return (
                 <td key={i} className="num">
-                  {q.qty > 0 ? fmtEUR(pv) : "—"}
+                  {q.qty > 0 ? fmtEUR(pv + (fixedFeeUnitShare?.(i, unit) ?? 0)) : "—"}
                 </td>
               );
             })}
@@ -501,7 +516,7 @@ function ResultsTable({ output }: { output: any }) {
       highlight: true,
     },
     { label: "Achats total", key: "achatsTotal", fmt: fmtEUR },
-    { label: "Frais fixes", key: "fraisFixes", fmt: fmtEUR },
+    { label: "Frais fixes ventilés", key: "fraisFixes", fmt: fmtEUR },
     { label: "Comm. sourcing /u", key: "commissionSourcingUnit", fmt: fmtEUR },
     { label: "Comm. rapporteur /u", key: "commissionRapporteurUnit", fmt: fmtEUR },
     { label: "Comm. rapporteur total", key: "commissionRapporteurTotal", fmt: fmtEUR },
@@ -618,6 +633,19 @@ function ResultsTable({ output }: { output: any }) {
 function StandardPrint({ payload }: { payload: StandardInput }) {
   const p = payload.params;
   const output = calculerStandard(payload);
+  const qs = normalizeQuantites(payload.quantites);
+  const tp = normalizeTransportPackaging(payload.transportPackaging, qs.length);
+  const outillage = normalizeOutillage(payload.outillage);
+  const fixedFeeBasisUnit = (qi: number) => {
+    const achats = (payload.achatsPrincipaux ?? []).reduce(
+      (sum, line) => sum + getPrixAchat(line, qi),
+      0,
+    );
+    const q = qs[qi]?.qty ?? 0;
+    const tpUnit = q > 0 ? (Number(tp.montantsGlobaux[qi]) || 0) / q : 0;
+    const outillageUnit = q > 0 ? (Number(outillage.montantGlobal) || 0) / q : 0;
+    return achats + tpUnit + outillageUnit;
+  };
   return (
     <>
       <QuantitesTable quantites={payload.quantites} defaultMargePct={p.coef_marge_pct} />
@@ -627,15 +655,24 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
         field="prixUnitaire"
         quantites={payload.quantites}
         defaultMargePct={p.coef_marge_pct}
+        fixedFeeUnitShare={(_line, qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base, fixedFeeBasisUnit(qi))
+        }
       />
       <TransportPackagingTable
         quantites={payload.quantites}
         transportPackaging={payload.transportPackaging}
+        fixedFeeUnitShare={(qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base, fixedFeeBasisUnit(qi))
+        }
       />
       <OutillageTable
         quantites={payload.quantites}
         outillage={payload.outillage}
         defaultMargePct={p.coef_marge_pct}
+        fixedFeeUnitShare={(qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base, fixedFeeBasisUnit(qi))
+        }
       />
       <ParamsBlock
         entries={[
@@ -658,6 +695,27 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
   const payload = sanitizeContraInput(rawPayload);
   const p = payload.params;
   const output = calculerContra(payload);
+  const qs = normalizeQuantites(payload.quantites);
+  const tp = normalizeTransportPackaging(payload.transportPackaging, qs.length);
+  const outillage = normalizeOutillage(payload.outillage);
+  const contraFactor = 1 + (Number(p.coef_contra_pct) || 0) / 100;
+  const fixedFeeBasisUnit = (qi: number) => {
+    const achats = (payload.achatsContra ?? []).reduce(
+      (sum, line) => sum + getPrixAchat(line, qi) * contraFactor,
+      0,
+    );
+    const q = qs[qi]?.qty ?? 0;
+    const forfaits =
+      q > 0
+        ? (payload.forfaitsContra ?? []).reduce(
+            (sum, line) => sum + ((Number(line?.montantGlobal) || 0) / q) * contraFactor,
+            0,
+          )
+        : 0;
+    const tpUnit = q > 0 ? ((Number(tp.montantsGlobaux[qi]) || 0) / q) * contraFactor : 0;
+    const outillageUnit = q > 0 ? ((Number(outillage.montantGlobal) || 0) / q) * contraFactor : 0;
+    return achats + forfaits + tpUnit + outillageUnit;
+  };
 
   return (
     <>
@@ -669,6 +727,9 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
         contraCoefPct={p.coef_contra_pct}
+        fixedFeeUnitShare={(_line, qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base * contraFactor, fixedFeeBasisUnit(qi))
+        }
       />
       <LineTable
         title="Forfaits Contra (montants bruts)"
@@ -677,6 +738,9 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
         quantites={payload.quantites}
         defaultMargePct={p.coef_contra_pct}
         contraCoefPct={p.coef_contra_pct}
+        fixedFeeUnitShare={(_line, qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base * contraFactor, fixedFeeBasisUnit(qi))
+        }
       />
       <TransportPackagingTable
         quantites={payload.quantites}
@@ -684,6 +748,9 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
         contraCoefPct={p.coef_contra_pct}
         defaultMargePct={p.coef_contra_pct}
         useDefaultMarginWhenEmpty
+        fixedFeeUnitShare={(qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base * contraFactor, fixedFeeBasisUnit(qi))
+        }
       />
       <OutillageTable
         quantites={payload.quantites}
@@ -691,6 +758,9 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
         contraCoefPct={p.coef_contra_pct}
         defaultMargePct={p.coef_contra_pct}
         useDefaultMarginWhenEmpty
+        fixedFeeUnitShare={(qi, base) =>
+          fixedFeeUnitShare(output.scenarios[qi], base * contraFactor, fixedFeeBasisUnit(qi))
+        }
       />
       <BonCommandeContraTable output={output} coefPct={p.coef_contra_pct} />
       <ParamsBlock

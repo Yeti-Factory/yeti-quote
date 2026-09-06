@@ -65,9 +65,16 @@ export type StandsGroupResult = {
   libelle: string;
   achatTotal: number;
   margePct: number;
+  /** Prix vente avant ventilation des frais fixes, utilisé pour le calcul de marge. */
+  pvTotalHorsFrais: number;
+  /** Quote-part de frais fixes ventilée sur ce groupe. */
+  fraisFixes: number;
+  /** Prix vente affiché au client, frais fixes inclus. */
   pvTotal: number;
   lignes: Array<{
     achat: number;
+    pvTotalHorsFrais: number;
+    fraisFixes: number;
     pvTotal: number;
   }>;
 };
@@ -75,6 +82,8 @@ export type StandsGroupResult = {
 export type StandsExtra = {
   groupes: StandsGroupResult[];
   totalAchatGroupes: number;
+  totalPvGroupesHorsFrais: number;
+  totalFraisFixesGroupes: number;
   totalPvGroupes: number;
 };
 
@@ -83,26 +92,50 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   const quantites = normalizeQuantites(input.quantites);
 
   // Per-group results (independent of quantity — stands are typically 1 unit)
-  const groupes: StandsGroupResult[] = sections.map((sec, index) => {
+  const baseGroupes = sections.map((sec, index) => {
     const achatTotal = sec.lignes.reduce((a, l) => a + (Number(l.prixUnitaire) || 0), 0);
     const margePct = resolveMargePct(sec.margePct, null, params.coef_marge_pct);
     // creation extra applies globally
     const facteur = (1 + margePct / 100) * (1 + params.marge_crea_pct / 100);
-    const pvTotal = achatTotal * facteur;
+    const pvTotalHorsFrais = achatTotal * facteur;
     const lignes = sec.lignes.map((l) => {
       const achat = Number(l.prixUnitaire) || 0;
-      return { achat, pvTotal: achat * facteur };
+      return {
+        achat,
+        pvTotalHorsFrais: achat * facteur,
+      };
     });
     return {
       libelle: resolveStandsSectionLabel(sec, index),
       achatTotal,
       margePct,
-      pvTotal,
+      pvTotalHorsFrais,
       lignes,
     };
   });
 
-  const totalAchatGroupes = groupes.reduce((s, g) => s + g.achatTotal, 0);
+  const totalAchatGroupes = baseGroupes.reduce((s, g) => s + g.achatTotal, 0);
+  const totalPvGroupesHorsFrais = baseGroupes.reduce((s, g) => s + g.pvTotalHorsFrais, 0);
+  const totalFraisFixesGroupes = totalAchatGroupes * (params.frais_fixes_pct / 100);
+  const groupes: StandsGroupResult[] = baseGroupes.map((group) => {
+    const groupFraisFixes =
+      totalAchatGroupes > 0 ? totalFraisFixesGroupes * (group.achatTotal / totalAchatGroupes) : 0;
+    const lignes = group.lignes.map((line) => {
+      const lineFraisFixes =
+        group.achatTotal > 0 ? groupFraisFixes * (line.achat / group.achatTotal) : 0;
+      return {
+        ...line,
+        fraisFixes: lineFraisFixes,
+        pvTotal: line.pvTotalHorsFrais + lineFraisFixes,
+      };
+    });
+    return {
+      ...group,
+      fraisFixes: groupFraisFixes,
+      pvTotal: group.pvTotalHorsFrais + groupFraisFixes,
+      lignes,
+    };
+  });
   const totalPvGroupes = groupes.reduce((s, g) => s + g.pvTotal, 0);
 
   const scenarios: QuantityResult[] = (
@@ -110,13 +143,13 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   ).map((quant) => {
     const Q = Number(quant.qty) || 0;
     const prixUnitaireAchat = totalAchatGroupes;
-    const prixVenteNetUnit = totalPvGroupes;
+    const prixVenteNetUnit = totalPvGroupesHorsFrais;
     const achatsTotal = prixUnitaireAchat * Q;
     const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
     const budgetNet = prixVenteNetUnit * Q;
     const commRapUnit = prixVenteNetUnit * (params.commission_rapporteur_pct / 100);
     const commRapTotal = commRapUnit * Q;
-    const totalPrixUnitaire = prixVenteNetUnit + commRapUnit + (Q > 0 ? fraisFixes / Q : 0);
+    const totalPrixUnitaire = totalPvGroupes + commRapUnit;
     const totalCA = totalPrixUnitaire * Q;
     // Les frais fixes sont un bonus ajouté au prix final : ils ne dégradent pas la marge affichée.
     const totalDepenses = achatsTotal + commRapTotal;
@@ -145,6 +178,12 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
     scenarios,
     totalMargeNet: scenarios.reduce((s, r) => s + r.margeNet, 0),
     totalCA: scenarios.reduce((s, r) => s + r.totalCA, 0),
-    extra: { groupes, totalAchatGroupes, totalPvGroupes },
+    extra: {
+      groupes,
+      totalAchatGroupes,
+      totalPvGroupesHorsFrais,
+      totalFraisFixesGroupes,
+      totalPvGroupes,
+    },
   };
 }
