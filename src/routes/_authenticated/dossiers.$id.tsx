@@ -581,25 +581,120 @@ function DossierDetail() {
   return (
     <>
       <div className="screen-only">
-        {isDirty && (
-          <div className="sticky top-0 z-40 mb-3 rounded-md border-2 border-primary bg-primary/10 px-4 py-3 shadow-md">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-primary">Modifications non enregistrées</p>
-                <p className="text-sm text-foreground/80">
-                  Cliquez sur Enregistrer avant de quitter cette page.
-                </p>
+        <div className="sticky top-0 z-40 -mx-6 mb-4 border-b bg-muted/95 px-6 pb-1 pt-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+          {isDirty && (
+            <div className="mb-3 rounded-md border-2 border-primary bg-primary/10 px-4 py-3 shadow-md">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-primary">Modifications non enregistrées</p>
+                  <p className="text-sm text-foreground/80">
+                    Cliquez sur Enregistrer avant de quitter cette page.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => save()}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Save className="w-4 h-4 mr-1.5" />
+                  Enregistrer
+                </Button>
               </div>
-              <Button
-                onClick={() => save()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <Save className="w-4 h-4 mr-1.5" />
-                Enregistrer
-              </Button>
             </div>
+          )}
+          <Link
+            to="/dossiers"
+            className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux dossiers
+          </Link>
+          <div className="[&>div]:mb-2">
+            <PageHeader
+              title={meta.objet || "(Sans objet)"}
+              subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
+              actions={
+                <div className="flex flex-wrap gap-2">
+                  {dossier.type !== "kits" && output && (
+                    <OfferEmailDialog
+                      dossier={dossier}
+                      meta={meta}
+                      payload={payload}
+                      output={output}
+                    />
+                  )}
+                  {dossier.type !== "kits" && output && (
+                    <SageExportDialog
+                      dossier={dossier}
+                      meta={meta}
+                      payload={payload}
+                      output={output}
+                    />
+                  )}
+                  <Button variant="outline" onClick={() => window.print()}>
+                    <Printer className="w-4 h-4 mr-1.5" />
+                    Imprimer / PDF
+                  </Button>
+                  <Button variant="outline" onClick={exportDossier}>
+                    <Download className="w-4 h-4 mr-1.5" />
+                    Enregistrer sous
+                  </Button>
+                  <Button variant="outline" onClick={duplicate}>
+                    <Copy className="w-4 h-4 mr-1.5" />
+                    Dupliquer
+                  </Button>
+                  {dossier.type === "contra" && (
+                    <Button variant="outline" onClick={duplicateAsStandard}>
+                      <Copy className="w-4 h-4 mr-1.5" />
+                      Dupliquer en Standard
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="text-destructive">
+                          <Trash2 className="w-4 h-4 mr-1.5" />
+                          Supprimer
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer définitivement ce dossier ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action est irréversible. Le client associé n'est pas supprimé.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={del}>Supprimer</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <Button
+                    onClick={() => save()}
+                    className={
+                      isDirty
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg ring-2 ring-primary/40 animate-pulse"
+                        : ""
+                    }
+                  >
+                    <Save className="w-4 h-4 mr-1.5" />
+                    {isDirty ? "Enregistrer *" : "Enregistrer"}
+                  </Button>
+                  {meta.statut !== "valide" && (
+                    <Button variant="default" onClick={() => save("valide")}>
+                      Valider
+                    </Button>
+                  )}
+                  {meta.statut !== "archive" && (
+                    <Button variant="outline" onClick={() => save("archive")}>
+                      Archiver
+                    </Button>
+                  )}
+                </div>
+              }
+            />
           </div>
-        )}
+        </div>
         {(payload?._legacyMigrated || payload?._legacyRemnants) && (
           <div className="mb-3 rounded-md border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-sm">
             <p className="font-semibold text-amber-700 dark:text-amber-400">Dossier legacy migré</p>
@@ -610,87 +705,6 @@ function DossierDetail() {
             </p>
           </div>
         )}
-        <Link
-          to="/dossiers"
-          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center mb-3"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Retour aux dossiers
-        </Link>
-        <PageHeader
-          title={meta.objet || "(Sans objet)"}
-          subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
-          actions={
-            <div className="flex flex-wrap gap-2">
-              {dossier.type !== "kits" && output && (
-                <OfferEmailDialog dossier={dossier} meta={meta} payload={payload} output={output} />
-              )}
-              {dossier.type !== "kits" && output && (
-                <SageExportDialog dossier={dossier} meta={meta} payload={payload} output={output} />
-              )}
-              <Button variant="outline" onClick={() => window.print()}>
-                <Printer className="w-4 h-4 mr-1.5" />
-                Imprimer / PDF
-              </Button>
-              <Button variant="outline" onClick={exportDossier}>
-                <Download className="w-4 h-4 mr-1.5" />
-                Enregistrer sous
-              </Button>
-              <Button variant="outline" onClick={duplicate}>
-                <Copy className="w-4 h-4 mr-1.5" />
-                Dupliquer
-              </Button>
-              {dossier.type === "contra" && (
-                <Button variant="outline" onClick={duplicateAsStandard}>
-                  <Copy className="w-4 h-4 mr-1.5" />
-                  Dupliquer en Standard
-                </Button>
-              )}
-              {isAdmin && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="text-destructive">
-                      <Trash2 className="w-4 h-4 mr-1.5" />
-                      Supprimer
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer définitivement ce dossier ?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Cette action est irréversible. Le client associé n'est pas supprimé.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction onClick={del}>Supprimer</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-              <Button
-                onClick={() => save()}
-                className={
-                  isDirty
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg ring-2 ring-primary/40 animate-pulse"
-                    : ""
-                }
-              >
-                <Save className="w-4 h-4 mr-1.5" />
-                {isDirty ? "Enregistrer *" : "Enregistrer"}
-              </Button>
-              {meta.statut !== "valide" && (
-                <Button variant="default" onClick={() => save("valide")}>
-                  Valider
-                </Button>
-              )}
-              {meta.statut !== "archive" && (
-                <Button variant="outline" onClick={() => save("archive")}>
-                  Archiver
-                </Button>
-              )}
-            </div>
-          }
-        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <Card className="p-4 space-y-3 lg:col-span-1">

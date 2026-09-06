@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
-      <aside className="w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
+      <aside className="sticky top-0 h-screen w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-3">
           <img src="/yeti-logo.png" alt="Yeti Factory" className="h-8 w-auto object-contain" />
           <div>
