@@ -1,5 +1,9 @@
 import type { LineItem, Quantite, TransportPackaging } from "@/lib/calculs/types";
-import { reshapePrixParQuantite, normalizeTransportPackaging } from "@/lib/calculs/types";
+import {
+  reshapePrixParQuantite,
+  reshapeTransportParQuantite,
+  normalizeTransportPackaging,
+} from "@/lib/calculs/types";
 
 /**
  * Sync each line's `prixParQuantite` when the quantities array changes.
@@ -17,6 +21,7 @@ export function syncLinesWithQuantites<T extends LineItem>(
     return lines.map((l) => ({
       ...l,
       prixParQuantite: reshapePrixParQuantite(l, newQ.length),
+      transportParQuantite: reshapeTransportParQuantite(l, newQ.length),
     }));
   }
   if (newQ.length < oldQ.length) {
@@ -30,8 +35,10 @@ export function syncLinesWithQuantites<T extends LineItem>(
     }
     return lines.map((l) => {
       const arr = reshapePrixParQuantite(l, oldQ.length);
+      const transportArr = reshapeTransportParQuantite(l, oldQ.length);
       arr.splice(removed, 1);
-      return { ...l, prixParQuantite: arr };
+      transportArr.splice(removed, 1);
+      return { ...l, prixParQuantite: arr, transportParQuantite: transportArr };
     });
   }
   return lines;

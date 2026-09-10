@@ -13,6 +13,8 @@ import {
   normalizeOutillage,
   resolveMargePct,
   getPrixAchat,
+  getTransportLigneGlobal,
+  getTransportLigneUnit,
 } from "./types";
 
 export type StandardParams = {
@@ -54,12 +56,20 @@ export function calculerStandard(input: StandardInput): CalcOutput {
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
+    const transportLignesGlobal = achatsPrincipaux.reduce(
+      (s, l) => s + getTransportLigneGlobal(l, qi),
+      0,
+    );
+    const transportLignesUnit = achatsPrincipaux.reduce(
+      (s, l) => s + getTransportLigneUnit(l, qi, Q),
+      0,
+    );
     const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + getPrixAchat(l, qi), 0);
     const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
     const outillageGlobal = Number(outillage.montantGlobal) || 0;
     const outillageUnit = Q > 0 ? outillageGlobal / Q : 0;
-    const baseAchatUnit = sumPrincipaux + tpUnit + outillageUnit;
+    const baseAchatUnit = sumPrincipaux + transportLignesUnit + tpUnit + outillageUnit;
 
     let commSourcingUnit = 0;
     if (params.commission_sourcing && Q > 0) {
@@ -77,7 +87,8 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     let pvUnit = 0;
     for (const l of achatsPrincipaux) {
       const m = resolveMargePct(l.margePct, mq, params.coef_marge_pct);
-      pvUnit += getPrixAchat(l, qi) * (1 + m / 100);
+      const lineBase = getPrixAchat(l, qi) + getTransportLigneUnit(l, qi, Q);
+      pvUnit += lineBase * (1 + m / 100);
     }
     // Transport / Packaging: margin is OPT-IN. Without an explicit margin, it is
     // billed to the client at cost (sans marge).
@@ -117,6 +128,8 @@ export function calculerStandard(input: StandardInput): CalcOutput {
       transportPackagingGlobal: tpGlobal,
       transportPackagingSansMarge: !tpHasMargin,
       transportPackagingMargePct: mTP,
+      transportLignesUnit,
+      transportLignesGlobal,
       outillageUnit,
       outillageGlobal,
       outillageSansMarge: !outillageHasMargin,

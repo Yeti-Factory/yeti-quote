@@ -3,7 +3,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 import type {
   Quantite,
@@ -13,7 +19,7 @@ import type {
   Outillage,
   QuantityResult,
 } from "@/lib/calculs/types";
-import { reshapePrixParQuantite } from "@/lib/calculs/types";
+import { reshapePrixParQuantite, reshapeTransportParQuantite } from "@/lib/calculs/types";
 
 /**
  * Margin guard (Contra): the standard agreement is 25 % / 25 %.
@@ -28,6 +34,7 @@ export function GuardedMargeInput({
   guard,
   className,
   placeholder = "marge %",
+  disabled = false,
   onCommit,
 }: {
   margePct?: number | null;
@@ -35,6 +42,7 @@ export function GuardedMargeInput({
   guard: MargeGuard;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
   onCommit: (margePct: number, margeConfirmed: boolean) => void;
 }) {
   const effective =
@@ -76,6 +84,7 @@ export function GuardedMargeInput({
       value={draft}
       placeholder={placeholder}
       className={className}
+      disabled={disabled}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
@@ -371,6 +380,10 @@ export function LinesGridTable({
     return reshapePrixParQuantite(l, qCount);
   }
 
+  function ensureTransportArr(l: LineItem): number[] {
+    return reshapeTransportParQuantite(l, qCount);
+  }
+
   function update(i: number, patch: Partial<LineItem>) {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
@@ -380,6 +393,13 @@ export function LinesGridTable({
     const arr = ensureArr(line);
     arr[col] = value;
     update(i, { prixParQuantite: arr, prixUnitaire: arr[0] ?? 0 });
+  }
+
+  function updateTransport(i: number, col: number, value: number) {
+    const line = lines[i];
+    const arr = ensureTransportArr(line);
+    arr[col] = value;
+    update(i, { transportParQuantite: arr });
   }
 
   function addLine() {
@@ -392,6 +412,7 @@ export function LinesGridTable({
         commentaire: "",
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
+        transportParQuantite: Array.from({ length: qCount }, () => 0),
         margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
         ...(margeGuard ? { margeConfirmed: false } : {}),
       },
@@ -438,6 +459,7 @@ export function LinesGridTable({
               )}
               {lines.map((l, i) => {
                 const arr = ensureArr(l);
+                const transportArr = ensureTransportArr(l);
                 return (
                   <div
                     key={i}
@@ -499,6 +521,31 @@ export function LinesGridTable({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Transport ligne
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Montant global optionnel
+                    </div>
+                    {transportArr.map((v, col) => (
+                      <Input
+                        key={col}
+                        type="number"
+                        step="0.01"
+                        value={v || ""}
+                        placeholder="0"
+                        className="text-right tabular-nums"
+                        onChange={(e) =>
+                          updateTransport(
+                            i,
+                            col,
+                            e.target.value === "" ? 0 : Number(e.target.value),
+                          )
+                        }
+                      />
+                    ))}
+                    <div />
+                    <div />
                     <Textarea
                       value={l.descriptif ?? ""}
                       placeholder="Descriptif client : visible dans l'offre mail si rempli..."
@@ -548,11 +595,23 @@ export function TransportPackagingBlock({
 }) {
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
+  const mode = value?.mode ?? (value?.transportInclus ? "inclus" : "global");
+  const isDepartAteliers = mode === "depart_ateliers";
 
   function updateMontant(i: number, montant: number) {
     const next = [...arr];
     next[i] = montant;
     onChange({ ...value, montantsGlobaux: next });
+  }
+
+  function updateMode(nextMode: "global" | "inclus" | "depart_ateliers") {
+    onChange({
+      ...value,
+      mode: nextMode,
+      transportInclus: nextMode === "inclus",
+      montantsGlobaux:
+        nextMode === "depart_ateliers" ? Array.from({ length: qCount }, () => 0) : arr,
+    });
   }
 
   function fmtEuro(n: number) {
@@ -578,20 +637,34 @@ export function TransportPackagingBlock({
           </p>
         </div>
 
-        <div className="flex items-start gap-4">
-          <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium">
-            <Checkbox
-              checked={Boolean(value?.transportInclus)}
-              onCheckedChange={(checked) =>
-                onChange({
-                  ...value,
-                  montantsGlobaux: arr,
-                  transportInclus: checked === true,
-                })
-              }
-            />
-            Transport inclus
-          </label>
+        <div className="flex items-start gap-3">
+          <div className="w-56 space-y-1">
+            <Select value={mode} onValueChange={(v) => updateMode(v as any)}>
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="global">Transport à chiffrer</SelectItem>
+                <SelectItem value="inclus">Transport inclus</SelectItem>
+                <SelectItem value="depart_ateliers">Prix départ ateliers</SelectItem>
+              </SelectContent>
+            </Select>
+            {isDepartAteliers && (
+              <Input
+                value={value?.departementDepart ?? ""}
+                maxLength={3}
+                placeholder="Dépt. ex : 77"
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    mode,
+                    montantsGlobaux: Array.from({ length: qCount }, () => 0),
+                    departementDepart: e.target.value,
+                  })
+                }
+              />
+            )}
+          </div>
           <div className="w-48">
             {margeGuard ? (
               <>
@@ -601,6 +674,7 @@ export function TransportPackagingBlock({
                   guard={margeGuard}
                   placeholder="Marge %"
                   className="text-right tabular-nums"
+                  disabled={isDepartAteliers}
                   onCommit={(m, c) =>
                     onChange({
                       ...value,
@@ -623,6 +697,7 @@ export function TransportPackagingBlock({
                   step="0.01"
                   placeholder="Marge % (facultatif)"
                   value={value?.margePct ?? ""}
+                  disabled={isDepartAteliers}
                   onChange={(e) =>
                     onChange({
                       ...value,
@@ -672,12 +747,13 @@ export function TransportPackagingBlock({
                   value={montant || ""}
                   placeholder="0"
                   className="text-right tabular-nums"
+                  disabled={isDepartAteliers}
                   onChange={(e) =>
                     updateMontant(i, e.target.value === "" ? 0 : Number(e.target.value))
                   }
                 />
                 <div className="text-right text-sm font-medium tabular-nums text-muted-foreground">
-                  {Q > 0 ? fmtEuro(unit) : "—"}
+                  {isDepartAteliers ? "—" : Q > 0 ? fmtEuro(unit) : "—"}
                 </div>
               </div>
             );

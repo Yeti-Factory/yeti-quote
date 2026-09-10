@@ -48,6 +48,11 @@ export type LineItem = {
    * Example: quantites [1, 10, 100] → prixParQuantite [100, 80, 45].
    */
   prixParQuantite?: number[];
+  /**
+   * Optional line-level transport amount per quantity column.
+   * These are global amounts for the line/scenario, divided by the quantity.
+   */
+  transportParQuantite?: number[];
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
@@ -100,6 +105,30 @@ export function reshapePrixParQuantite(
   return arr.map((v) => (Number.isFinite(v) ? v : 0));
 }
 
+/** Resolve line-level transport as a global amount for a quantity column. */
+export function getTransportLigneGlobal(line: LineItem, index: number): number {
+  const arr = line.transportParQuantite;
+  if (Array.isArray(arr) && index >= 0 && index < arr.length) {
+    const v = Number(arr[index]);
+    if (Number.isFinite(v)) return v;
+  }
+  return 0;
+}
+
+/** Resolve line-level transport as a unit amount for a quantity column. */
+export function getTransportLigneUnit(line: LineItem, index: number, quantity: number): number {
+  const global = getTransportLigneGlobal(line, index);
+  return quantity > 0 ? global / quantity : 0;
+}
+
+/** Ensure a line's `transportParQuantite` has exactly `count` entries. */
+export function reshapeTransportParQuantite(line: LineItem, count: number): number[] {
+  const arr = Array.isArray(line.transportParQuantite) ? line.transportParQuantite.map(Number) : [];
+  while (arr.length < count) arr.push(0);
+  arr.length = count;
+  return arr.map((v) => (Number.isFinite(v) ? v : 0));
+}
+
 /**
  * Transport / Packaging: a global amount per quantity column.
  * Unit cost = montantsGlobaux[i] / quantite[i].
@@ -108,6 +137,10 @@ export type TransportPackaging = {
   montantsGlobaux: number[];
   /** Client-facing flag: transport is already included in supplier prices. */
   transportInclus?: boolean;
+  /** Client-facing condition. Legacy dossiers with transportInclus=true resolve to "inclus". */
+  mode?: "global" | "inclus" | "depart_ateliers";
+  /** Department displayed when the offer is priced from Yeti workshops. */
+  departementDepart?: string;
   /** Optional margin override (%). Each calculator defines the empty-value fallback. */
   margePct?: number | null;
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
@@ -117,6 +150,13 @@ export type TransportPackaging = {
 /** Backward-compat + shape normalization. */
 export function normalizeTransportPackaging(input: unknown, count: number): TransportPackaging {
   const o = input && typeof input === "object" ? (input as any) : {};
+  const rawMode = String(o.mode ?? "").trim();
+  const mode =
+    rawMode === "inclus" || rawMode === "depart_ateliers"
+      ? rawMode
+      : o.transportInclus === true || o.transportInclus === "true"
+        ? "inclus"
+        : "global";
   const raw = Array.isArray(o.montantsGlobaux) ? o.montantsGlobaux : [];
   const arr: number[] = raw.map((v: any) => {
     const n = Number(v);
@@ -126,8 +166,11 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
   arr.length = count;
   const m = o.margePct;
   return {
-    montantsGlobaux: arr,
-    transportInclus: o.transportInclus === true || o.transportInclus === "true",
+    montantsGlobaux: mode === "depart_ateliers" ? Array.from({ length: count }, () => 0) : arr,
+    transportInclus:
+      mode === "inclus" || o.transportInclus === true || o.transportInclus === "true",
+    mode,
+    departementDepart: String(o.departementDepart ?? "").trim(),
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
     margeConfirmed: o.margeConfirmed === true,
   };
@@ -172,6 +215,8 @@ export type QuantityResult = {
   transportPackagingSansMarge?: boolean;
   /** Effective margin (%) applied to Transport / Packaging (0 when "sans marge"). */
   transportPackagingMargePct?: number;
+  transportLignesUnit?: number;
+  transportLignesGlobal?: number;
   outillageUnit?: number;
   outillageGlobal?: number;
   /** True when Outillage is billed to the client without any margin. */

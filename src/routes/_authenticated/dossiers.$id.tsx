@@ -43,7 +43,7 @@ import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
 import { calculerKits, KITS_DEFAULTS, type KitsInput } from "@/lib/calculs/kits";
-import { reshapePrixParQuantite } from "@/lib/calculs/types";
+import { reshapePrixParQuantite, reshapeTransportParQuantite } from "@/lib/calculs/types";
 import {
   calculerStands,
   STANDS_DEFAULTS,
@@ -60,9 +60,22 @@ function defaultPayload(type: string, params: any) {
     return {
       quantites: [],
       achatsPrincipaux: [
-        { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null },
+        {
+          fournisseur: "",
+          libelle: "",
+          commentaire: "",
+          prixUnitaire: 0,
+          transportParQuantite: [],
+          margePct: null,
+        },
       ],
-      transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      transportPackaging: {
+        montantsGlobaux: [],
+        transportInclus: false,
+        mode: "global",
+        departementDepart: "",
+        margePct: null,
+      },
       outillage: { montantGlobal: 0, margePct: null },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
@@ -71,12 +84,25 @@ function defaultPayload(type: string, params: any) {
     return {
       quantites: [],
       achatsContra: [
-        { fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null },
+        {
+          fournisseur: "",
+          libelle: "",
+          commentaire: "",
+          prixUnitaire: 0,
+          transportParQuantite: [],
+          margePct: null,
+        },
       ],
       forfaitsContra: [
         { fournisseur: "", libelle: "", commentaire: "", montantGlobal: 0, margePct: null },
       ],
-      transportPackaging: { montantsGlobaux: [], transportInclus: false, margePct: null },
+      transportPackaging: {
+        montantsGlobaux: [],
+        transportInclus: false,
+        mode: "global",
+        departementDepart: "",
+        margePct: null,
+      },
       outillage: { montantGlobal: 0, margePct: null },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
@@ -126,6 +152,7 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
       commentaire: line.commentaire ?? "",
       prixUnitaire: line.prixUnitaire ?? 0,
       prixParQuantite: reshapePrixParQuantite(line, qCount),
+      transportParQuantite: reshapeTransportParQuantite(line, qCount),
       margePct: line.margePct ?? null,
     })),
     ...(Array.isArray(input.forfaitsContra) ? input.forfaitsContra : []).map((line) => {
@@ -154,6 +181,8 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
     transportPackaging: input.transportPackaging ?? {
       montantsGlobaux: Array.from({ length: qCount }, () => 0),
       transportInclus: false,
+      mode: "global",
+      departementDepart: "",
       margePct: null,
     },
     outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
@@ -192,6 +221,7 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
       commentaire: line.commentaire ?? "",
       prixUnitaire: line.prixUnitaire ?? 0,
       prixParQuantite: reshapePrixParQuantite(line, qCount),
+      transportParQuantite: reshapeTransportParQuantite(line, qCount),
       margePct: line.margePct ?? null,
     }),
   );
@@ -206,6 +236,8 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
     transportPackaging: input.transportPackaging ?? {
       montantsGlobaux: Array.from({ length: qCount }, () => 0),
       transportInclus: false,
+      mode: "global",
+      departementDepart: "",
       margePct: null,
     },
     outillage: input.outillage ?? { montantGlobal: 0, margePct: null },

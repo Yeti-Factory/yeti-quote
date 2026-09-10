@@ -22,6 +22,13 @@ const ROWS: {
     optional: true,
     group: "cost",
   },
+  {
+    label: "Transport lignes /u",
+    key: "transportLignesUnit",
+    fmt: fmtEUR,
+    optional: true,
+    group: "cost",
+  },
   { label: "Outillage /u", key: "outillageUnit", fmt: fmtEUR, optional: true, group: "cost" },
   {
     label: "Prix vente net unitaire",

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { fmtEUR, fmtPct, fmtDate } from "@/lib/format";
 import {
   resolveMargePct,
@@ -5,6 +6,8 @@ import {
   normalizeTransportPackaging,
   normalizeOutillage,
   getPrixAchat,
+  getTransportLigneGlobal,
+  getTransportLigneUnit,
   type Quantite,
   type TransportPackaging,
   type Outillage,
@@ -172,42 +175,64 @@ function LineTable({
           )}
           {lines.map((l, i) => {
             const globalAmount = Number(l.montantGlobal) || 0;
+            const hasLineTransport =
+              isGrid && qs.some((_q, qi) => Math.abs(getTransportLigneGlobal(l, qi)) > 0.005);
             return (
-              <tr key={i}>
-                <td className="strong">{l.libelle}</td>
-                <td>{l.fournisseur ?? ""}</td>
-                {isGrid ? (
-                  qs.map((_q, qi) => (
-                    <td key={`a${qi}`} className="num">
-                      {fmtEUR(getPrixAchat(l, qi))}
-                    </td>
-                  ))
-                ) : (
-                  <td className="num">{fmtEUR(globalAmount)}</td>
+              <Fragment key={i}>
+                <tr>
+                  <td className="strong">{l.libelle}</td>
+                  <td>{l.fournisseur ?? ""}</td>
+                  {isGrid ? (
+                    qs.map((_q, qi) => (
+                      <td key={`a${qi}`} className="num">
+                        {fmtEUR(getPrixAchat(l, qi))}
+                      </td>
+                    ))
+                  ) : (
+                    <td className="num">{fmtEUR(globalAmount)}</td>
+                  )}
+                  <td className="num">
+                    {(l.margePct ?? defaultMargePct).toLocaleString("fr-FR", {
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    %
+                  </td>
+                  {qs.map((q, qi) => {
+                    const m = resolveMargePct(l.margePct, q.margePct, defaultMargePct);
+                    const transportUnit = isGrid ? getTransportLigneUnit(l, qi, q.qty) : 0;
+                    const base = isGrid
+                      ? getPrixAchat(l, qi) + transportUnit
+                      : q.qty > 0
+                        ? globalAmount / q.qty
+                        : globalAmount;
+                    const pv = isContra
+                      ? pvFromContraSharedRaw(base, contraCoefPct ?? 0, m)
+                      : base * (1 + m / 100);
+                    return (
+                      <td key={`pv${qi}`} className="num">
+                        {fmtEUR(pv + (fixedFeeUnitShare?.(l, qi, base) ?? 0))}
+                      </td>
+                    );
+                  })}
+                </tr>
+                {hasLineTransport && (
+                  <tr>
+                    <td style={{ color: "#666", fontSize: "8pt" }}>Transport ligne</td>
+                    <td />
+                    {qs.map((_q, qi) => (
+                      <td key={`tl${qi}`} className="num" style={{ color: "#666" }}>
+                        {fmtEUR(getTransportLigneGlobal(l, qi))}
+                      </td>
+                    ))}
+                    <td />
+                    {qs.map((q, qi) => (
+                      <td key={`tlu${qi}`} className="num" style={{ color: "#666" }}>
+                        {q.qty > 0 ? fmtEUR(getTransportLigneUnit(l, qi, q.qty)) + " /u" : "—"}
+                      </td>
+                    ))}
+                  </tr>
                 )}
-                <td className="num">
-                  {(l.margePct ?? defaultMargePct).toLocaleString("fr-FR", {
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  %
-                </td>
-                {qs.map((q, qi) => {
-                  const m = resolveMargePct(l.margePct, q.margePct, defaultMargePct);
-                  const base = isGrid
-                    ? getPrixAchat(l, qi)
-                    : q.qty > 0
-                      ? globalAmount / q.qty
-                      : globalAmount;
-                  const pv = isContra
-                    ? pvFromContraSharedRaw(base, contraCoefPct ?? 0, m)
-                    : base * (1 + m / 100);
-                  return (
-                    <td key={`pv${qi}`} className="num">
-                      {fmtEUR(pv + (fixedFeeUnitShare?.(l, qi, base) ?? 0))}
-                    </td>
-                  );
-                })}
-              </tr>
+              </Fragment>
             );
           })}
         </tbody>
@@ -507,6 +532,12 @@ function ResultsTable({ output }: { output: any }) {
       fmt: fmtEUR,
       optional: true,
     },
+    {
+      label: "Transport lignes /u",
+      key: "transportLignesUnit",
+      fmt: fmtEUR,
+      optional: true,
+    },
     { label: "Outillage /u", key: "outillageUnit", fmt: fmtEUR, optional: true },
     {
       label: "Prix vente net unitaire",
@@ -637,11 +668,11 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
   const tp = normalizeTransportPackaging(payload.transportPackaging, qs.length);
   const outillage = normalizeOutillage(payload.outillage);
   const fixedFeeBasisUnit = (qi: number) => {
+    const q = qs[qi]?.qty ?? 0;
     const achats = (payload.achatsPrincipaux ?? []).reduce(
-      (sum, line) => sum + getPrixAchat(line, qi),
+      (sum, line) => sum + getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q),
       0,
     );
-    const q = qs[qi]?.qty ?? 0;
     const tpUnit = q > 0 ? (Number(tp.montantsGlobaux[qi]) || 0) / q : 0;
     const outillageUnit = q > 0 ? (Number(outillage.montantGlobal) || 0) / q : 0;
     return achats + tpUnit + outillageUnit;
@@ -700,11 +731,12 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
   const outillage = normalizeOutillage(payload.outillage);
   const contraFactor = 1 + (Number(p.coef_contra_pct) || 0) / 100;
   const fixedFeeBasisUnit = (qi: number) => {
+    const q = qs[qi]?.qty ?? 0;
     const achats = (payload.achatsContra ?? []).reduce(
-      (sum, line) => sum + getPrixAchat(line, qi) * contraFactor,
+      (sum, line) =>
+        sum + (getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q)) * contraFactor,
       0,
     );
-    const q = qs[qi]?.qty ?? 0;
     const forfaits =
       q > 0
         ? (payload.forfaitsContra ?? []).reduce(

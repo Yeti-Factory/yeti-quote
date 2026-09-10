@@ -25,7 +25,13 @@ import {
   resolveContraMargePct,
   sanitizeContraInput,
 } from "@/lib/calculs/contra";
-import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
+import {
+  getPrixAchat,
+  getTransportLigneGlobal,
+  getTransportLigneUnit,
+  normalizeTransportPackaging,
+  resolveMargePct,
+} from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
 
@@ -167,16 +173,18 @@ function buildStandardRows(
   const optionsDetails: string[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
+    const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
+    const lineBase = achat + transportLigneUnit;
     const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
-    const lineUnit = achat * (1 + marge / 100);
+    const lineUnit = lineBase * (1 + marge / 100);
     const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsUnit += lineUnit;
-      optionsBasisUnit += achat;
+      optionsBasisUnit += lineBase;
       optionsDetails.push(lineDetail);
     } else {
       achatsPrincipauxUnit += lineUnit;
-      achatsPrincipauxBasisUnit += achat;
+      achatsPrincipauxBasisUnit += lineBase;
       achatsPrincipauxDetails.push(lineDetail);
     }
   }
@@ -250,16 +258,18 @@ function buildContraRows(
   const optionsContraDetails: string[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
+    const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
+    const lineBase = raw + transportLigneUnit;
     const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
-    const lineUnit = pvFromContraSharedRaw(raw, coefContra, margeYeti);
+    const lineUnit = pvFromContraSharedRaw(lineBase, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
       optionsContraUnit += lineUnit;
-      optionsContraBasisUnit += raw * contraFactor;
+      optionsContraBasisUnit += lineBase * contraFactor;
       optionsContraDetails.push(lineDetail);
     } else {
       achatsContraUnit += lineUnit;
-      achatsContraBasisUnit += raw * contraFactor;
+      achatsContraBasisUnit += lineBase * contraFactor;
       achatsContraDetails.push(lineDetail);
     }
   }
@@ -804,8 +814,31 @@ function buildHtmlEmail(params: {
 </div>`;
 }
 
-function buildTransportCondition(transportIncluded: boolean) {
-  return transportIncluded ? "Transport inclus." : "EXW (départ) nos ateliers.";
+function hasLineTransport(payload: any, scenarioItems: ScenarioItem[]) {
+  const lines = payload?.achatsPrincipaux ?? payload?.achatsContra ?? [];
+  return lines.some((line: any) =>
+    scenarioItems.some((item) => Math.abs(getTransportLigneGlobal(line, item.index)) > 0.005),
+  );
+}
+
+function buildTransportCondition(payload: any, scenarioItems: ScenarioItem[]) {
+  const tp = normalizeTransportPackaging(payload?.transportPackaging, scenarioItems.length);
+  if (tp.mode === "depart_ateliers") {
+    const dept = String(tp.departementDepart ?? "").trim();
+    return dept ? `Prix départ nos ateliers (${dept}).` : "Prix départ nos ateliers.";
+  }
+  if (
+    tp.transportInclus === true ||
+    scenarioItems.some((item) => {
+      const transportGlobal = Number(item.scenario.transportPackagingGlobal) || 0;
+      const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
+      return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
+    }) ||
+    hasLineTransport(payload, scenarioItems)
+  ) {
+    return "Transport inclus.";
+  }
+  return "EXW (départ) nos ateliers.";
 }
 
 function buildPlainQuantityPrice(summary: OfferScenarioSummary, total: number) {
@@ -837,7 +870,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   reference: string;
   objet: string;
   summaries: OfferScenarioSummary[];
-  transportIncluded: boolean;
+  transportCondition: string;
   outillageIncluded: boolean;
 }) {
   const {
@@ -846,7 +879,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     reference,
     objet,
     summaries,
-    transportIncluded,
+    transportCondition,
     outillageIncluded,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
@@ -878,7 +911,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     "",
     "Conditions :",
     "Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.",
-    buildTransportCondition(transportIncluded),
+    transportCondition,
     outillageIncluded ? "Outillage inclus." : "",
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
@@ -895,7 +928,7 @@ function buildHtmlMultiQuantityEmail(params: {
   reference: string;
   objet: string;
   summaries: OfferScenarioSummary[];
-  transportIncluded: boolean;
+  transportCondition: string;
   outillageIncluded: boolean;
 }) {
   const {
@@ -905,7 +938,7 @@ function buildHtmlMultiQuantityEmail(params: {
     reference,
     objet,
     summaries,
-    transportIncluded,
+    transportCondition,
     outillageIncluded,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
@@ -1060,7 +1093,7 @@ function buildHtmlMultiQuantityEmail(params: {
       <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
         <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
         <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
-        <p style="margin:0 0 5px 0;">${escapeHtml(buildTransportCondition(transportIncluded))}</p>
+        <p style="margin:0 0 5px 0;">${escapeHtml(transportCondition)}</p>
         ${outillageIncluded ? `<p style="margin:0 0 5px 0;">Outillage inclus.</p>` : ""}
         <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
@@ -1115,13 +1148,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       const summaries = scenarioItems.map((item) =>
         buildScenarioSummary(dossier?.type, payload, output, item, "Base"),
       );
-      const transportIncluded =
-        payload?.transportPackaging?.transportInclus === true ||
-        scenarioItems.some((item) => {
-          const transportGlobal = Number(item.scenario.transportPackagingGlobal) || 0;
-          const transportUnit = Number(item.scenario.transportPackagingUnit) || 0;
-          return Math.abs(transportGlobal) > 0.005 || Math.abs(transportUnit) > 0.005;
-        });
+      const transportCondition = buildTransportCondition(payload, scenarioItems);
       const outillageIncluded =
         Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
         scenarioItems.some((item) => {
@@ -1135,7 +1162,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         reference,
         objet,
         summaries,
-        transportIncluded,
+        transportCondition,
         outillageIncluded,
       });
       const html = buildHtmlMultiQuantityEmail({
@@ -1145,7 +1172,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         reference,
         objet,
         summaries,
-        transportIncluded,
+        transportCondition,
         outillageIncluded,
       });
       const previewWidth = 920;

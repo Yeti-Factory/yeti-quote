@@ -3,7 +3,12 @@ import {
   resolveContraMargePct,
   sanitizeContraInput,
 } from "@/lib/calculs/contra";
-import { getPrixAchat, resolveMargePct } from "@/lib/calculs/types";
+import {
+  getPrixAchat,
+  getTransportLigneUnit,
+  normalizeTransportPackaging,
+  resolveMargePct,
+} from "@/lib/calculs/types";
 
 export type SageExportRow = {
   reference: string;
@@ -151,7 +156,9 @@ function hasTransport(payload: any, scenario: any) {
   return (
     payload?.transportPackaging?.transportInclus === true ||
     Math.abs(Number(scenario?.transportPackagingGlobal) || 0) > 0.005 ||
-    Math.abs(Number(scenario?.transportPackagingUnit) || 0) > 0.005
+    Math.abs(Number(scenario?.transportPackagingUnit) || 0) > 0.005 ||
+    Math.abs(Number(scenario?.transportLignesGlobal) || 0) > 0.005 ||
+    Math.abs(Number(scenario?.transportLignesUnit) || 0) > 0.005
   );
 }
 
@@ -164,6 +171,11 @@ function hasOutillage(payload: any, scenario: any) {
 }
 
 function commercialConditions(payload: any, scenario: any) {
+  const tp = normalizeTransportPackaging(payload?.transportPackaging, 1);
+  if (tp.mode === "depart_ateliers") {
+    const dept = cleanText(tp.departementDepart);
+    return [dept ? `Prix depart nos ateliers (${dept})` : "Prix depart nos ateliers"];
+  }
   return [
     hasTransport(payload, scenario) ? "Transport inclus" : "EXW depart nos ateliers",
     hasOutillage(payload, scenario) ? "Outillage inclus" : "",
@@ -249,8 +261,10 @@ function buildStandardRows(params: {
 
   for (const line of payload?.achatsPrincipaux ?? []) {
     const achat = getPrixAchat(line, scenarioIndex);
+    const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
+    const lineBase = achat + transportLigneUnit;
     const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
-    const unit = achat * (1 + marge / 100);
+    const unit = lineBase * (1 + marge / 100);
     if (isOptionLabel(line?.libelle)) {
       optionLines.push(line);
       optionsTotal += unit * quantity;
@@ -321,8 +335,10 @@ function buildContraRows(params: {
 
   for (const line of payload?.achatsContra ?? []) {
     const raw = getPrixAchat(line, scenarioIndex);
+    const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
+    const lineBase = raw + transportLigneUnit;
     const unit = pvFromContraSharedRaw(
-      raw,
+      lineBase,
       coefContra,
       margeFor(line?.margePct, line?.margeConfirmed),
     );
