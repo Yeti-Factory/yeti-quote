@@ -12,6 +12,8 @@ import {
   normalizeTransportPackaging,
   normalizeOutillage,
   getPrixAchat,
+  getMargeParQuantite,
+  getMargeParQuantiteConfirmed,
   getTransportLigneGlobal,
   getTransportLigneUnit,
 } from "./types";
@@ -114,6 +116,12 @@ export function sanitizeContraInput(input: ContraInput): ContraInput {
     achatsContra: (input.achatsContra ?? []).map((l) => ({
       ...l,
       margePct: keep(l?.margePct, l?.margeConfirmed),
+      margeParQuantite: Array.isArray(l?.margeParQuantite)
+        ? l.margeParQuantite.map((m, i) => keep(m, l?.margeParQuantiteConfirmed?.[i]))
+        : undefined,
+      margeParQuantiteConfirmed: Array.isArray(l?.margeParQuantiteConfirmed)
+        ? l.margeParQuantiteConfirmed.map((confirmed) => confirmed === true)
+        : undefined,
     })),
     forfaitsContra: (input.forfaitsContra ?? []).map((l) => ({
       ...l,
@@ -130,6 +138,25 @@ export function sanitizeContraInput(input: ContraInput): ContraInput {
       margePct: keep(outillage?.margePct, outillage?.margeConfirmed),
     },
   };
+}
+
+export function resolveContraLineMargePct(
+  line: LineItem,
+  quantityIndex: number,
+  quantityMarge: number | null | undefined,
+  quantityConfirmed: boolean | undefined,
+): number {
+  const cell = effectiveContraMarge(
+    getMargeParQuantite(line, quantityIndex),
+    getMargeParQuantiteConfirmed(line, quantityIndex),
+  );
+  if (cell !== null) return cell;
+  return resolveContraMargePct(
+    line.margePct,
+    line.margeConfirmed,
+    quantityMarge,
+    quantityConfirmed,
+  );
 }
 
 export const CONTRA_DEFAULTS: ContraParams = {
@@ -219,7 +246,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     let pvUnitAchats = 0;
     for (const l of achatsContra) {
       const raw = getPrixAchat(l, qi) + getTransportLigneUnit(l, qi, Q);
-      const mYeti = resolveContraMargePct(l.margePct, l.margeConfirmed, mq, mqConfirmed);
+      const mYeti = resolveContraLineMargePct(l, qi, mq, mqConfirmed);
       pvUnitAchats += pvFromContraSharedRaw(raw, coefContra, mYeti);
     }
     let pvUnitForfaits = 0;

@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   pvFromContraSharedRaw,
+  resolveContraLineMargePct,
   resolveContraMargePct,
   sanitizeContraInput,
 } from "@/lib/calculs/contra";
@@ -31,6 +32,7 @@ import {
   getTransportLigneUnit,
   normalizeTransportPackaging,
   resolveMargePct,
+  resolveLineMargePct,
 } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
@@ -175,7 +177,7 @@ function buildStandardRows(
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
     const lineBase = achat + transportLigneUnit;
-    const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
+    const marge = resolveLineMargePct(line, scenarioIndex, quantiteMarge, defaultMarge);
     const lineUnit = lineBase * (1 + marge / 100);
     const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {
@@ -260,7 +262,12 @@ function buildContraRows(
     const raw = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
     const lineBase = raw + transportLigneUnit;
-    const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
+    const margeYeti = resolveContraLineMargePct(
+      line,
+      scenarioIndex,
+      quantiteMarge,
+      quantiteConfirmed,
+    );
     const lineUnit = pvFromContraSharedRaw(lineBase, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLabel(line?.libelle)) {

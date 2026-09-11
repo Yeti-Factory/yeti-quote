@@ -1,5 +1,6 @@
 import {
   pvFromContraSharedRaw,
+  resolveContraLineMargePct,
   resolveContraMargePct,
   sanitizeContraInput,
 } from "@/lib/calculs/contra";
@@ -7,7 +8,7 @@ import {
   getPrixAchat,
   getTransportLigneUnit,
   normalizeTransportPackaging,
-  resolveMargePct,
+  resolveLineMargePct,
 } from "@/lib/calculs/types";
 
 export type SageExportRow = {
@@ -263,7 +264,7 @@ function buildStandardRows(params: {
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
     const lineBase = achat + transportLigneUnit;
-    const marge = resolveMargePct(line?.margePct, quantiteMarge, defaultMarge);
+    const marge = resolveLineMargePct(line, scenarioIndex, quantiteMarge, defaultMarge);
     const unit = lineBase * (1 + marge / 100);
     if (isOptionLabel(line?.libelle)) {
       optionLines.push(line);
@@ -340,7 +341,7 @@ function buildContraRows(params: {
     const unit = pvFromContraSharedRaw(
       lineBase,
       coefContra,
-      margeFor(line?.margePct, line?.margeConfirmed),
+      resolveContraLineMargePct(line, scenarioIndex, quantiteMarge, quantiteConfirmed),
     );
     if (isOptionLabel(line?.libelle)) {
       optionLines.push(line);

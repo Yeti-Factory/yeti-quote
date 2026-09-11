@@ -19,7 +19,12 @@ import type {
   Outillage,
   QuantityResult,
 } from "@/lib/calculs/types";
-import { reshapePrixParQuantite, reshapeTransportParQuantite } from "@/lib/calculs/types";
+import {
+  reshapePrixParQuantite,
+  reshapeTransportParQuantite,
+  reshapeMargeParQuantite,
+  reshapeMargeParQuantiteConfirmed,
+} from "@/lib/calculs/types";
 
 /**
  * Margin guard (Contra): the standard agreement is 25 % / 25 %.
@@ -35,6 +40,8 @@ export function GuardedMargeInput({
   className,
   placeholder = "marge %",
   disabled = false,
+  fallbackPct,
+  clearValue,
   onCommit,
 }: {
   margePct?: number | null;
@@ -43,15 +50,18 @@ export function GuardedMargeInput({
   className?: string;
   placeholder?: string;
   disabled?: boolean;
-  onCommit: (margePct: number, margeConfirmed: boolean) => void;
+  fallbackPct?: number;
+  clearValue?: number | null;
+  onCommit: (margePct: number | null, margeConfirmed: boolean) => void;
 }) {
+  const fallback = fallbackPct ?? guard.standardPct;
   const effective =
     margeConfirmed === true &&
     margePct !== null &&
     margePct !== undefined &&
     !Number.isNaN(margePct)
       ? Number(margePct)
-      : guard.standardPct;
+      : fallback;
   const [draft, setDraft] = useState<string>(String(effective));
 
   useEffect(() => {
@@ -59,14 +69,14 @@ export function GuardedMargeInput({
   }, [effective]);
 
   function commit() {
-    const parsed = draft.trim() === "" ? guard.standardPct : Number(draft);
-    const next = Number.isFinite(parsed) ? parsed : guard.standardPct;
+    const parsed = draft.trim() === "" ? fallback : Number(draft);
+    const next = Number.isFinite(parsed) ? parsed : fallback;
     if (next === effective) {
       setDraft(String(effective));
       return;
     }
-    if (next === guard.standardPct) {
-      onCommit(guard.standardPct, false);
+    if (next === fallback) {
+      onCommit(clearValue ?? guard.standardPct, false);
       return;
     }
     const ok = window.confirm(
@@ -235,7 +245,7 @@ export function LinesTable({
     const next = lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l));
     onChange(next);
   }
-  function updateMarge(i: number, margePct: number, margeConfirmed: boolean) {
+  function updateMarge(i: number, margePct: number | null, margeConfirmed: boolean) {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, margePct, margeConfirmed } : l)));
   }
   return (
@@ -255,7 +265,7 @@ export function LinesTable({
                 descriptif: "",
                 commentaire: "",
                 [field]: 0,
-                margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+                margePct: margeGuard ? margeGuard.standardPct : null,
                 ...(margeGuard ? { margeConfirmed: false } : {}),
               },
             ])
@@ -384,6 +394,14 @@ export function LinesGridTable({
     return reshapeTransportParQuantite(l, qCount);
   }
 
+  function ensureMargeArr(l: LineItem): Array<number | null> {
+    return reshapeMargeParQuantite(l, qCount);
+  }
+
+  function ensureMargeConfirmedArr(l: LineItem): boolean[] {
+    return reshapeMargeParQuantiteConfirmed(l, qCount);
+  }
+
   function update(i: number, patch: Partial<LineItem>) {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
@@ -402,6 +420,54 @@ export function LinesGridTable({
     update(i, { transportParQuantite: arr });
   }
 
+  function updateMargeForQuantity(
+    i: number,
+    col: number,
+    margePct: number | null,
+    margeConfirmed = false,
+  ) {
+    const line = lines[i];
+    const arr = ensureMargeArr(line);
+    const confirmedArr = ensureMargeConfirmedArr(line);
+    arr[col] = margePct;
+    confirmedArr[col] = margeConfirmed;
+    update(i, { margeParQuantite: arr, margeParQuantiteConfirmed: confirmedArr });
+  }
+
+  function effectiveFallbackMarge(l: LineItem, col: number) {
+    const rawLineMarge =
+      l.margePct !== null && l.margePct !== undefined && !Number.isNaN(l.margePct)
+        ? Number(l.margePct)
+        : null;
+    const lineMarge = rawLineMarge !== defaultMargePct ? rawLineMarge : null;
+    const quantityMarge = quantites[col]?.margePct;
+    return (
+      lineMarge ??
+      (quantityMarge !== null && quantityMarge !== undefined && !Number.isNaN(quantityMarge)
+        ? Number(quantityMarge)
+        : (defaultMargePct ?? ""))
+    );
+  }
+
+  function guardedFallbackMarge(l: LineItem, col: number) {
+    const lineMarge =
+      l.margeConfirmed === true &&
+      l.margePct !== null &&
+      l.margePct !== undefined &&
+      !Number.isNaN(l.margePct)
+        ? Number(l.margePct)
+        : null;
+    const q = quantites[col];
+    const quantityMarge =
+      q?.margeConfirmed === true &&
+      q.margePct !== null &&
+      q.margePct !== undefined &&
+      !Number.isNaN(q.margePct)
+        ? Number(q.margePct)
+        : null;
+    return lineMarge ?? quantityMarge ?? margeGuard?.standardPct ?? defaultMargePct ?? 0;
+  }
+
   function addLine() {
     onChange([
       ...lines,
@@ -413,7 +479,9 @@ export function LinesGridTable({
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
         transportParQuantite: Array.from({ length: qCount }, () => 0),
-        margePct: margeGuard ? margeGuard.standardPct : (defaultMargePct ?? null),
+        margeParQuantite: Array.from({ length: qCount }, () => null),
+        margeParQuantiteConfirmed: Array.from({ length: qCount }, () => false),
+        margePct: margeGuard ? margeGuard.standardPct : null,
         ...(margeGuard ? { margeConfirmed: false } : {}),
       },
     ]);
@@ -460,6 +528,8 @@ export function LinesGridTable({
               {lines.map((l, i) => {
                 const arr = ensureArr(l);
                 const transportArr = ensureTransportArr(l);
+                const margeArr = ensureMargeArr(l);
+                const margeConfirmedArr = ensureMargeConfirmedArr(l);
                 return (
                   <div
                     key={i}
@@ -544,6 +614,45 @@ export function LinesGridTable({
                         }
                       />
                     ))}
+                    <div />
+                    <div />
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                      Marge par quantité
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Optionnel · sinon ligne/quantité
+                    </div>
+                    {margeArr.map((v, col) =>
+                      margeGuard ? (
+                        <GuardedMargeInput
+                          key={col}
+                          margePct={v}
+                          margeConfirmed={margeConfirmedArr[col]}
+                          guard={margeGuard}
+                          fallbackPct={guardedFallbackMarge(l, col)}
+                          clearValue={null}
+                          placeholder="marge %"
+                          className="text-right tabular-nums"
+                          onCommit={(m, c) => updateMargeForQuantity(i, col, m, c)}
+                        />
+                      ) : (
+                        <Input
+                          key={col}
+                          type="number"
+                          step="0.01"
+                          value={v ?? effectiveFallbackMarge(l, col)}
+                          placeholder="marge %"
+                          className="text-right tabular-nums"
+                          onChange={(e) =>
+                            updateMargeForQuantity(
+                              i,
+                              col,
+                              e.target.value === "" ? null : Number(e.target.value),
+                            )
+                          }
+                        />
+                      ),
+                    )}
                     <div />
                     <div />
                     <Textarea

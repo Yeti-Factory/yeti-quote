@@ -12,6 +12,7 @@ import {
   normalizeTransportPackaging,
   normalizeOutillage,
   resolveMargePct,
+  resolveLineMargePct,
   getPrixAchat,
   getTransportLigneGlobal,
   getTransportLigneUnit,
@@ -86,7 +87,7 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     // Per-line PV using effective margin (line > quantity > default).
     let pvUnit = 0;
     for (const l of achatsPrincipaux) {
-      const m = resolveMargePct(l.margePct, mq, params.coef_marge_pct);
+      const m = resolveLineMargePct(l, qi, mq, params.coef_marge_pct);
       const lineBase = getPrixAchat(l, qi) + getTransportLigneUnit(l, qi, Q);
       pvUnit += lineBase * (1 + m / 100);
     }

@@ -8,6 +8,7 @@ import {
   getPrixAchat,
   getTransportLigneGlobal,
   getTransportLigneUnit,
+  resolveLineMargePct,
   type Quantite,
   type TransportPackaging,
   type Outillage,
@@ -16,7 +17,12 @@ import type { StandardInput } from "@/lib/calculs/standard";
 import type { ContraInput } from "@/lib/calculs/contra";
 import type { StandsInput } from "@/lib/calculs/stands";
 import { calculerStandard } from "@/lib/calculs/standard";
-import { calculerContra, pvFromContraSharedRaw, sanitizeContraInput } from "@/lib/calculs/contra";
+import {
+  calculerContra,
+  pvFromContraSharedRaw,
+  resolveContraLineMargePct,
+  sanitizeContraInput,
+} from "@/lib/calculs/contra";
 
 import { calculerStands } from "@/lib/calculs/stands";
 
@@ -198,7 +204,11 @@ function LineTable({
                     %
                   </td>
                   {qs.map((q, qi) => {
-                    const m = resolveMargePct(l.margePct, q.margePct, defaultMargePct);
+                    const m = isContra
+                      ? resolveContraLineMargePct(l, qi, q.margePct, q.margeConfirmed)
+                      : isGrid
+                        ? resolveLineMargePct(l, qi, q.margePct, defaultMargePct)
+                        : resolveMargePct(l.margePct, q.margePct, defaultMargePct);
                     const transportUnit = isGrid ? getTransportLigneUnit(l, qi, q.qty) : 0;
                     const base = isGrid
                       ? getPrixAchat(l, qi) + transportUnit

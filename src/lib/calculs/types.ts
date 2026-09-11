@@ -53,6 +53,13 @@ export type LineItem = {
    * These are global amounts for the line/scenario, divided by the quantity.
    */
   transportParQuantite?: number[];
+  /**
+   * Optional margin per quantity column. Overrides the line margin only for
+   * the matching quantity column.
+   */
+  margeParQuantite?: Array<number | null>;
+  /** Contra: confirmation flags aligned with `margeParQuantite`. */
+  margeParQuantiteConfirmed?: boolean[];
   /** Optional per-line margin (%). Overrides quantity + default margin. */
   margePct?: number | null;
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
@@ -127,6 +134,50 @@ export function reshapeTransportParQuantite(line: LineItem, count: number): numb
   while (arr.length < count) arr.push(0);
   arr.length = count;
   return arr.map((v) => (Number.isFinite(v) ? v : 0));
+}
+
+/** Resolve the optional line margin for one quantity column. */
+export function getMargeParQuantite(line: LineItem, index: number): number | null {
+  const arr = line.margeParQuantite;
+  if (Array.isArray(arr) && index >= 0 && index < arr.length) {
+    const v = arr[index] as unknown;
+    if (v !== null && v !== undefined && v !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+/** Resolve the Contra confirmation flag for one quantity-column margin. */
+export function getMargeParQuantiteConfirmed(line: LineItem, index: number): boolean {
+  const arr = line.margeParQuantiteConfirmed;
+  return Array.isArray(arr) && index >= 0 && index < arr.length && arr[index] === true;
+}
+
+/** Ensure a line's `margeParQuantite` has exactly `count` entries. */
+export function reshapeMargeParQuantite(line: LineItem, count: number): Array<number | null> {
+  const arr = Array.isArray(line.margeParQuantite)
+    ? line.margeParQuantite.map((v) => {
+        const raw = v as unknown;
+        if (raw === null || raw === undefined || raw === "") return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      })
+    : [];
+  while (arr.length < count) arr.push(null);
+  arr.length = count;
+  return arr;
+}
+
+/** Ensure Contra confirmation flags are aligned with quantity-column margins. */
+export function reshapeMargeParQuantiteConfirmed(line: LineItem, count: number): boolean[] {
+  const arr = Array.isArray(line.margeParQuantiteConfirmed)
+    ? line.margeParQuantiteConfirmed.map((v) => v === true)
+    : [];
+  while (arr.length < count) arr.push(false);
+  arr.length = count;
+  return arr;
 }
 
 /**
@@ -262,4 +313,22 @@ export function resolveMargePct(
     return Number(quantiteMarge);
   }
   return defaultMarge;
+}
+
+/** Resolve effective line margin with priority: cell > line > quantity > default. */
+export function resolveLineMargePct(
+  line: LineItem,
+  quantityIndex: number,
+  quantiteMarge: number | null | undefined,
+  defaultMarge: number,
+): number {
+  const cellMarge = getMargeParQuantite(line, quantityIndex);
+  const lineMarge =
+    line.margePct !== null &&
+    line.margePct !== undefined &&
+    !Number.isNaN(line.margePct) &&
+    Number(line.margePct) !== Number(defaultMarge)
+      ? line.margePct
+      : null;
+  return resolveMargePct(cellMarge, lineMarge, resolveMargePct(null, quantiteMarge, defaultMarge));
 }

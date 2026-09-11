@@ -2,6 +2,8 @@ import type { LineItem, Quantite, TransportPackaging } from "@/lib/calculs/types
 import {
   reshapePrixParQuantite,
   reshapeTransportParQuantite,
+  reshapeMargeParQuantite,
+  reshapeMargeParQuantiteConfirmed,
   normalizeTransportPackaging,
 } from "@/lib/calculs/types";
 
@@ -22,6 +24,8 @@ export function syncLinesWithQuantites<T extends LineItem>(
       ...l,
       prixParQuantite: reshapePrixParQuantite(l, newQ.length),
       transportParQuantite: reshapeTransportParQuantite(l, newQ.length),
+      margeParQuantite: reshapeMargeParQuantite(l, newQ.length),
+      margeParQuantiteConfirmed: reshapeMargeParQuantiteConfirmed(l, newQ.length),
     }));
   }
   if (newQ.length < oldQ.length) {
@@ -36,9 +40,19 @@ export function syncLinesWithQuantites<T extends LineItem>(
     return lines.map((l) => {
       const arr = reshapePrixParQuantite(l, oldQ.length);
       const transportArr = reshapeTransportParQuantite(l, oldQ.length);
+      const margeArr = reshapeMargeParQuantite(l, oldQ.length);
+      const margeConfirmedArr = reshapeMargeParQuantiteConfirmed(l, oldQ.length);
       arr.splice(removed, 1);
       transportArr.splice(removed, 1);
-      return { ...l, prixParQuantite: arr, transportParQuantite: transportArr };
+      margeArr.splice(removed, 1);
+      margeConfirmedArr.splice(removed, 1);
+      return {
+        ...l,
+        prixParQuantite: arr,
+        transportParQuantite: transportArr,
+        margeParQuantite: margeArr,
+        margeParQuantiteConfirmed: margeConfirmedArr,
+      };
     });
   }
   return lines;

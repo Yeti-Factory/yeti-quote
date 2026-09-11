@@ -43,7 +43,12 @@ import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
 import { calculerKits, KITS_DEFAULTS, type KitsInput } from "@/lib/calculs/kits";
-import { reshapePrixParQuantite, reshapeTransportParQuantite } from "@/lib/calculs/types";
+import {
+  reshapePrixParQuantite,
+  reshapeTransportParQuantite,
+  reshapeMargeParQuantite,
+  reshapeMargeParQuantiteConfirmed,
+} from "@/lib/calculs/types";
 import {
   calculerStands,
   STANDS_DEFAULTS,
@@ -66,6 +71,8 @@ function defaultPayload(type: string, params: any) {
           commentaire: "",
           prixUnitaire: 0,
           transportParQuantite: [],
+          margeParQuantite: [],
+          margeParQuantiteConfirmed: [],
           margePct: null,
         },
       ],
@@ -90,6 +97,8 @@ function defaultPayload(type: string, params: any) {
           commentaire: "",
           prixUnitaire: 0,
           transportParQuantite: [],
+          margeParQuantite: [],
+          margeParQuantiteConfirmed: [],
           margePct: null,
         },
       ],
@@ -153,7 +162,10 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
       prixUnitaire: line.prixUnitaire ?? 0,
       prixParQuantite: reshapePrixParQuantite(line, qCount),
       transportParQuantite: reshapeTransportParQuantite(line, qCount),
+      margeParQuantite: reshapeMargeParQuantite(line, qCount),
+      margeParQuantiteConfirmed: reshapeMargeParQuantiteConfirmed(line, qCount),
       margePct: line.margePct ?? null,
+      margeConfirmed: line.margeConfirmed ?? false,
     })),
     ...(Array.isArray(input.forfaitsContra) ? input.forfaitsContra : []).map((line) => {
       const montantGlobal = Number(line.montantGlobal) || 0;
@@ -167,7 +179,11 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
           const qty = Number(quant?.qty) || 0;
           return qty > 0 ? montantGlobal / qty : 0;
         }),
+        transportParQuantite: Array.from({ length: qCount }, () => 0),
+        margeParQuantite: Array.from({ length: qCount }, () => null),
+        margeParQuantiteConfirmed: Array.from({ length: qCount }, () => false),
         margePct: line.margePct ?? null,
+        margeConfirmed: line.margeConfirmed ?? false,
       };
     }),
   ];
@@ -222,7 +238,10 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
       prixUnitaire: line.prixUnitaire ?? 0,
       prixParQuantite: reshapePrixParQuantite(line, qCount),
       transportParQuantite: reshapeTransportParQuantite(line, qCount),
+      margeParQuantite: reshapeMargeParQuantite(line, qCount),
+      margeParQuantiteConfirmed: reshapeMargeParQuantiteConfirmed(line, qCount),
       margePct: line.margePct ?? null,
+      margeConfirmed: line.margeConfirmed ?? false,
     }),
   );
 
