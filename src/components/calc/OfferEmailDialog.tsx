@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clipboard, Mail } from "lucide-react";
+import { Clipboard, ImagePlus, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -73,12 +74,19 @@ type OfferEmailDialogProps = {
   output: any;
 };
 
+type MailImage = {
+  name: string;
+  src: string;
+};
+
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
 const YETI_ORANGE = "#ff7900";
 const MAIL_TEXT = "#222222";
 const MAIL_MUTED = "#666666";
 const MAIL_BORDER = "#eadfd7";
 const MAIL_SOFT = "#fff7f0";
+const MAX_MAIL_IMAGE_SIZE = 900;
+const MAX_MAIL_IMAGE_BYTES = 8 * 1024 * 1024;
 
 function escapeHtml(value: unknown) {
   return String(value ?? "")
@@ -100,6 +108,60 @@ function formatDate(date = new Date()) {
 function cleanLabel(value: unknown, fallback: string) {
   const text = String(value ?? "").trim();
   return text.length > 0 ? text : fallback;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("Lecture de l'image impossible"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image illisible"));
+    image.src = src;
+  });
+}
+
+async function prepareMailImage(file: File): Promise<MailImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Choisissez un fichier image.");
+  }
+  if (file.size > MAX_MAIL_IMAGE_BYTES) {
+    throw new Error("Image trop lourde : utilisez une image de moins de 8 Mo.");
+  }
+
+  const source = await readFileAsDataUrl(file);
+  const image = await loadImage(source);
+  const scale = Math.min(1, MAX_MAIL_IMAGE_SIZE / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Redimensionnement de l'image impossible");
+  context.drawImage(image, 0, 0, width, height);
+
+  return {
+    name: file.name,
+    src: canvas.toDataURL("image/jpeg", 0.86),
+  };
+}
+
+function buildMailImageRow(image: MailImage | null) {
+  if (!image) return "";
+  return `<tr>
+      <td style="padding:0 0 14px 0;">
+        <img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.name)}" style="display:block;width:100%;max-width:620px;height:auto;border:1px solid ${MAIL_BORDER};" />
+      </td>
+    </tr>`;
 }
 
 function buildOfferContactName(dossier: any) {
@@ -664,6 +726,7 @@ function buildHtmlEmail(params: {
   clientEmail: string;
   reference: string;
   objet: string;
+  image: MailImage | null;
   mainRows: OfferRow[];
   optionRows: OfferRow[];
   mainTotalHT: number;
@@ -678,6 +741,7 @@ function buildHtmlEmail(params: {
     clientEmail,
     reference,
     objet,
+    image,
     mainRows,
     optionRows,
     mainTotalHT,
@@ -772,6 +836,7 @@ function buildHtmlEmail(params: {
         </table>
       </td>
     </tr>
+    ${buildMailImageRow(image)}
     ${offerTable(
       hasOptions ? "Offre principale" : "Détail de l'offre",
       mainRows,
@@ -934,6 +999,7 @@ function buildHtmlMultiQuantityEmail(params: {
   clientEmail: string;
   reference: string;
   objet: string;
+  image: MailImage | null;
   summaries: OfferScenarioSummary[];
   transportCondition: string;
   outillageIncluded: boolean;
@@ -944,6 +1010,7 @@ function buildHtmlMultiQuantityEmail(params: {
     clientEmail,
     reference,
     objet,
+    image,
     summaries,
     transportCondition,
     outillageIncluded,
@@ -1053,6 +1120,7 @@ function buildHtmlMultiQuantityEmail(params: {
         </table>
       </td>
     </tr>
+    ${buildMailImageRow(image)}
     ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
     ${
       hasOptions
@@ -1137,9 +1205,21 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
     .filter((item: ScenarioItem) => Number(item.scenario.quantite) > 0);
   const isStandOffer = dossier?.type === "stands";
   const [scenarioIndex, setScenarioIndex] = useState("0");
+  const [mailImage, setMailImage] = useState<MailImage | null>(null);
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
+
+  async function handleImageChange(file: File | undefined) {
+    if (!file) return;
+    try {
+      const image = await prepareMailImage(file);
+      setMailImage(image);
+      toast.success("Image ajoutée à l'offre mail");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Impossible d'ajouter l'image");
+    }
+  }
 
   const offer = useMemo(() => {
     if (scenarioItems.length === 0) return null;
@@ -1178,6 +1258,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
         clientEmail,
         reference,
         objet,
+        image: mailImage,
         summaries,
         transportCondition,
         outillageIncluded,
@@ -1218,6 +1299,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
       clientEmail,
       reference,
       objet,
+      image: mailImage,
       mainRows,
       optionRows,
       mainTotalHT,
@@ -1229,7 +1311,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
     const previewWidth = 760;
 
     return { subject, plainText, html, previewWidth };
-  }, [dossier, meta, output, payload, scenario, scenarioItems, selectedItem]);
+  }, [dossier, mailImage, meta, output, payload, scenario, scenarioItems, selectedItem]);
 
   async function copyBody() {
     if (!offer) return;
@@ -1298,6 +1380,41 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
             <div className="space-y-2">
               <Label>Objet du mail</Label>
               <Textarea readOnly value={offer?.subject ?? ""} className="min-h-20 text-sm" />
+            </div>
+
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <Label htmlFor="offer-image">Image optionnelle</Label>
+              <Input
+                id="offer-image"
+                type="file"
+                accept="image/*"
+                onChange={(event) => handleImageChange(event.currentTarget.files?.[0])}
+              />
+              {mailImage ? (
+                <div className="space-y-2">
+                  <div className="overflow-hidden rounded-md border bg-white">
+                    <img src={mailImage.src} alt="" className="max-h-32 w-full object-contain" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">{mailImage.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setMailImage(null)}
+                    >
+                      <X className="mr-1 h-3.5 w-3.5" />
+                      Retirer
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <ImagePlus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>Ajoute une photo ou un visuel au corps du mail copié.</span>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
