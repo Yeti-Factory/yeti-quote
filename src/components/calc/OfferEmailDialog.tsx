@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clipboard, ImagePlus, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,6 +72,7 @@ type OfferEmailDialogProps = {
   };
   payload: any;
   output: any;
+  onImageChange?: (image: MailImage | null) => void;
 };
 
 type MailImage = {
@@ -108,6 +109,16 @@ function formatDate(date = new Date()) {
 function cleanLabel(value: unknown, fallback: string) {
   const text = String(value ?? "").trim();
   return text.length > 0 ? text : fallback;
+}
+
+function normalizeMailImage(value: unknown): MailImage | null {
+  if (!value || typeof value !== "object") return null;
+  const image = value as Partial<MailImage>;
+  if (!image.src || typeof image.src !== "string") return null;
+  return {
+    name: typeof image.name === "string" && image.name.trim() ? image.name : "image-offre.jpg",
+    src: image.src,
+  };
 }
 
 function readFileAsDataUrl(file: File) {
@@ -1199,22 +1210,37 @@ async function copyRichEmail(html: string, plainText: string) {
   await navigator.clipboard.writeText(plainText);
 }
 
-export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailDialogProps) {
+export function OfferEmailDialog({
+  dossier,
+  meta,
+  payload,
+  output,
+  onImageChange,
+}: OfferEmailDialogProps) {
   const scenarioItems: ScenarioItem[] = (output?.scenarios ?? [])
     .map((scenario: any, index: number) => ({ scenario, index }))
     .filter((item: ScenarioItem) => Number(item.scenario.quantite) > 0);
   const isStandOffer = dossier?.type === "stands";
   const [scenarioIndex, setScenarioIndex] = useState("0");
-  const [mailImage, setMailImage] = useState<MailImage | null>(null);
+  const savedMailImage = useMemo(
+    () => normalizeMailImage(payload?.offerMailImage),
+    [payload?.offerMailImage],
+  );
+  const [mailImage, setMailImage] = useState<MailImage | null>(savedMailImage);
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
+
+  useEffect(() => {
+    setMailImage(savedMailImage);
+  }, [savedMailImage]);
 
   async function handleImageChange(file: File | undefined) {
     if (!file) return;
     try {
       const image = await prepareMailImage(file);
       setMailImage(image);
+      onImageChange?.(image);
       toast.success("Image ajoutée à l'offre mail");
     } catch (error: any) {
       toast.error(error?.message ?? "Impossible d'ajouter l'image");
@@ -1333,6 +1359,11 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
     }
   }
 
+  function removeImage() {
+    setMailImage(null);
+    onImageChange?.(null);
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -1402,7 +1433,7 @@ export function OfferEmailDialog({ dossier, meta, payload, output }: OfferEmailD
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2"
-                      onClick={() => setMailImage(null)}
+                      onClick={removeImage}
                     >
                       <X className="mr-1 h-3.5 w-3.5" />
                       Retirer

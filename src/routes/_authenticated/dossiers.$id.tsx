@@ -670,6 +670,9 @@ function DossierDetail() {
                       meta={meta}
                       payload={payload}
                       output={output}
+                      onImageChange={(image) =>
+                        setPayload((current: any) => ({ ...current, offerMailImage: image }))
+                      }
                     />
                   )}
                   {dossier.type !== "kits" && output && (

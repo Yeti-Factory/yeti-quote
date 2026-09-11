@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Trash2, Upload } from "lucide-react";
+import { Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
@@ -313,12 +313,21 @@ function DossiersList() {
             );
             return sorted.map((g) => (
               <div key={g.name} className="border-t first:border-t-0">
-                <div className="px-5 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {g.name}
+                <div className="flex items-center gap-3 border-l-4 border-primary bg-primary/5 px-5 py-3">
+                  <Users className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate text-base font-extrabold uppercase text-foreground">
+                    {g.name}
+                  </span>
+                  <span className="shrink-0 rounded-full border border-primary/25 bg-white px-2 py-0.5 text-xs font-bold text-primary">
+                    ({g.items.length})
+                  </span>
                 </div>
                 <div className="divide-y">
                   {g.items.map((d: any) => (
-                    <div key={d.id} className="flex items-center px-5 py-3 hover:bg-muted/40 group">
+                    <div
+                      key={d.id}
+                      className="group flex items-center border-l-4 border-transparent px-5 py-3 pl-11 hover:border-primary/30 hover:bg-muted/40"
+                    >
                       <Link
                         to="/dossiers/$id"
                         params={{ id: d.id }}
