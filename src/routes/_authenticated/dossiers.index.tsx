@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Trash2, Upload, Users } from "lucide-react";
+import { FolderKanban, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
@@ -326,22 +326,26 @@ function DossiersList() {
                   {g.items.map((d: any) => (
                     <div
                       key={d.id}
-                      className="group flex items-center border-l-4 border-transparent px-5 py-3 pl-11 hover:border-primary/30 hover:bg-muted/40"
+                      className="group flex items-center border-l-4 border-transparent bg-white px-5 py-3.5 pl-10 hover:border-primary/40 hover:bg-primary/[0.035]"
                     >
                       <Link
                         to="/dossiers/$id"
                         params={{ id: d.id }}
-                        className="flex items-center flex-1 min-w-0 gap-3"
+                        className="flex min-w-0 flex-1 items-center gap-3"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/10 text-primary">
+                          <FolderKanban className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 truncate text-base font-bold text-foreground">
+                            <span className="h-0.5 w-4 shrink-0 rounded-full bg-primary" />
                             {d.objet || "(Sans objet)"}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
+                          <div className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                             Indice v{d.version ?? 1}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex shrink-0 items-center gap-2">
                           <Badge variant="outline" className="capitalize">
                             {d.type}
                           </Badge>
