@@ -98,7 +98,7 @@ function Dashboard() {
                 className="group flex items-center gap-3 border-l-4 border-primary bg-primary/5 px-5 py-3 hover:bg-primary/10"
               >
                 <Users className="h-4 w-4 shrink-0 text-primary" />
-                <span className="min-w-0 flex-1 truncate text-base font-extrabold uppercase text-foreground group-hover:text-primary">
+                <span className="min-w-0 flex-1 break-words text-base font-extrabold uppercase text-foreground group-hover:text-primary">
                   {g.name}
                 </span>
                 <span className="shrink-0 rounded-full border border-primary/25 bg-white px-2 py-0.5 text-xs font-bold text-primary">
@@ -111,26 +111,26 @@ function Dashboard() {
                     key={d.id}
                     to="/dossiers/$id"
                     params={{ id: d.id }}
-                    className="flex items-center gap-3 border-l-4 border-transparent bg-white px-5 py-3.5 pl-10 hover:border-primary/40 hover:bg-primary/[0.035]"
+                    className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 border-l-4 border-transparent bg-white px-3 py-3.5 lg:flex lg:px-5 lg:pl-10 hover:border-primary/40 hover:bg-primary/[0.035]"
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/10 text-primary">
                       <FolderKanban className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 truncate text-base font-bold text-foreground">
-                        <span className="h-0.5 w-4 shrink-0 rounded-full bg-primary" />
+                      <div className="flex items-start gap-2 break-words text-base font-bold text-foreground">
+                        <span className="mt-3 h-0.5 w-4 shrink-0 rounded-full bg-primary" />
                         {d.objet || "(Sans objet)"}
                       </div>
                       <div className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                         {d.reference || `Indice v${d.version ?? 1}`}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-2 lg:shrink-0">
                       <Badge variant="outline" className="capitalize">
                         {d.type}
                       </Badge>
                       <StatusBadge statut={d.statut} />
-                      <span className="text-xs text-muted-foreground w-24 text-right">
+                      <span className="text-xs text-muted-foreground lg:w-24 lg:text-right">
                         {fmtDate(d.updated_at)}
                       </span>
                     </div>
@@ -148,7 +148,7 @@ function Dashboard() {
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
   return (
     <Card className="p-5 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+      <div className="w-10 h-10 shrink-0 rounded-md bg-primary/10 text-primary flex items-center justify-center">
         <Icon className="w-5 h-5" />
       </div>
       <div>
