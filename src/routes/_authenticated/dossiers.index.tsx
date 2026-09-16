@@ -263,16 +263,16 @@ function DossiersList() {
       />
 
       <Card className="p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b flex gap-3 items-center">
-          <Search className="w-4 h-4 text-muted-foreground" />
+        <div className="px-4 py-3 border-b flex flex-wrap gap-3 items-center">
+          <Search className="w-4 h-4 shrink-0 text-muted-foreground" />
           <Input
             placeholder="Rechercher (référence ou objet)"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="border-0 focus-visible:ring-0 shadow-none px-0 flex-1"
+            className="border-0 focus-visible:ring-0 shadow-none px-0 min-w-0 flex-1 basis-[calc(100%-2rem)] lg:basis-0"
           />
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="min-w-0 flex-1 lg:w-36 lg:flex-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -283,7 +283,7 @@ function DossiersList() {
             </SelectContent>
           </Select>
           <Select value={statut} onValueChange={setStatut}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="min-w-0 flex-1 lg:w-36 lg:flex-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -315,7 +315,7 @@ function DossiersList() {
               <div key={g.name} className="border-t first:border-t-0">
                 <div className="flex items-center gap-3 border-l-4 border-primary bg-primary/5 px-5 py-3">
                   <Users className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1 truncate text-base font-extrabold uppercase text-foreground">
+                  <span className="min-w-0 flex-1 break-words text-base font-extrabold uppercase text-foreground">
                     {g.name}
                   </span>
                   <span className="shrink-0 rounded-full border border-primary/25 bg-white px-2 py-0.5 text-xs font-bold text-primary">
@@ -326,31 +326,31 @@ function DossiersList() {
                   {g.items.map((d: any) => (
                     <div
                       key={d.id}
-                      className="group flex items-center border-l-4 border-transparent bg-white px-5 py-3.5 pl-10 hover:border-primary/40 hover:bg-primary/[0.035]"
+                      className="group flex items-start border-l-4 border-transparent bg-white px-3 py-3.5 sm:items-center sm:px-5 sm:pl-10 hover:border-primary/40 hover:bg-primary/[0.035]"
                     >
                       <Link
                         to="/dossiers/$id"
                         params={{ id: d.id }}
-                        className="flex min-w-0 flex-1 items-center gap-3"
+                        className="grid min-w-0 flex-1 grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 lg:flex"
                       >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/10 text-primary">
                           <FolderKanban className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 truncate text-base font-bold text-foreground">
-                            <span className="h-0.5 w-4 shrink-0 rounded-full bg-primary" />
+                          <div className="flex items-start gap-2 break-words text-base font-bold text-foreground">
+                            <span className="mt-3 h-0.5 w-4 shrink-0 rounded-full bg-primary" />
                             {d.objet || "(Sans objet)"}
                           </div>
                           <div className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                             Indice v{d.version ?? 1}
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-2 lg:shrink-0">
                           <Badge variant="outline" className="capitalize">
                             {d.type}
                           </Badge>
                           <StatusBadge statut={d.statut} />
-                          <span className="text-xs text-muted-foreground w-24 text-right">
+                          <span className="text-xs text-muted-foreground lg:w-24 lg:text-right">
                             {fmtDate(d.updated_at)}
                           </span>
                         </div>
@@ -361,7 +361,7 @@ function DossiersList() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="ml-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="ml-2 h-11 w-11 shrink-0 px-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => e.stopPropagation()}
                               aria-label="Supprimer le dossier"
                             >
