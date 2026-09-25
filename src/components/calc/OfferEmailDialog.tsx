@@ -188,6 +188,11 @@ function buildLineDetail(line: any, fallback: string) {
   return description ? `${label}\n${description}` : label;
 }
 
+function buildOptionRowDetails(line: any) {
+  const description = cleanLabel(line?.descriptif, "");
+  return description ? [description] : [];
+}
+
 function normalizeSearch(value: unknown) {
   return String(value ?? "")
     .normalize("NFD")
@@ -244,9 +249,7 @@ function buildStandardRows(
   let achatsPrincipauxUnit = 0;
   let achatsPrincipauxBasisUnit = 0;
   const achatsPrincipauxDetails: string[] = [];
-  let optionsUnit = 0;
-  let optionsBasisUnit = 0;
-  const optionsDetails: string[] = [];
+  const optionRows: OfferRow[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
@@ -255,9 +258,15 @@ function buildStandardRows(
     const lineUnit = lineBase * (1 + marge / 100);
     const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
     if (isOptionLine(line)) {
-      optionsUnit += lineUnit;
-      optionsBasisUnit += lineBase;
-      optionsDetails.push(lineDetail);
+      addRow(
+        optionRows,
+        cleanLabel(line?.libelle, `Option ${optionRows.length + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        true,
+        lineBase,
+      );
     } else {
       achatsPrincipauxUnit += lineUnit;
       achatsPrincipauxBasisUnit += lineBase;
@@ -273,7 +282,7 @@ function buildStandardRows(
     false,
     achatsPrincipauxBasisUnit,
   );
-  addRow(rows, "Options", quantite, optionsUnit, optionsDetails, true, optionsBasisUnit);
+  rows.push(...optionRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
@@ -329,9 +338,7 @@ function buildContraRows(
   let achatsContraUnit = 0;
   let achatsContraBasisUnit = 0;
   const achatsContraDetails: string[] = [];
-  let optionsContraUnit = 0;
-  let optionsContraBasisUnit = 0;
-  const optionsContraDetails: string[] = [];
+  const optionsContraRows: OfferRow[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
@@ -345,9 +352,15 @@ function buildContraRows(
     const lineUnit = pvFromContraSharedRaw(lineBase, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
     if (isOptionLine(line)) {
-      optionsContraUnit += lineUnit;
-      optionsContraBasisUnit += lineBase * contraFactor;
-      optionsContraDetails.push(lineDetail);
+      addRow(
+        optionsContraRows,
+        cleanLabel(line?.libelle, `Option Contra ${optionsContraRows.length + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        true,
+        lineBase * contraFactor,
+      );
     } else {
       achatsContraUnit += lineUnit;
       achatsContraBasisUnit += lineBase * contraFactor;
@@ -363,31 +376,27 @@ function buildContraRows(
     false,
     achatsContraBasisUnit,
   );
-  addRow(
-    rows,
-    "Options Contra",
-    quantite,
-    optionsContraUnit,
-    optionsContraDetails,
-    true,
-    optionsContraBasisUnit,
-  );
+  rows.push(...optionsContraRows);
 
   let forfaitsContraUnit = 0;
   let forfaitsContraBasisUnit = 0;
   const forfaitsContraDetails: string[] = [];
-  let optionsForfaitsUnit = 0;
-  let optionsForfaitsBasisUnit = 0;
-  const optionsForfaitsDetails: string[] = [];
+  const optionsForfaitsRows: OfferRow[] = [];
   for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantite > 0 ? (Number(line?.montantGlobal) || 0) / quantite : 0;
     const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
     const lineUnit = pvFromContraSharedRaw(share, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
     if (isOptionLine(line)) {
-      optionsForfaitsUnit += lineUnit;
-      optionsForfaitsBasisUnit += share * contraFactor;
-      optionsForfaitsDetails.push(lineDetail);
+      addRow(
+        optionsForfaitsRows,
+        cleanLabel(line?.libelle, `Option forfaitaire ${optionsForfaitsRows.length + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        true,
+        share * contraFactor,
+      );
     } else {
       forfaitsContraUnit += lineUnit;
       forfaitsContraBasisUnit += share * contraFactor;
@@ -403,15 +412,7 @@ function buildContraRows(
     false,
     forfaitsContraBasisUnit,
   );
-  addRow(
-    rows,
-    "Options forfaitaires Contra",
-    quantite,
-    optionsForfaitsUnit,
-    optionsForfaitsDetails,
-    true,
-    optionsForfaitsBasisUnit,
-  );
+  rows.push(...optionsForfaitsRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = margeFor(
