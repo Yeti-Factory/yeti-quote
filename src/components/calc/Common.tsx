@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,7 @@ import {
   reshapeTransportParQuantite,
   reshapeMargeParQuantite,
   reshapeMargeParQuantiteConfirmed,
+  isOptionLine,
 } from "@/lib/calculs/types";
 
 /**
@@ -248,31 +250,33 @@ export function LinesTable({
   function updateMarge(i: number, margePct: number | null, margeConfirmed: boolean) {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, margePct, margeConfirmed } : l)));
   }
+  function addLine(isOption = false) {
+    onChange([
+      ...lines,
+      {
+        fournisseur: "",
+        libelle: "",
+        descriptif: "",
+        commentaire: "",
+        isOption,
+        [field]: 0,
+        margePct: margeGuard ? margeGuard.standardPct : null,
+        ...(margeGuard ? { margeConfirmed: false } : {}),
+      },
+    ]);
+  }
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <Label className="text-sm font-semibold">{title}</Label>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() =>
-            onChange([
-              ...lines,
-              {
-                fournisseur: "",
-                libelle: "",
-                descriptif: "",
-                commentaire: "",
-                [field]: 0,
-                margePct: margeGuard ? margeGuard.standardPct : null,
-                ...(margeGuard ? { margeConfirmed: false } : {}),
-              },
-            ])
-          }
-        >
-          <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
-        </Button>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => addLine()}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => addLine(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une option
+          </Button>
+        </div>
       </div>
       <div className="border-2 rounded-md overflow-hidden calc-table">
         <div className="grid grid-cols-[minmax(240px,1fr)_160px_140px_120px_36px] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
@@ -345,6 +349,19 @@ export function LinesTable({
               >
                 <Trash2 className="w-4 h-4 text-muted-foreground" />
               </Button>
+              <div className="col-span-full flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                <Checkbox
+                  checked={isOptionLine(l)}
+                  aria-label="Afficher cette ligne dans les options de l'offre"
+                  onCheckedChange={(checked) => update(i, "isOption", checked === true)}
+                />
+                <div>
+                  <div className="text-xs font-semibold">Option dans l'offre</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Affichée en détail après l'offre principale.
+                  </div>
+                </div>
+              </div>
               <Textarea
                 value={l.descriptif ?? ""}
                 placeholder="Descriptif client : visible dans l'offre mail si rempli..."
@@ -468,7 +485,7 @@ export function LinesGridTable({
     return lineMarge ?? quantityMarge ?? margeGuard?.standardPct ?? defaultMargePct ?? 0;
   }
 
-  function addLine() {
+  function addLine(isOption = false) {
     onChange([
       ...lines,
       {
@@ -476,6 +493,7 @@ export function LinesGridTable({
         libelle: "",
         descriptif: "",
         commentaire: "",
+        isOption,
         prixUnitaire: 0,
         prixParQuantite: Array.from({ length: qCount }, () => 0),
         transportParQuantite: Array.from({ length: qCount }, () => 0),
@@ -492,11 +510,16 @@ export function LinesGridTable({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <Label className="text-sm font-semibold">{title}</Label>
-        <Button type="button" size="sm" variant="ghost" onClick={addLine}>
-          <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
-        </Button>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => addLine()}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une ligne
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => addLine(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter une option
+          </Button>
+        </div>
       </div>
       {qCount === 0 ? (
         <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
@@ -591,6 +614,22 @@ export function LinesGridTable({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <div
+                      className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
+                      style={{ gridColumn: "1 / -1" }}
+                    >
+                      <Checkbox
+                        checked={isOptionLine(l)}
+                        aria-label="Afficher cette ligne dans les options de l'offre"
+                        onCheckedChange={(checked) => update(i, { isOption: checked === true })}
+                      />
+                      <div>
+                        <div className="text-xs font-semibold">Option dans l'offre</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Affichée en détail après l'offre principale.
+                        </div>
+                      </div>
+                    </div>
                     <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                       Transport ligne
                     </div>

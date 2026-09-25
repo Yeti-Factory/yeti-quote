@@ -7,6 +7,7 @@ import {
 import {
   getPrixAchat,
   getTransportLigneUnit,
+  isOptionLine,
   normalizeTransportPackaging,
   resolveLineMargePct,
 } from "@/lib/calculs/types";
@@ -266,7 +267,7 @@ function buildStandardRows(params: {
     const lineBase = achat + transportLigneUnit;
     const marge = resolveLineMargePct(line, scenarioIndex, quantiteMarge, defaultMarge);
     const unit = lineBase * (1 + marge / 100);
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionLines.push(line);
       optionsTotal += unit * quantity;
     } else {
@@ -343,7 +344,7 @@ function buildContraRows(params: {
       coefContra,
       resolveContraLineMargePct(line, scenarioIndex, quantiteMarge, quantiteConfirmed),
     );
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionLines.push(line);
       optionsTotal += unit * quantity;
     } else {
@@ -358,7 +359,7 @@ function buildContraRows(params: {
       coefContra,
       margeFor(line?.margePct, line?.margeConfirmed),
     );
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionLines.push(line);
       optionsTotal += unit * quantity;
     } else {
