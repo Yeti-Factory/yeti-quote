@@ -40,6 +40,7 @@ import { formatClientGreetingName } from "@/lib/client-contact";
 import { fmtEUR } from "@/lib/format";
 
 type OfferRow = {
+  rowKey?: string;
   designation: string;
   quantity: number;
   unitPrice: number;
@@ -225,9 +226,11 @@ function addRow(
   details: string[] = [],
   isOption = false,
   fixedFeesBasisUnit = 0,
+  rowKey?: string,
 ) {
   if (!Number.isFinite(unitPrice) || Math.abs(unitPrice) < 0.005) return;
   rows.push({
+    rowKey,
     designation: cleanLabel(designation, "Prestation"),
     quantity,
     unitPrice,
@@ -268,6 +271,7 @@ function buildStandardRows(
         buildOptionRowDetails(line),
         true,
         lineBase,
+        `standard-option-${index}`,
       );
     } else {
       achatsPrincipauxUnit += lineUnit;
@@ -362,6 +366,7 @@ function buildContraRows(
         buildOptionRowDetails(line),
         true,
         lineBase * contraFactor,
+        `contra-option-${index}`,
       );
     } else {
       achatsContraUnit += lineUnit;
@@ -398,6 +403,7 @@ function buildContraRows(
         buildOptionRowDetails(line),
         true,
         share * contraFactor,
+        `forfait-option-${index}`,
       );
     } else {
       forfaitsContraUnit += lineUnit;
@@ -676,6 +682,24 @@ function collectDetails(rowsByScenario: OfferRow[][]) {
   }
 
   return details;
+}
+
+function collectOptionRows(summaries: OfferScenarioSummary[]) {
+  const rowsByKey = new Map<string, OfferRow>();
+  for (const summary of summaries) {
+    summary.optionRows.forEach((row, index) => {
+      const key = row.rowKey ?? `option-${normalizeSearch(row.designation)}-${index}`;
+      if (!rowsByKey.has(key)) rowsByKey.set(key, { ...row, rowKey: key });
+    });
+  }
+  return [...rowsByKey.values()];
+}
+
+function findOptionForScenario(summary: OfferScenarioSummary, option: OfferRow) {
+  return summary.optionRows.find((row, index) => {
+    const key = row.rowKey ?? `option-${normalizeSearch(row.designation)}-${index}`;
+    return key === option.rowKey;
+  });
 }
 
 function buildPlainTextEmail(params: {
@@ -971,7 +995,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
-  const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
+  const optionRows = collectOptionRows(summaries);
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
 
   return [
@@ -988,11 +1012,19 @@ function buildPlainTextMultiQuantityEmail(params: {
     ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT)),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
-    ...buildPlainDetailLines(optionDetails),
-    hasOptions ? "Prix options HT :" : "",
-    ...(hasOptions
-      ? summaries.map((summary) => buildPlainQuantityPrice(summary, summary.optionsTotalHT))
-      : []),
+    ...optionRows.flatMap((option) => {
+      const prices = summaries.map((summary) => {
+        const row = findOptionForScenario(summary, option);
+        return row
+          ? `${summary.label} : PU HT ${fmtEUR(row.unitPrice)} / u - Total HT ${fmtEUR(rowTotal(row))}`
+          : `${summary.label} : non chiffrée`;
+      });
+      return [
+        `- ${option.designation}`,
+        ...buildPlainDetailLines(option.details ?? [], "  "),
+        ...prices.map((price) => `  ${price}`),
+      ];
+    }),
     "",
     ...buildPlainTotalsRows(summaries, hasOptions),
     "",
@@ -1032,7 +1064,7 @@ function buildHtmlMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
-  const optionDetails = collectDetails(summaries.map((summary) => summary.optionRows));
+  const optionRows = collectOptionRows(summaries);
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
   const columnWidth = Math.max(118, Math.min(160, 520 / Math.max(1, summaries.length)));
 
@@ -1098,6 +1130,35 @@ function buildHtmlMultiQuantityEmail(params: {
         .join("")}
     </tr>`;
 
+  const optionPriceTable = () =>
+    optionRows.length
+      ? `<tr>
+      <td style="padding:0 0 14px 0;">
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">Options</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+          <thead><tr>
+            <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+            ${summaries.map((summary) => `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`).join("")}
+          </tr></thead>
+          <tbody>
+            ${optionRows.map((option) => `<tr>
+              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
+                <div style="font-weight:700;">${escapeHtml(option.designation)}</div>
+                ${detailHtml(option.details)}
+              </td>
+              ${summaries.map((summary) => {
+                const row = findOptionForScenario(summary, option);
+                return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
+                  ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
+                </td>`;
+              }).join("")}
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </td>
+    </tr>`
+      : "";
+
   return `
 <div style="margin:0;padding:0;background:#ffffff;color:${MAIL_TEXT};font-family:${FONT};font-size:12.5px;line-height:1.4;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:920px;border-collapse:collapse;font-family:${FONT};">
@@ -1137,16 +1198,7 @@ function buildHtmlMultiQuantityEmail(params: {
     </tr>
     ${buildMailImageRow(image)}
     ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
-    ${
-      hasOptions
-        ? priceTable(
-            "Options",
-            optionDetails,
-            "Prix options HT",
-            (summary) => summary.optionsTotalHT,
-          )
-        : ""
-    }
+    ${hasOptions ? optionPriceTable() : ""}
     <tr>
       <td style="padding:0 0 16px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
