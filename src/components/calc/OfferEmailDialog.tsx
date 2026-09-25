@@ -1146,15 +1146,15 @@ function buildHtmlMultiQuantityEmail(params: {
     <tr>
       <td style="padding:0 0 14px 0;">
         <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">Prix unitaire (offre et options incluses)</div>
-        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+        <table cellpadding="0" cellspacing="0" bgcolor="#fff4c2" style="forced-color-adjust:none;print-color-adjust:exact;-webkit-print-color-adjust:exact;width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <tbody>
             <tr>
-              <td bgcolor="#fff4c2" style="background-color:#fff4c2;padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;font-weight:700;">Prix unitaire HT</td>
-              ${summaries.map((summary) => `<td bgcolor="#fff4c2" style="background-color:#fff4c2;padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:13px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, summary.totalHT)))} / u</td>`).join("")}
+              <td bgcolor="#fff4c2" style="background-color:#fff4c2 !important;padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT} !important;font-size:12px;font-weight:700;">Prix unitaire HT</td>
+              ${summaries.map((summary) => `<td bgcolor="#fff4c2" style="background-color:#fff4c2 !important;padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT} !important;font-size:13px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, summary.totalHT)))} / u</td>`).join("")}
             </tr>
             <tr>
-              <td bgcolor="#fff4c2" style="background-color:#fff4c2;padding:8px 10px;color:${MAIL_TEXT};font-size:12px;font-weight:700;">Prix unitaire TTC</td>
-              ${summaries.map((summary) => `<td bgcolor="#fff4c2" style="background-color:#fff4c2;padding:8px 10px;text-align:right;color:${MAIL_TEXT};font-size:14px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, summary.totalTTC)))} / u</td>`).join("")}
+              <td bgcolor="#fff4c2" style="background-color:#fff4c2 !important;padding:8px 10px;color:${MAIL_TEXT} !important;font-size:12px;font-weight:700;">Prix unitaire TTC</td>
+              ${summaries.map((summary) => `<td bgcolor="#fff4c2" style="background-color:#fff4c2 !important;padding:8px 10px;text-align:right;color:${MAIL_TEXT} !important;font-size:14px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, summary.totalTTC)))} / u</td>`).join("")}
             </tr>
           </tbody>
         </table>
