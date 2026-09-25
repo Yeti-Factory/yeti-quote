@@ -193,6 +193,8 @@ function buildOptionRowDetails(line: any) {
   return description ? [description] : [];
 }
 
+// Keep each option as its own priced row in Standard and Contra offers.
+
 function normalizeSearch(value: unknown) {
   return String(value ?? "")
     .normalize("NFD")
