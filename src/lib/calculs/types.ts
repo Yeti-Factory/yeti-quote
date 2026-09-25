@@ -34,6 +34,8 @@ export function normalizeQuantites(input: unknown): Quantite[] {
 export type LineItem = {
   fournisseur?: string;
   libelle: string;
+  /** Displays this line separately in the Options section of the client offer. */
+  isOption?: boolean;
   /** Client-facing description shown in generated offers when filled. */
   descriptif?: string;
   /** Internal note saved with the dossier, never used in calculations. */
@@ -69,6 +71,8 @@ export type LineItem = {
 export type LineForfait = {
   fournisseur?: string;
   libelle: string;
+  /** Displays this line separately in the Options section of the client offer. */
+  isOption?: boolean;
   /** Client-facing description shown in generated offers when filled. */
   descriptif?: string;
   /** Internal note saved with the dossier, never used in calculations. */
@@ -79,6 +83,19 @@ export type LineForfait = {
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
   margeConfirmed?: boolean;
 };
+
+/**
+ * Explicit option flag used by current dossiers, with label detection kept for
+ * dossiers created before the flag existed.
+ */
+export function isOptionLine(line: { isOption?: boolean; libelle?: unknown } | null | undefined) {
+  if (typeof line?.isOption === "boolean") return line.isOption;
+  const label = String(line?.libelle ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return /\boptions?\b/.test(label);
+}
 
 /**
  * Resolve the purchase unit price for a line at a given quantity index.

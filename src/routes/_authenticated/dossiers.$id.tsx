@@ -157,6 +157,7 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
     ...(Array.isArray(input.achatsContra) ? input.achatsContra : []).map((line) => ({
       fournisseur: line.fournisseur ?? "",
       libelle: line.libelle ?? "",
+      isOption: line.isOption,
       descriptif: line.descriptif ?? "",
       commentaire: line.commentaire ?? "",
       prixUnitaire: line.prixUnitaire ?? 0,
@@ -172,6 +173,7 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
       return {
         fournisseur: line.fournisseur ?? "",
         libelle: line.libelle ? `Forfait - ${line.libelle}` : "Forfait",
+        isOption: line.isOption,
         descriptif: line.descriptif ?? "",
         commentaire: line.commentaire ?? "",
         prixUnitaire: 0,
@@ -233,6 +235,7 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
     (line) => ({
       fournisseur: line.fournisseur ?? "",
       libelle: line.libelle ?? "",
+      isOption: line.isOption,
       descriptif: line.descriptif ?? "",
       commentaire: line.commentaire ?? "",
       prixUnitaire: line.prixUnitaire ?? 0,

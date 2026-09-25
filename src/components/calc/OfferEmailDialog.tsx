@@ -31,6 +31,7 @@ import {
   getPrixAchat,
   getTransportLigneGlobal,
   getTransportLigneUnit,
+  isOptionLine,
   normalizeTransportPackaging,
   resolveMargePct,
   resolveLineMargePct,
@@ -253,7 +254,7 @@ function buildStandardRows(
     const marge = resolveLineMargePct(line, scenarioIndex, quantiteMarge, defaultMarge);
     const lineUnit = lineBase * (1 + marge / 100);
     const lineDetail = buildLineDetail(line, `Prestation ${index + 1}`);
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionsUnit += lineUnit;
       optionsBasisUnit += lineBase;
       optionsDetails.push(lineDetail);
@@ -343,7 +344,7 @@ function buildContraRows(
     );
     const lineUnit = pvFromContraSharedRaw(lineBase, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Prestation Contra ${index + 1}`);
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionsContraUnit += lineUnit;
       optionsContraBasisUnit += lineBase * contraFactor;
       optionsContraDetails.push(lineDetail);
@@ -383,7 +384,7 @@ function buildContraRows(
     const margeYeti = margeFor(line?.margePct, line?.margeConfirmed);
     const lineUnit = pvFromContraSharedRaw(share, coefContra, margeYeti);
     const lineDetail = buildLineDetail(line, `Forfait Contra ${index + 1}`);
-    if (isOptionLabel(line?.libelle)) {
+    if (isOptionLine(line)) {
       optionsForfaitsUnit += lineUnit;
       optionsForfaitsBasisUnit += share * contraFactor;
       optionsForfaitsDetails.push(lineDetail);
