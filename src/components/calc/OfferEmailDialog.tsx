@@ -3,6 +3,7 @@ import { Clipboard, ImagePlus, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +81,7 @@ type OfferEmailDialogProps = {
 type MailImage = {
   name: string;
   src: string;
+  enabled?: boolean;
 };
 
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
@@ -120,6 +122,7 @@ function normalizeMailImage(value: unknown): MailImage | null {
   return {
     name: typeof image.name === "string" && image.name.trim() ? image.name : "image-offre.jpg",
     src: image.src,
+    enabled: image.enabled !== false,
   };
 }
 
@@ -1312,23 +1315,39 @@ export function OfferEmailDialog({
     [payload?.offerMailImage],
   );
   const [mailImage, setMailImage] = useState<MailImage | null>(savedMailImage);
+  const [imageEnabled, setImageEnabled] = useState(savedMailImage?.enabled !== false && !!savedMailImage);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
 
   useEffect(() => {
     setMailImage(savedMailImage);
+    setImageEnabled(savedMailImage?.enabled !== false && !!savedMailImage);
   }, [savedMailImage]);
 
   async function handleImageChange(file: File | undefined) {
-    if (!file) return;
+    if (!file || isPreparingImage) return;
+    setIsPreparingImage(true);
     try {
-      const image = await prepareMailImage(file);
+      const image = { ...(await prepareMailImage(file)), enabled: true };
       setMailImage(image);
+      setImageEnabled(true);
       onImageChange?.(image);
       toast.success("Image ajoutée à l'offre mail");
     } catch (error: any) {
       toast.error(error?.message ?? "Impossible d'ajouter l'image");
+    } finally {
+      setIsPreparingImage(false);
+    }
+  }
+
+  function toggleImage(enabled: boolean) {
+    setImageEnabled(enabled);
+    if (mailImage) {
+      const image = { ...mailImage, enabled };
+      setMailImage(image);
+      onImageChange?.(image);
     }
   }
 
@@ -1369,7 +1388,7 @@ export function OfferEmailDialog({
         clientEmail,
         reference,
         objet,
-        image: mailImage,
+        image: imageEnabled ? mailImage : null,
         summaries,
         transportCondition,
         outillageIncluded,
@@ -1410,7 +1429,7 @@ export function OfferEmailDialog({
       clientEmail,
       reference,
       objet,
-      image: mailImage,
+      image: imageEnabled ? mailImage : null,
       mainRows,
       optionRows,
       mainTotalHT,
@@ -1422,7 +1441,7 @@ export function OfferEmailDialog({
     const previewWidth = 760;
 
     return { subject, plainText, html, previewWidth };
-  }, [dossier, mailImage, meta, output, payload, scenario, scenarioItems, selectedItem]);
+  }, [dossier, mailImage, imageEnabled, meta, output, payload, scenario, scenarioItems, selectedItem]);
 
   async function copyBody() {
     if (!offer) return;
@@ -1457,7 +1476,20 @@ export function OfferEmailDialog({
           Générer offre mail
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-5xl max-h-[92vh] overflow-y-auto"
+        onPaste={(event) => {
+          if (!imageEnabled || isPreparingImage) return;
+          const item = Array.from(event.clipboardData.items).find(
+            (item) => item.kind === "file" && item.type.startsWith("image/"),
+          );
+          const file = item?.getAsFile();
+          if (file) {
+            event.preventDefault();
+            void handleImageChange(file);
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Offre à coller dans le mail</DialogTitle>
           <DialogDescription>
@@ -1498,37 +1530,80 @@ export function OfferEmailDialog({
               <Textarea readOnly value={offer?.subject ?? ""} className="min-h-20 text-sm" />
             </div>
 
-            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-              <Label htmlFor="offer-image">Image optionnelle</Label>
-              <Input
-                id="offer-image"
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleImageChange(event.currentTarget.files?.[0])}
-              />
-              {mailImage ? (
-                <div className="space-y-2">
-                  <div className="overflow-hidden rounded-md border bg-white">
-                    <img src={mailImage.src} alt="" className="max-h-32 w-full object-contain" />
+            <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="offer-image-enabled"
+                  checked={imageEnabled}
+                  disabled={isPreparingImage}
+                  onCheckedChange={(checked) => toggleImage(checked === true)}
+                />
+                <Label htmlFor="offer-image-enabled" className="cursor-pointer">
+                  Ajouter une image à l'offre
+                </Label>
+              </div>
+              {imageEnabled && (
+                <div className="space-y-3">
+                  <div
+                    role="group"
+                    aria-label="Ajouter un plan ou une photo à l'offre"
+                    tabIndex={0}
+                    className="space-y-2 rounded-md border-2 border-dashed p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = isPreparingImage ? "none" : "copy";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (isPreparingImage) return;
+                      const files = Array.from(event.dataTransfer.files);
+                      const file = files.find((file) => file.type.startsWith("image/")) ?? files[0];
+                      void handleImageChange(file);
+                    }}
+                  >
+                    <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                    <Label htmlFor="offer-image" className="block cursor-pointer">
+                      Glissez un plan ou une photo ici
+                    </Label>
+                    <Input
+                      id="offer-image"
+                      type="file"
+                      accept="image/*"
+                      disabled={isPreparingImage}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        void handleImageChange(file);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ou collez une image avec Ctrl+V (⌘V sur Mac) dans cette fenêtre.
+                      Le visuel sera intégré à l'offre, avant les prix.
+                    </p>
+                    {isPreparingImage && <p role="status" className="text-xs">Préparation de l'image…</p>}
                   </div>
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="truncate">{mailImage.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={removeImage}
-                    >
-                      <X className="mr-1 h-3.5 w-3.5" />
-                      Retirer
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <ImagePlus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>Ajoute une photo ou un visuel au corps du mail copié.</span>
+                  {mailImage && (
+                    <div className="space-y-2">
+                      <div className="overflow-hidden rounded-md border bg-white">
+                        <img src={mailImage.src} alt={mailImage.name} className="max-h-32 w-full object-contain" />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span className="truncate">{mailImage.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          disabled={isPreparingImage}
+                          onClick={removeImage}
+                        >
+                          <X className="mr-1 h-3.5 w-3.5" />
+                          Retirer
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
