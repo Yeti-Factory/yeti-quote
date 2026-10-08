@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CARBON_MATERIALS,
   createCarbonArticle,
@@ -19,6 +20,7 @@ import {
   createCarbonMaterial,
   normalizeCarbonEstimate,
   type CarbonArticle,
+  type CarbonArticleSuggestion,
   type CarbonEstimate,
   type CarbonMaterialShare,
 } from "@/lib/carbon";
@@ -31,9 +33,11 @@ function readOptionalNumber(value: string): number | null {
 
 export function CarbonEstimateForm({
   value,
+  suggestedArticles = [],
   onChange,
 }: {
   value?: CarbonEstimate | null;
+  suggestedArticles?: CarbonArticleSuggestion[];
   onChange: (value: CarbonEstimate) => void;
 }) {
   const estimate = normalizeCarbonEstimate(value ?? createCarbonEstimate());
@@ -41,11 +45,41 @@ export function CarbonEstimateForm({
 
   function enable(enabled: boolean) {
     setOpen(enabled);
+    const initialArticles = suggestedArticles.length
+      ? suggestedArticles.map((suggestion) => createCarbonArticle(suggestion))
+      : [createCarbonArticle()];
     onChange({
       ...estimate,
       enabled,
-      articles:
-        enabled && estimate.articles.length === 0 ? [createCarbonArticle()] : estimate.articles,
+      articles: enabled && estimate.articles.length === 0 ? initialArticles : estimate.articles,
+    });
+  }
+
+  function importSuggestedArticles() {
+    const isBlankArticle = (article: CarbonArticle) =>
+      article.label.trim() === "" &&
+      String(article.description ?? "").trim() === "" &&
+      article.unitWeightKg === null &&
+      article.materials.every(
+        (material) => material.materialId === "" && material.recycledPct === null,
+      );
+    const currentArticles = estimate.articles.filter((article) => !isBlankArticle(article));
+    const fingerprint = (article: { label: string; description?: string }) =>
+      `${article.label.trim().toLocaleLowerCase("fr-FR")}\n${String(article.description ?? "")
+        .trim()
+        .toLocaleLowerCase("fr-FR")}`;
+    const existing = new Set(currentArticles.map(fingerprint));
+    const missing = suggestedArticles.filter(
+      (suggestion) => !existing.has(fingerprint(suggestion)),
+    );
+    setOpen(true);
+    onChange({
+      ...estimate,
+      enabled: true,
+      articles: [
+        ...currentArticles,
+        ...missing.map((suggestion) => createCarbonArticle(suggestion)),
+      ],
     });
   }
 
@@ -124,9 +158,16 @@ export function CarbonEstimateForm({
               Saisissez le poids d’une pièce. Pour un article composé de plusieurs matières,
               répartissez simplement les pourcentages jusqu’à 100 %.
             </p>
-            <Button type="button" size="sm" variant="outline" onClick={addArticle}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un article
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {suggestedArticles.length > 0 && (
+                <Button type="button" size="sm" variant="outline" onClick={importSuggestedArticles}>
+                  Reprendre les lignes du devis
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="outline" onClick={addArticle}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un article
+              </Button>
+            </div>
           </div>
 
           {estimate.articles.length === 0 ? (
@@ -247,6 +288,16 @@ function ArticleEditor({
             }
           />
         </div>
+      </div>
+
+      <div>
+        <Label>Descriptif fournisseur</Label>
+        <Textarea
+          rows={3}
+          value={article.description ?? ""}
+          placeholder="Le descriptif de la ligne du devis est repris automatiquement."
+          onChange={(event) => onChange({ description: event.target.value })}
+        />
       </div>
 
       <div className="space-y-2">
