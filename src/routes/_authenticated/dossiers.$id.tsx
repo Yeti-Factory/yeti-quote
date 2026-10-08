@@ -38,6 +38,7 @@ import { ResultsPanel } from "@/components/calc/ResultsPanel";
 import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
 import { SageExportDialog } from "@/components/calc/SageExportDialog";
+import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
@@ -274,13 +275,19 @@ function convertBetweenStandardAndContra(
   defaults: any,
 ) {
   if (fromType === toType) return input;
+  let converted = null;
   if (fromType === "contra" && toType === "standard") {
-    return contraToStandardPayload(input as ContraInput, defaults?.standard);
+    converted = contraToStandardPayload(input as ContraInput, defaults?.standard);
   }
   if (fromType === "standard" && toType === "contra") {
-    return standardToContraPayload(input as StandardInput, defaults?.contra);
+    converted = standardToContraPayload(input as StandardInput, defaults?.contra);
   }
-  return null;
+  if (!converted) return null;
+  return {
+    ...converted,
+    ...(input.carbonEstimate ? { carbonEstimate: input.carbonEstimate } : {}),
+    ...(input.offerMailImage ? { offerMailImage: input.offerMailImage } : {}),
+  };
 }
 
 function calculateForType(type: "standard" | "contra", nextPayload: any) {
@@ -836,6 +843,10 @@ function DossierDetail() {
               <KitsForm value={payload} onChange={setPayload} output={output as any} />
             )}
             {dossier.type === "stands" && <StandsForm value={payload} onChange={setPayload} />}
+            <CarbonEstimateForm
+              value={payload.carbonEstimate}
+              onChange={(carbonEstimate) => setPayload({ ...payload, carbonEstimate })}
+            />
           </div>
         </div>
 
@@ -918,3 +929,4 @@ function DossierDetail() {
     </>
   );
 }
+
