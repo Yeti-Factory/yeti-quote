@@ -38,6 +38,7 @@ import {
   resolveLineMargePct,
 } from "@/lib/calculs/types";
 import { formatClientGreetingName } from "@/lib/client-contact";
+import { calculateCarbonEstimate, type CarbonEstimateResult } from "@/lib/carbon";
 import { fmtEUR } from "@/lib/format";
 
 type OfferRow = {
@@ -178,6 +179,53 @@ function buildMailImageRow(image: MailImage | null) {
         <img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.name)}" style="display:block;width:100%;max-width:620px;height:auto;border:1px solid ${MAIL_BORDER};" />
       </td>
     </tr>`;
+}
+
+function formatCarbon(value: number) {
+  return value.toLocaleString("fr-FR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function buildCarbonPlainText(
+  carbon: CarbonEstimateResult | null,
+  quantities: Array<{ label: string; quantity: number }>,
+) {
+  if (!carbon) return [];
+  return [
+    `Estimation prévisionnelle de l’empreinte carbone : ${formatCarbon(carbon.kgCo2ePerSet)} kg CO₂e par ensemble livré.`,
+    ...quantities.map(
+      ({ label, quantity }) =>
+        `${label} : ${formatCarbon(carbon.kgCo2ePerSet * quantity)} kg CO₂e pour la commande.`,
+    ),
+    "Estimation indicative réalisée à partir du poids, des matières et des quantités renseignés.",
+  ];
+}
+
+function buildCarbonHtmlRow(
+  carbon: CarbonEstimateResult | null,
+  quantities: Array<{ label: string; quantity: number }>,
+) {
+  if (!carbon) return "";
+  const totals = quantities
+    .map(
+      ({ label, quantity }) =>
+        `<span style="display:inline-block;margin:4px 8px 0 0;padding:3px 7px;border-radius:999px;background:#ffffff;color:#166534;font-size:10.5px;">${escapeHtml(label)} : ${escapeHtml(formatCarbon(carbon.kgCo2ePerSet * quantity))} kg CO₂e</span>`,
+    )
+    .join("");
+  return `<tr>
+    <td style="padding:0 0 14px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #a7d7b5;border-left:4px solid #16803c;background:#effaf2;font-family:${FONT};">
+        <tr><td style="padding:10px 12px;color:#14532d;">
+          <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;">Estimation prévisionnelle de l’empreinte carbone</div>
+          <div style="margin-top:3px;font-size:15px;font-weight:800;">${escapeHtml(formatCarbon(carbon.kgCo2ePerSet))} kg CO₂e par ensemble livré</div>
+          <div>${totals}</div>
+          <div style="margin-top:6px;color:#3f684b;font-size:10.5px;">Estimation indicative réalisée à partir du poids, des matières et des quantités renseignés.</div>
+        </td></tr>
+      </table>
+    </td>
+  </tr>`;
 }
 
 function buildOfferContactName(dossier: any) {
@@ -718,6 +766,8 @@ function buildPlainTextEmail(params: {
   totalHT: number;
   vat: number;
   totalTTC: number;
+  carbon: CarbonEstimateResult | null;
+  quantity: number;
 }) {
   const {
     clientName,
@@ -731,6 +781,8 @@ function buildPlainTextEmail(params: {
     totalHT,
     vat,
     totalTTC,
+    carbon,
+    quantity,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -753,6 +805,7 @@ function buildPlainTextEmail(params: {
     `TVA 20 % : ${fmtEUR(vat)}`,
     `Total TTC : ${fmtEUR(totalTTC)}`,
     "",
+    ...buildCarbonPlainText(carbon, [{ label: `Qté ${quantity}`, quantity }]),
     "Cette offre est indicative et valable 8 jours, sous réserve de validation technique et de disponibilité.",
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
@@ -776,6 +829,8 @@ function buildHtmlEmail(params: {
   totalHT: number;
   vat: number;
   totalTTC: number;
+  carbon: CarbonEstimateResult | null;
+  quantity: number;
 }) {
   const {
     clientName,
@@ -791,6 +846,8 @@ function buildHtmlEmail(params: {
     totalHT,
     vat,
     totalTTC,
+    carbon,
+    quantity,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -850,6 +907,7 @@ function buildHtmlEmail(params: {
         <p style="margin:0;">Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée.</p>
       </td>
     </tr>
+    ${buildCarbonHtmlRow(carbon, [{ label: `Qté ${quantity}`, quantity }])}
     <tr>
       <td style="padding:0 0 14px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};">
@@ -995,6 +1053,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   summaries: OfferScenarioSummary[];
   transportCondition: string;
   outillageIncluded: boolean;
+  carbon: CarbonEstimateResult | null;
 }) {
   const {
     clientName,
@@ -1004,6 +1063,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     summaries,
     transportCondition,
     outillageIncluded,
+    carbon,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
@@ -1040,6 +1100,10 @@ function buildPlainTextMultiQuantityEmail(params: {
     "",
     ...buildPlainTotalsRows(summaries, hasOptions),
     "",
+    ...buildCarbonPlainText(
+      carbon,
+      summaries.map((summary) => ({ label: summary.label, quantity: summary.quantity })),
+    ),
     "Conditions :",
     "Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.",
     transportCondition,
@@ -1062,6 +1126,7 @@ function buildHtmlMultiQuantityEmail(params: {
   summaries: OfferScenarioSummary[];
   transportCondition: string;
   outillageIncluded: boolean;
+  carbon: CarbonEstimateResult | null;
 }) {
   const {
     clientName,
@@ -1073,6 +1138,7 @@ function buildHtmlMultiQuantityEmail(params: {
     summaries,
     transportCondition,
     outillageIncluded,
+    carbon,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
@@ -1172,18 +1238,24 @@ function buildHtmlMultiQuantityEmail(params: {
             ${summaries.map((summary) => `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`).join("")}
           </tr></thead>
           <tbody>
-            ${optionRows.map((option) => `<tr>
+            ${optionRows
+              .map(
+                (option) => `<tr>
               <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
                 <div style="font-weight:700;">${escapeHtml(option.designation)}</div>
                 ${detailHtml(option.details)}
               </td>
-              ${summaries.map((summary) => {
-                const row = findOptionForScenario(summary, option);
-                return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
+              ${summaries
+                .map((summary) => {
+                  const row = findOptionForScenario(summary, option);
+                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
                   ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
                 </td>`;
-              }).join("")}
-            </tr>`).join("")}
+                })
+                .join("")}
+            </tr>`,
+              )
+              .join("")}
           </tbody>
         </table>
       </td>
@@ -1199,6 +1271,10 @@ function buildHtmlMultiQuantityEmail(params: {
         <p style="margin:0;">Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée.</p>
       </td>
     </tr>
+    ${buildCarbonHtmlRow(
+      carbon,
+      summaries.map((summary) => ({ label: summary.label, quantity: summary.quantity })),
+    )}
     <tr>
       <td style="padding:0 0 14px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};">
@@ -1315,7 +1391,9 @@ export function OfferEmailDialog({
     [payload?.offerMailImage],
   );
   const [mailImage, setMailImage] = useState<MailImage | null>(savedMailImage);
-  const [imageEnabled, setImageEnabled] = useState(savedMailImage?.enabled !== false && !!savedMailImage);
+  const [imageEnabled, setImageEnabled] = useState(
+    savedMailImage?.enabled !== false && !!savedMailImage,
+  );
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
@@ -1360,6 +1438,7 @@ export function OfferEmailDialog({
     const reference = cleanLabel(meta.reference, "");
     const objet = cleanLabel(meta.objet, dossier?.objet || "Offre de prix");
     const subject = `Offre de prix - ${clientName || "Client"} - ${objet}`;
+    const carbon = calculateCarbonEstimate(payload?.carbonEstimate);
 
     if (dossier?.type !== "stands") {
       const summaries = scenarioItems.map((item) =>
@@ -1381,6 +1460,7 @@ export function OfferEmailDialog({
         summaries,
         transportCondition,
         outillageIncluded,
+        carbon,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -1392,6 +1472,7 @@ export function OfferEmailDialog({
         summaries,
         transportCondition,
         outillageIncluded,
+        carbon,
       });
       const previewWidth = 920;
 
@@ -1422,6 +1503,8 @@ export function OfferEmailDialog({
       totalHT,
       vat,
       totalTTC,
+      carbon,
+      quantity: Number(scenario.quantite) || 0,
     });
     const html = buildHtmlEmail({
       clientName,
@@ -1437,11 +1520,23 @@ export function OfferEmailDialog({
       totalHT,
       vat,
       totalTTC,
+      carbon,
+      quantity: Number(scenario.quantite) || 0,
     });
     const previewWidth = 760;
 
     return { subject, plainText, html, previewWidth };
-  }, [dossier, mailImage, imageEnabled, meta, output, payload, scenario, scenarioItems, selectedItem]);
+  }, [
+    dossier,
+    mailImage,
+    imageEnabled,
+    meta,
+    output,
+    payload,
+    scenario,
+    scenarioItems,
+    selectedItem,
+  ]);
 
   async function copyBody() {
     if (!offer) return;
@@ -1578,15 +1673,23 @@ export function OfferEmailDialog({
                       }}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Ou collez une image avec Ctrl+V (⌘V sur Mac) dans cette fenêtre.
-                      Le visuel sera intégré à l'offre, avant les prix.
+                      Ou collez une image avec Ctrl+V (⌘V sur Mac) dans cette fenêtre. Le visuel
+                      sera intégré à l'offre, avant les prix.
                     </p>
-                    {isPreparingImage && <p role="status" className="text-xs">Préparation de l'image…</p>}
+                    {isPreparingImage && (
+                      <p role="status" className="text-xs">
+                        Préparation de l'image…
+                      </p>
+                    )}
                   </div>
                   {mailImage && (
                     <div className="space-y-2">
                       <div className="overflow-hidden rounded-md border bg-white">
-                        <img src={mailImage.src} alt={mailImage.name} className="max-h-32 w-full object-contain" />
+                        <img
+                          src={mailImage.src}
+                          alt={mailImage.name}
+                          className="max-h-32 w-full object-contain"
+                        />
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                         <span className="truncate">{mailImage.name}</span>

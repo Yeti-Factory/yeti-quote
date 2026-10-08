@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CARBON_MATERIALS,
+  calculateCarbonEstimate,
   createCarbonArticle,
   createCarbonEstimate,
   createCarbonMaterial,
@@ -41,6 +42,7 @@ export function CarbonEstimateForm({
   onChange: (value: CarbonEstimate) => void;
 }) {
   const estimate = normalizeCarbonEstimate(value ?? createCarbonEstimate());
+  const result = calculateCarbonEstimate(estimate);
   const [open, setOpen] = useState(estimate.enabled);
 
   function enable(enabled: boolean) {
@@ -190,6 +192,28 @@ export function CarbonEstimateForm({
               />
             ))
           )}
+
+          {result ? (
+            <div className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+              <div className="font-semibold">
+                Estimation affichée dans l’offre :{" "}
+                {result.kgCo2ePerSet.toLocaleString("fr-FR", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{" "}
+                kg CO₂e par ensemble
+              </div>
+              <div className="mt-1 text-xs text-emerald-800">
+                Estimation indicative calculée à partir des poids, matières et quantités renseignés.
+              </div>
+            </div>
+          ) : estimate.articles.length > 0 ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+              Le bloc carbone apparaîtra dans l’offre lorsque chaque article aura un poids, une
+              quantité et une composition matière complète à 100 %. « Autre matière » nécessite un
+              facteur avant de pouvoir être calculée.
+            </div>
+          ) : null}
         </div>
       )}
     </Card>
@@ -417,4 +441,3 @@ function ArticleEditor({
     </div>
   );
 }
-

@@ -26,31 +26,87 @@ export type CarbonEstimate = {
   articles: CarbonArticle[];
 };
 
+export type CarbonEstimateResult = {
+  kgCo2ePerSet: number;
+  weightKgPerSet: number;
+  articleCount: number;
+};
+
 export const CARBON_MATERIALS = [
-  { id: "pvc_expanded", label: "PVC expansé" },
-  { id: "pvc_rigid", label: "PVC rigide" },
-  { id: "pmma", label: "PMMA / Plexiglas" },
-  { id: "pet", label: "PET" },
-  { id: "petg", label: "PETG" },
-  { id: "polycarbonate", label: "Polycarbonate" },
-  { id: "polypropylene", label: "Polypropylène (PP)" },
-  { id: "polyethylene", label: "Polyéthylène (PE)" },
-  { id: "abs", label: "ABS" },
-  { id: "polystyrene", label: "Polystyrène / HIPS" },
-  { id: "cardboard", label: "Carton" },
-  { id: "paper", label: "Papier" },
-  { id: "wood", label: "Bois massif" },
-  { id: "mdf", label: "MDF" },
-  { id: "plywood", label: "Contreplaqué" },
-  { id: "melamine", label: "Mélaminé / aggloméré" },
-  { id: "steel", label: "Acier" },
-  { id: "aluminium", label: "Aluminium" },
-  { id: "glass", label: "Verre" },
-  { id: "polyester_textile", label: "Textile polyester" },
-  { id: "foam", label: "Mousse" },
-  { id: "adhesive_vinyl", label: "Vinyle adhésif" },
-  { id: "other", label: "Autre matière" },
+  { id: "pvc_expanded", label: "PVC expansé", factorKgCo2ePerKg: 3.1 },
+  { id: "pvc_rigid", label: "PVC rigide", factorKgCo2ePerKg: 3.1 },
+  { id: "pmma", label: "PMMA / Plexiglas", factorKgCo2ePerKg: 6 },
+  { id: "pet", label: "PET", factorKgCo2ePerKg: 3 },
+  { id: "petg", label: "PETG", factorKgCo2ePerKg: 3.5 },
+  { id: "polycarbonate", label: "Polycarbonate", factorKgCo2ePerKg: 5.6 },
+  { id: "polypropylene", label: "Polypropylène (PP)", factorKgCo2ePerKg: 2 },
+  { id: "polyethylene", label: "Polyéthylène (PE)", factorKgCo2ePerKg: 2 },
+  { id: "abs", label: "ABS", factorKgCo2ePerKg: 3.8 },
+  { id: "polystyrene", label: "Polystyrène / HIPS", factorKgCo2ePerKg: 3.4 },
+  { id: "cardboard", label: "Carton", factorKgCo2ePerKg: 0.9 },
+  { id: "paper", label: "Papier", factorKgCo2ePerKg: 1.1 },
+  { id: "wood", label: "Bois massif", factorKgCo2ePerKg: 0.2 },
+  { id: "mdf", label: "MDF", factorKgCo2ePerKg: 0.7 },
+  { id: "plywood", label: "Contreplaqué", factorKgCo2ePerKg: 0.7 },
+  { id: "melamine", label: "Mélaminé / aggloméré", factorKgCo2ePerKg: 0.8 },
+  { id: "steel", label: "Acier", factorKgCo2ePerKg: 2.3 },
+  { id: "aluminium", label: "Aluminium", factorKgCo2ePerKg: 8.7 },
+  { id: "glass", label: "Verre", factorKgCo2ePerKg: 1.2 },
+  { id: "polyester_textile", label: "Textile polyester", factorKgCo2ePerKg: 5.5 },
+  { id: "foam", label: "Mousse", factorKgCo2ePerKg: 3.2 },
+  { id: "adhesive_vinyl", label: "Vinyle adhésif", factorKgCo2ePerKg: 3.1 },
+  { id: "other", label: "Autre matière", factorKgCo2ePerKg: null },
 ] as const;
+
+const CARBON_FACTOR_BY_MATERIAL = new Map<string, number | null>(
+  CARBON_MATERIALS.map((material) => [material.id, material.factorKgCo2ePerKg]),
+);
+
+/**
+ * Compact commercial estimate, not a scientific LCA.
+ * Material factors are conservative production averages in kg CO2e/kg.
+ * Known recycled content receives a capped 40% reduction, blended by its share.
+ */
+export function calculateCarbonEstimate(input: unknown): CarbonEstimateResult | null {
+  const estimate = normalizeCarbonEstimate(input);
+  if (!estimate.enabled || estimate.articles.length === 0) return null;
+
+  let kgCo2ePerSet = 0;
+  let weightKgPerSet = 0;
+
+  for (const article of estimate.articles) {
+    const unitWeightKg = Number(article.unitWeightKg);
+    const quantityPerSet = Number(article.quantityPerSet);
+    if (!(unitWeightKg > 0) || !(quantityPerSet > 0) || article.materials.length === 0) {
+      return null;
+    }
+
+    const shareTotal = article.materials.reduce(
+      (total, material) => total + (Number(material.sharePct) || 0),
+      0,
+    );
+    if (Math.abs(shareTotal - 100) > 0.01) return null;
+
+    const articleWeightKg = unitWeightKg * quantityPerSet;
+    weightKgPerSet += articleWeightKg;
+
+    for (const material of article.materials) {
+      const factor = CARBON_FACTOR_BY_MATERIAL.get(material.materialId);
+      const share = Number(material.sharePct) / 100;
+      if (factor === null || factor === undefined || !(share >= 0)) return null;
+      const recycledPct = Math.min(100, Math.max(0, Number(material.recycledPct) || 0));
+      const recycledAdjustment = 1 - (recycledPct / 100) * 0.4;
+      kgCo2ePerSet += articleWeightKg * share * factor * recycledAdjustment;
+    }
+  }
+
+  if (!(kgCo2ePerSet > 0)) return null;
+  return {
+    kgCo2ePerSet,
+    weightKgPerSet,
+    articleCount: estimate.articles.length,
+  };
+}
 
 function text(value: unknown) {
   return typeof value === "string" ? value : "";
@@ -131,4 +187,3 @@ function createCarbonId(prefix: string) {
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
-
