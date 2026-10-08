@@ -40,6 +40,7 @@ import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
 import { SageExportDialog } from "@/components/calc/SageExportDialog";
 import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
+import type { CarbonArticleSuggestion } from "@/lib/carbon";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
 import { calculerContra, CONTRA_DEFAULTS, type ContraInput } from "@/lib/calculs/contra";
@@ -293,6 +294,49 @@ function convertBetweenStandardAndContra(
 function calculateForType(type: "standard" | "contra", nextPayload: any) {
   if (type === "standard") return calculerStandard(nextPayload as StandardInput);
   return calculerContra(nextPayload as ContraInput);
+}
+
+function carbonArticleSuggestions(type: string, payload: any): CarbonArticleSuggestion[] {
+  const suggestions: CarbonArticleSuggestion[] = [];
+  const add = (label: unknown, description?: unknown, fallback?: string) => {
+    const cleanLabel = String(label ?? "").trim();
+    const cleanDescription = String(description ?? "").trim();
+    if (!cleanLabel && !cleanDescription) return;
+    suggestions.push({
+      label: cleanLabel || fallback || `Article ${suggestions.length + 1}`,
+      description: cleanDescription,
+    });
+  };
+
+  if (type === "standard") {
+    for (const line of Array.isArray(payload?.achatsPrincipaux) ? payload.achatsPrincipaux : []) {
+      add(line?.libelle, line?.descriptif);
+    }
+  } else if (type === "contra") {
+    for (const line of Array.isArray(payload?.achatsContra) ? payload.achatsContra : []) {
+      add(line?.libelle, line?.descriptif);
+    }
+  } else if (type === "stands") {
+    for (const section of Array.isArray(payload?.sections) ? payload.sections : []) {
+      for (const line of Array.isArray(section?.lignes) ? section.lignes : []) {
+        add(line?.libelle, line?.descriptif, String(section?.libelle ?? "").trim());
+      }
+    }
+  } else if (type === "kits") {
+    for (const element of Array.isArray(payload?.elements) ? payload.elements : []) {
+      add(element?.libelle);
+    }
+  }
+
+  return suggestions.filter(
+    (suggestion, index, all) =>
+      all.findIndex(
+        (item) =>
+          item.label.toLocaleLowerCase("fr-FR") === suggestion.label.toLocaleLowerCase("fr-FR") &&
+          String(item.description ?? "").toLocaleLowerCase("fr-FR") ===
+            String(suggestion.description ?? "").toLocaleLowerCase("fr-FR"),
+      ) === index,
+  );
 }
 
 function DossierDetail() {
@@ -845,6 +889,7 @@ function DossierDetail() {
             {dossier.type === "stands" && <StandsForm value={payload} onChange={setPayload} />}
             <CarbonEstimateForm
               value={payload.carbonEstimate}
+              suggestedArticles={carbonArticleSuggestions(dossier.type, payload)}
               onChange={(carbonEstimate) => setPayload({ ...payload, carbonEstimate })}
             />
           </div>

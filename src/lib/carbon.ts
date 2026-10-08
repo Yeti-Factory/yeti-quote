@@ -9,9 +9,15 @@ export type CarbonMaterialShare = {
 export type CarbonArticle = {
   id: string;
   label: string;
+  description?: string;
   unitWeightKg: number | null;
   quantityPerSet: number | null;
   materials: CarbonMaterialShare[];
+};
+
+export type CarbonArticleSuggestion = {
+  label: string;
+  description?: string;
 };
 
 export type CarbonEstimate = {
@@ -65,10 +71,11 @@ export function createCarbonMaterial(): CarbonMaterialShare {
   };
 }
 
-export function createCarbonArticle(): CarbonArticle {
+export function createCarbonArticle(suggestion?: CarbonArticleSuggestion): CarbonArticle {
   return {
     id: createCarbonId("article"),
-    label: "",
+    label: suggestion?.label ?? "",
+    description: suggestion?.description ?? "",
     unitWeightKg: null,
     quantityPerSet: 1,
     materials: [createCarbonMaterial()],
@@ -97,6 +104,7 @@ export function normalizeCarbonEstimate(input: unknown): CarbonEstimate {
       return {
         id: text(article.id) || `article-${articleIndex}`,
         label: text(article.label),
+        description: text(article.description),
         unitWeightKg: optionalNumber(article.unitWeightKg),
         quantityPerSet: optionalNumber(article.quantityPerSet) ?? 1,
         materials: rawMaterials.map((rawMaterial, materialIndex) => {
