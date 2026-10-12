@@ -96,6 +96,8 @@ type OfferCommonInfo = {
   text: string;
 };
 
+type ToolingPresentation = "distributed" | "global";
+
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
 const YETI_ORANGE = "#ff7900";
 const MAIL_TEXT = "#222222";
@@ -768,6 +770,56 @@ function rowsTotal(rows: OfferRow[]) {
   return rows.reduce((sum, row) => sum + rowTotal(row), 0);
 }
 
+function isToolingRow(row: OfferRow) {
+  return normalizeSearch(row.designation) === "outillage";
+}
+
+function prepareToolingSummaries(
+  summaries: OfferScenarioSummary[],
+  presentation: ToolingPresentation,
+) {
+  if (presentation !== "global") {
+    return { summaries, globalToolingHT: 0 };
+  }
+
+  const toolingTotals = summaries.map((summary) =>
+    rowsTotal(summary.mainRows.filter(isToolingRow)),
+  );
+  const globalToolingHT = toolingTotals.find((value) => Math.abs(value) > 0.005) ?? 0;
+  const adjusted = summaries.map((summary, index) => {
+    const toolingHT = toolingTotals[index] || 0;
+    const totalHT = summary.totalHT - toolingHT;
+    return {
+      ...summary,
+      mainRows: summary.mainRows.filter((row) => !isToolingRow(row)),
+      mainTotalHT: summary.mainTotalHT - toolingHT,
+      totalHT,
+      vat: totalHT * 0.2,
+      totalTTC: totalHT * 1.2,
+    };
+  });
+
+  return { summaries: adjusted, globalToolingHT };
+}
+
+function buildGlobalToolingPlainText(amount: number) {
+  return Math.abs(amount) > 0.005 ? `Outillage : montant global HT ${fmtEUR(amount)}` : "";
+}
+
+function buildGlobalToolingHtmlRow(amount: number) {
+  if (Math.abs(amount) <= 0.005) return "";
+  return `<tr>
+    <td style="padding:0 0 14px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:4px solid ${YETI_ORANGE};background:#fffaf6;font-family:${FONT};">
+        <tr>
+          <td style="padding:10px 12px;color:${MAIL_TEXT};font-size:12px;font-weight:700;">Outillage — montant global HT</td>
+          <td style="padding:10px 12px;text-align:right;color:${YETI_ORANGE};font-size:15px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(amount))}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
 function summarizeRows(rows: OfferRow[], scenario: any): OfferScenarioSummary {
   const quantity = Number(scenario.quantite) || 0;
   const mainRows = rows.filter((row) => !row.isOption);
@@ -1247,20 +1299,26 @@ function buildPlainTextMultiQuantityEmail(params: {
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  toolingPresentation: ToolingPresentation;
 }) {
   const {
     clientName,
     contactName,
     reference,
     objet,
-    summaries,
+    summaries: sourceSummaries,
     transportCondition,
     outillageIncluded,
     carbon,
     commonInfo,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   } = params;
+  const { summaries, globalToolingHT } = prepareToolingSummaries(
+    sourceSummaries,
+    toolingPresentation,
+  );
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const mainRows = collectMainRows(summaries);
@@ -1300,6 +1358,7 @@ function buildPlainTextMultiQuantityEmail(params: {
             buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals),
           ),
         ]),
+    toolingPresentation === "global" ? buildGlobalToolingPlainText(globalToolingHT) : "",
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
     ...optionRows.flatMap((option) => {
@@ -1316,7 +1375,7 @@ function buildPlainTextMultiQuantityEmail(params: {
       ];
     }),
     "",
-    ...(showGlobalTotals ? buildPlainTotalsRows(summaries, hasOptions) : []),
+    ...(showGlobalTotals ? buildPlainTotalsRows(sourceSummaries, hasOptions) : []),
     "",
     ...buildCarbonPlainText(
       carbon,
@@ -1348,6 +1407,7 @@ function buildHtmlMultiQuantityEmail(params: {
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  toolingPresentation: ToolingPresentation;
 }) {
   const {
     clientName,
@@ -1356,14 +1416,19 @@ function buildHtmlMultiQuantityEmail(params: {
     reference,
     objet,
     image,
-    summaries,
+    summaries: sourceSummaries,
     transportCondition,
     outillageIncluded,
     carbon,
     commonInfo,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   } = params;
+  const { summaries, globalToolingHT } = prepareToolingSummaries(
+    sourceSummaries,
+    toolingPresentation,
+  );
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
   const mainRows = collectMainRows(summaries);
@@ -1426,7 +1491,7 @@ function buildHtmlMultiQuantityEmail(params: {
   const totalsRow = (label: string, valueForSummary: (summary: OfferScenarioSummary) => number) => `
     <tr>
       <td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_MUTED};font-size:12px;font-weight:700;">${escapeHtml(label)}</td>
-      ${summaries
+      ${sourceSummaries
         .map(
           (summary) =>
             `<td style="padding:6px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;font-weight:700;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(valueForSummary(summary)))}</td>`,
@@ -1437,7 +1502,7 @@ function buildHtmlMultiQuantityEmail(params: {
   const unitPriceTable = `
     <tr>
       <td style="padding:0 0 14px 0;">
-        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">Prix unitaire (offre et options incluses)</div>
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">Prix unitaire (offre et options incluses${toolingPresentation === "global" ? ", hors outillage" : ""})</div>
         <table cellpadding="0" cellspacing="0" bgcolor="#fff4c2" style="forced-color-adjust:none;print-color-adjust:exact;-webkit-print-color-adjust:exact;width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
           <tbody>
             <tr>
@@ -1524,7 +1589,7 @@ function buildHtmlMultiQuantityEmail(params: {
           <thead>
             <tr>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Total</th>
-              ${summaries
+              ${sourceSummaries
                 .map(
                   (summary) =>
                     `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`,
@@ -1539,7 +1604,7 @@ function buildHtmlMultiQuantityEmail(params: {
             ${totalsRow("TVA 20 %", (summary) => summary.vat)}
             <tr>
               <td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};color:${MAIL_TEXT};font-size:12px;font-weight:700;">Total TTC</td>
-              ${summaries
+              ${sourceSummaries
                 .map(
                   (summary) =>
                     `<td style="padding:9px 10px;border-top:2px solid ${YETI_ORANGE};text-align:right;color:${YETI_ORANGE};font-size:14px;font-weight:800;white-space:nowrap;width:${columnWidth}px;">${escapeHtml(fmtEUR(summary.totalTTC))}</td>`,
@@ -1596,6 +1661,7 @@ function buildHtmlMultiQuantityEmail(params: {
     ${buildMailImageRow(image)}
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${showDetailedLines ? mainLinePriceTable() : priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
+    ${toolingPresentation === "global" ? buildGlobalToolingHtmlRow(globalToolingHT) : ""}
     ${hasOptions ? optionPriceTable() : ""}
     ${showDetailedLines ? "" : unitPriceTable}
     ${showGlobalTotals ? globalTotalsTable : ""}
@@ -1657,9 +1723,13 @@ export function OfferEmailDialog({
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [showGlobalTotals, setShowGlobalTotals] = useState(true);
   const [showLineSubtotals, setShowLineSubtotals] = useState(true);
+  const [toolingPresentation, setToolingPresentation] = useState<ToolingPresentation>("distributed");
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
+  const hasTooling =
+    Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
+    scenarioItems.some((item) => Math.abs(Number(item.scenario.outillageGlobal) || 0) > 0.005);
 
   useEffect(() => {
     setMailImage(savedMailImage);
@@ -1729,6 +1799,7 @@ export function OfferEmailDialog({
         commonInfo,
         showGlobalTotals,
         showLineSubtotals,
+        toolingPresentation,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -1744,6 +1815,7 @@ export function OfferEmailDialog({
         commonInfo,
         showGlobalTotals,
         showLineSubtotals,
+        toolingPresentation,
       });
       const previewWidth = 920;
 
@@ -1825,6 +1897,7 @@ export function OfferEmailDialog({
     selectedItem,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   ]);
 
   async function copyBody() {
@@ -1999,6 +2072,30 @@ export function OfferEmailDialog({
                 </div>
               )}
             </div>
+
+            {!isStandOffer && hasTooling && (
+              <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                <Label htmlFor="offer-tooling-presentation">Présentation de l’outillage</Label>
+                <Select
+                  value={toolingPresentation}
+                  onValueChange={(value) =>
+                    setToolingPresentation(value as ToolingPresentation)
+                  }
+                >
+                  <SelectTrigger id="offer-tooling-presentation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="distributed">Dispatcher par quantité</SelectItem>
+                    <SelectItem value="global">Présenter en montant global</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  En montant global, l’outillage apparaît une seule fois et n’est plus intégré aux
+                  prix unitaires présentés.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2 rounded-md border bg-muted/20 p-3">
               <div className="flex items-center gap-2">
