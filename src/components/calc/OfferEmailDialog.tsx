@@ -394,6 +394,7 @@ function buildStandardRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats principaux",
+  detailedMainRows = false,
 ): OfferRow[] {
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
@@ -422,21 +423,35 @@ function buildStandardRows(
         lineBase,
         `standard-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Prestation ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        lineBase,
+        `standard-main-${index}`,
+      );
     } else {
       achatsPrincipauxUnit += lineUnit;
       achatsPrincipauxBasisUnit += lineBase;
       achatsPrincipauxDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    primaryDesignation,
-    quantite,
-    achatsPrincipauxUnit,
-    achatsPrincipauxDetails,
-    false,
-    achatsPrincipauxBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      primaryDesignation,
+      quantite,
+      achatsPrincipauxUnit,
+      achatsPrincipauxDetails,
+      false,
+      achatsPrincipauxBasisUnit,
+      "standard-main-total",
+    );
+  }
   rows.push(...optionRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
@@ -477,6 +492,7 @@ function buildContraRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats chez Contra",
+  detailedMainRows = false,
 ): OfferRow[] {
   // Mêmes règles que le calcul : ligne confirmée > quantité confirmée > 25 %.
   const payload = sanitizeContraInput(rawPayload);
@@ -517,21 +533,35 @@ function buildContraRows(
         lineBase * contraFactor,
         `contra-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Prestation Contra ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        lineBase * contraFactor,
+        `contra-main-${index}`,
+      );
     } else {
       achatsContraUnit += lineUnit;
       achatsContraBasisUnit += lineBase * contraFactor;
       achatsContraDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    primaryDesignation,
-    quantite,
-    achatsContraUnit,
-    achatsContraDetails,
-    false,
-    achatsContraBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      primaryDesignation,
+      quantite,
+      achatsContraUnit,
+      achatsContraDetails,
+      false,
+      achatsContraBasisUnit,
+      "contra-main-total",
+    );
+  }
   rows.push(...optionsContraRows);
 
   let forfaitsContraUnit = 0;
@@ -554,21 +584,35 @@ function buildContraRows(
         share * contraFactor,
         `forfait-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Forfait Contra ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        share * contraFactor,
+        `contra-forfait-${index}`,
+      );
     } else {
       forfaitsContraUnit += lineUnit;
       forfaitsContraBasisUnit += share * contraFactor;
       forfaitsContraDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    "Forfaits Contra",
-    quantite,
-    forfaitsContraUnit,
-    forfaitsContraDetails,
-    false,
-    forfaitsContraBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      "Forfaits Contra",
+      quantite,
+      forfaitsContraUnit,
+      forfaitsContraDetails,
+      false,
+      forfaitsContraBasisUnit,
+      "contra-forfaits-total",
+    );
+  }
   rows.push(...optionsForfaitsRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
@@ -658,11 +702,12 @@ function buildOfferRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation?: string,
+  detailedMainRows = false,
 ) {
   if (type === "standard")
-    return buildStandardRows(payload, scenario, scenarioIndex, primaryDesignation);
+    return buildStandardRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
   if (type === "contra")
-    return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation);
+    return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
   if (type === "stands") return buildStandRows(payload, output, scenario);
   return [];
 }
@@ -752,6 +797,7 @@ function buildScenarioSummary(
   output: any,
   item: ScenarioItem,
   primaryDesignation?: string,
+  detailedMainRows = false,
 ) {
   const rawRows = buildOfferRows(
     type,
@@ -760,6 +806,7 @@ function buildScenarioSummary(
     item.scenario,
     item.index,
     primaryDesignation,
+    detailedMainRows,
   );
   return summarizeRows(
     reconcileRows(distributeFixedFees(rawRows, item.scenario), item.scenario),
@@ -1589,8 +1636,9 @@ export function OfferEmailDialog({
     const commonInfo = normalizeOfferCommonInfo(payload?.offerCommonInfo);
 
     if (dossier?.type !== "stands") {
+      const detailedMainRows = !showGlobalTotals && showLineSubtotals;
       const summaries = scenarioItems.map((item) =>
-        buildScenarioSummary(dossier?.type, payload, output, item, "Base"),
+        buildScenarioSummary(dossier?.type, payload, output, item, "Base", detailedMainRows),
       );
       const transportCondition = buildTransportCondition(payload, scenarioItems);
       const outillageIncluded =
