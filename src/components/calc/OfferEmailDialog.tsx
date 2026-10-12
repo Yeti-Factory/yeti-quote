@@ -96,6 +96,8 @@ type OfferCommonInfo = {
   text: string;
 };
 
+type ToolingPresentation = "distributed" | "global";
+
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
 const YETI_ORANGE = "#ff7900";
 const MAIL_TEXT = "#222222";
@@ -768,6 +770,56 @@ function rowsTotal(rows: OfferRow[]) {
   return rows.reduce((sum, row) => sum + rowTotal(row), 0);
 }
 
+function isToolingRow(row: OfferRow) {
+  return normalizeSearch(row.designation) === "outillage";
+}
+
+function prepareToolingSummaries(
+  summaries: OfferScenarioSummary[],
+  presentation: ToolingPresentation,
+) {
+  if (presentation !== "global") {
+    return { summaries, globalToolingHT: 0 };
+  }
+
+  const toolingTotals = summaries.map((summary) =>
+    rowsTotal(summary.mainRows.filter(isToolingRow)),
+  );
+  const globalToolingHT = toolingTotals.find((value) => Math.abs(value) > 0.005) ?? 0;
+  const adjusted = summaries.map((summary, index) => {
+    const toolingHT = toolingTotals[index] || 0;
+    const totalHT = summary.totalHT - toolingHT;
+    return {
+      ...summary,
+      mainRows: summary.mainRows.filter((row) => !isToolingRow(row)),
+      mainTotalHT: summary.mainTotalHT - toolingHT,
+      totalHT,
+      vat: totalHT * 0.2,
+      totalTTC: totalHT * 1.2,
+    };
+  });
+
+  return { summaries: adjusted, globalToolingHT };
+}
+
+function buildGlobalToolingPlainText(amount: number) {
+  return Math.abs(amount) > 0.005 ? `Outillage : montant global HT ${fmtEUR(amount)}` : "";
+}
+
+function buildGlobalToolingHtmlRow(amount: number) {
+  if (Math.abs(amount) <= 0.005) return "";
+  return `<tr>
+    <td style="padding:0 0 14px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:4px solid ${YETI_ORANGE};background:#fffaf6;font-family:${FONT};">
+        <tr>
+          <td style="padding:10px 12px;color:${MAIL_TEXT};font-size:12px;font-weight:700;">Outillage — montant global HT</td>
+          <td style="padding:10px 12px;text-align:right;color:${YETI_ORANGE};font-size:15px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(amount))}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
 function summarizeRows(rows: OfferRow[], scenario: any): OfferScenarioSummary {
   const quantity = Number(scenario.quantite) || 0;
   const mainRows = rows.filter((row) => !row.isOption);
@@ -1247,6 +1299,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  toolingPresentation: ToolingPresentation;
 }) {
   const {
     clientName,
@@ -1260,6 +1313,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     commonInfo,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
@@ -1348,6 +1402,7 @@ function buildHtmlMultiQuantityEmail(params: {
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  toolingPresentation: ToolingPresentation;
 }) {
   const {
     clientName,
@@ -1363,6 +1418,7 @@ function buildHtmlMultiQuantityEmail(params: {
     commonInfo,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
