@@ -39,6 +39,7 @@ import { PrintableDossier } from "@/components/calc/PrintableDossier";
 import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
 import { SageExportDialog } from "@/components/calc/SageExportDialog";
 import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
+import { PrototypeOfferForm } from "@/components/calc/PrototypeOfferForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 import type { CarbonArticleSuggestion } from "@/lib/carbon";
 
@@ -288,6 +289,7 @@ function convertBetweenStandardAndContra(
     ...converted,
     ...(input.carbonEstimate ? { carbonEstimate: input.carbonEstimate } : {}),
     ...(input.offerMailImage ? { offerMailImage: input.offerMailImage } : {}),
+    ...(input.offerPrototype ? { offerPrototype: input.offerPrototype } : {}),
   };
 }
 
@@ -891,6 +893,10 @@ function DossierDetail() {
               value={payload.carbonEstimate}
               suggestedArticles={carbonArticleSuggestions(dossier.type, payload)}
               onChange={(carbonEstimate) => setPayload({ ...payload, carbonEstimate })}
+            />
+            <PrototypeOfferForm
+              value={payload.offerPrototype}
+              onChange={(offerPrototype) => setPayload({ ...payload, offerPrototype })}
             />
           </div>
         </div>

@@ -85,6 +85,12 @@ type MailImage = {
   enabled?: boolean;
 };
 
+type OfferPrototype = {
+  priceHT: number;
+  description: string;
+  comment: string;
+};
+
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
 const YETI_ORANGE = "#ff7900";
 const MAIL_TEXT = "#222222";
@@ -226,6 +232,65 @@ function buildCarbonHtmlRow(
       </table>
     </td>
   </tr>`;
+}
+
+function normalizeOfferPrototype(value: unknown): OfferPrototype | null {
+  if (!value || typeof value !== "object") return null;
+  const prototype = value as {
+    enabled?: unknown;
+    priceHT?: unknown;
+    description?: unknown;
+    comment?: unknown;
+  };
+  if (prototype.enabled !== true) return null;
+  return {
+    priceHT: Math.max(0, Number(prototype.priceHT) || 0),
+    description: String(prototype.description ?? "").trim(),
+    comment: String(prototype.comment ?? "").trim(),
+  };
+}
+
+function multilineHtml(value: string) {
+  return escapeHtml(value).replace(/\n/g, "<br />");
+}
+
+function buildPrototypePlainText(prototype: OfferPrototype | null) {
+  if (!prototype) return "";
+  const lines = [
+    "PROTOTYPE",
+    `Prix du prototype : ${fmtEUR(prototype.priceHT)} HT (${fmtEUR(prototype.priceHT * 1.2)} TTC)`,
+  ];
+  if (prototype.description) lines.push(`Descriptif : ${prototype.description}`);
+  if (prototype.comment) lines.push(`Commentaire : ${prototype.comment}`);
+  return lines.join("\n");
+}
+
+function buildPrototypeHtmlRow(prototype: OfferPrototype | null) {
+  if (!prototype) return "";
+  return `<tr>
+    <td style="padding:16px 0 0 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:4px solid ${YETI_ORANGE};background:#fffaf6;font-family:${FONT};">
+        <tr><td style="padding:11px 12px;color:${MAIL_TEXT};">
+          <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${YETI_ORANGE};">Prototype</div>
+          <div style="margin-top:3px;font-size:15px;font-weight:800;">${escapeHtml(fmtEUR(prototype.priceHT))} HT <span style="font-size:11px;font-weight:500;color:${MAIL_MUTED};">(${escapeHtml(fmtEUR(prototype.priceHT * 1.2))} TTC)</span></div>
+          ${prototype.description ? `<div style="margin-top:8px;font-size:12px;"><strong>Descriptif :</strong><br />${multilineHtml(prototype.description)}</div>` : ""}
+          ${prototype.comment ? `<div style="margin-top:7px;font-size:11px;color:${MAIL_MUTED};"><strong>Commentaire :</strong><br />${multilineHtml(prototype.comment)}</div>` : ""}
+        </td></tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
+function appendPrototypePlainText(plainText: string, prototype: OfferPrototype | null) {
+  const block = buildPrototypePlainText(prototype);
+  return block ? `${plainText.trimEnd()}\n\n${block}` : plainText;
+}
+
+function appendPrototypeHtml(html: string, prototype: OfferPrototype | null) {
+  const block = buildPrototypeHtmlRow(prototype);
+  if (!block) return html;
+  const closing = /<\/table>\s*<\/div>\s*$/;
+  return closing.test(html) ? html.replace(closing, `${block}\n  </table>\n</div>`) : `${html}${block}`;
 }
 
 function buildOfferContactName(dossier: any) {
@@ -1439,6 +1504,7 @@ export function OfferEmailDialog({
     const objet = cleanLabel(meta.objet, dossier?.objet || "Offre de prix");
     const subject = `Offre de prix - ${clientName || "Client"} - ${objet}`;
     const carbon = calculateCarbonEstimate(payload?.carbonEstimate);
+    const prototype = normalizeOfferPrototype(payload?.offerPrototype);
 
     if (dossier?.type !== "stands") {
       const summaries = scenarioItems.map((item) =>
@@ -1476,7 +1542,12 @@ export function OfferEmailDialog({
       });
       const previewWidth = 920;
 
-      return { subject, plainText, html, previewWidth };
+      return {
+        subject,
+        plainText: appendPrototypePlainText(plainText, prototype),
+        html: appendPrototypeHtml(html, prototype),
+        previewWidth,
+      };
     }
 
     if (!scenario || !selectedItem) return null;
@@ -1525,7 +1596,12 @@ export function OfferEmailDialog({
     });
     const previewWidth = 760;
 
-    return { subject, plainText, html, previewWidth };
+    return {
+        subject,
+        plainText: appendPrototypePlainText(plainText, prototype),
+        html: appendPrototypeHtml(html, prototype),
+        previewWidth,
+      };
   }, [
     dossier,
     mailImage,
