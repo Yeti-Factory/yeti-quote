@@ -40,6 +40,7 @@ import { OfferEmailDialog } from "@/components/calc/OfferEmailDialog";
 import { SageExportDialog } from "@/components/calc/SageExportDialog";
 import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
 import { PrototypeOfferForm } from "@/components/calc/PrototypeOfferForm";
+import { CommonOfferInfoForm } from "@/components/calc/CommonOfferInfoForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
 import type { CarbonArticleSuggestion } from "@/lib/carbon";
 
@@ -290,6 +291,7 @@ function convertBetweenStandardAndContra(
     ...(input.carbonEstimate ? { carbonEstimate: input.carbonEstimate } : {}),
     ...(input.offerMailImage ? { offerMailImage: input.offerMailImage } : {}),
     ...(input.offerPrototype ? { offerPrototype: input.offerPrototype } : {}),
+    ...(input.offerCommonInfo ? { offerCommonInfo: input.offerCommonInfo } : {}),
   };
 }
 
@@ -883,6 +885,10 @@ function DossierDetail() {
           </Card>
 
           <div className="xl:col-span-3 space-y-4">
+            <CommonOfferInfoForm
+              value={payload.offerCommonInfo}
+              onChange={(offerCommonInfo) => setPayload({ ...payload, offerCommonInfo })}
+            />
             {dossier.type === "standard" && <StandardForm value={payload} onChange={setPayload} />}
             {dossier.type === "contra" && <ContraForm value={payload} onChange={setPayload} />}
             {dossier.type === "kits" && output && (
