@@ -1597,7 +1597,7 @@ function buildHtmlMultiQuantityEmail(params: {
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${showDetailedLines ? mainLinePriceTable() : priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
     ${hasOptions ? optionPriceTable() : ""}
-    ${unitPriceTable}
+    ${showDetailedLines ? "" : unitPriceTable}
     ${showGlobalTotals ? globalTotalsTable : ""}
     <tr>
       <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
