@@ -767,9 +767,9 @@ function buildScenarioSummary(
   );
 }
 
-function buildPlainRows(rows: OfferRow[]) {
+function buildPlainRows(rows: OfferRow[], showLineSubtotals: boolean) {
   return rows.flatMap((row) => [
-    `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)} - Total HT ${fmtEUR(rowTotal(row))}`,
+    `- ${row.designation} - qté ${row.quantity.toLocaleString("fr-FR")} - PU HT ${fmtEUR(row.unitPrice)}${showLineSubtotals ? ` - Sous-total HT ${fmtEUR(rowTotal(row))}` : ""}`,
     ...buildPlainDetailLines(row.details ?? [], "  "),
   ]);
 }
@@ -868,6 +868,7 @@ function buildPlainTextEmail(params: {
   commonInfo: OfferCommonInfo | null;
   quantity: number;
   showGlobalTotals: boolean;
+  showLineSubtotals: boolean;
 }) {
   const {
     clientName,
@@ -885,6 +886,7 @@ function buildPlainTextEmail(params: {
     commonInfo,
     quantity,
     showGlobalTotals,
+    showLineSubtotals,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -899,11 +901,11 @@ function buildPlainTextEmail(params: {
     ...buildCommonOfferInfoPlainText(commonInfo),
     commonInfo ? "" : "",
     hasOptions ? "Offre principale :" : "Détail de l'offre :",
-    ...buildPlainRows(mainRows),
-    hasOptions ? `Total offre principale HT : ${fmtEUR(mainTotalHT)}` : "",
+    ...buildPlainRows(mainRows, showLineSubtotals),
+    hasOptions && showLineSubtotals ? `Sous-total offre principale HT : ${fmtEUR(mainTotalHT)}` : "",
     hasOptions ? "Options :" : "",
-    ...buildPlainRows(optionRows),
-    hasOptions ? `Total options HT : ${fmtEUR(optionsTotalHT)}` : "",
+    ...buildPlainRows(optionRows, showLineSubtotals),
+    hasOptions && showLineSubtotals ? `Sous-total options HT : ${fmtEUR(optionsTotalHT)}` : "",
     "",
     showGlobalTotals
       ? hasOptions
@@ -941,6 +943,7 @@ function buildHtmlEmail(params: {
   commonInfo: OfferCommonInfo | null;
   quantity: number;
   showGlobalTotals: boolean;
+  showLineSubtotals: boolean;
 }) {
   const {
     clientName,
@@ -960,6 +963,7 @@ function buildHtmlEmail(params: {
     commonInfo,
     quantity,
     showGlobalTotals,
+    showLineSubtotals,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -980,7 +984,7 @@ function buildHtmlEmail(params: {
           </td>
           <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(row.quantity.toLocaleString("fr-FR"))}</td>
           <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;">${escapeHtml(fmtEUR(row.unitPrice))}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>
+          ${showLineSubtotals ? `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;font-weight:700;">${escapeHtml(fmtEUR(rowTotal(row)))}</td>` : ""}
         </tr>`,
       )
       .join("");
@@ -995,15 +999,15 @@ function buildHtmlEmail(params: {
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:62px;">Qté</th>
               <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:105px;">PU HT</th>
-              <th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:120px;">Total HT</th>
+              ${showLineSubtotals ? `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:120px;">Sous-total HT</th>` : ""}
             </tr>
           </thead>
           <tbody>
             ${rowHtml(rows)}
-            <tr>
-              <td colspan="3" style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(totalLabel)}</td>
+${showLineSubtotals ? `<tr>
+              <td colspan="3" style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(totalLabel.replace(/^Total/, "Sous-total"))}</td>
               <td style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(total))}</td>
-            </tr>
+            </tr>` : ""}
           </tbody>
         </table>
       </td>
@@ -1130,8 +1134,12 @@ function buildTransportCondition(payload: any, scenarioItems: ScenarioItem[]) {
   return "EXW (départ) nos ateliers.";
 }
 
-function buildPlainQuantityPrice(summary: OfferScenarioSummary, total: number) {
-  return `${summary.label} : PU HT ${fmtEUR(unitPriceFromTotal(summary, total))} / u - Total HT ${fmtEUR(total)}`;
+function buildPlainQuantityPrice(
+  summary: OfferScenarioSummary,
+  total: number,
+  showLineSubtotals: boolean,
+) {
+  return `${summary.label} : PU HT ${fmtEUR(unitPriceFromTotal(summary, total))} / u${showLineSubtotals ? ` - Sous-total HT ${fmtEUR(total)}` : ""}`;
 }
 
 function buildPlainTotalsRows(summaries: OfferScenarioSummary[], hasOptions: boolean) {
@@ -1173,6 +1181,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   carbon: CarbonEstimateResult | null;
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
+  showLineSubtotals: boolean;
 }) {
   const {
     clientName,
@@ -1185,6 +1194,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     carbon,
     commonInfo,
     showGlobalTotals,
+    showLineSubtotals,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
@@ -1204,14 +1214,14 @@ function buildPlainTextMultiQuantityEmail(params: {
     ...buildPlainDetailLines(mainDetails),
     "",
     "Prix HT tout inclus :",
-    ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT)),
+    ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals)),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
     ...optionRows.flatMap((option) => {
       const prices = summaries.map((summary) => {
         const row = findOptionForScenario(summary, option);
         return row
-          ? `${summary.label} : PU HT ${fmtEUR(row.unitPrice)} / u - Total HT ${fmtEUR(rowTotal(row))}`
+          ? `${summary.label} : PU HT ${fmtEUR(row.unitPrice)} / u${showLineSubtotals ? ` - Sous-total HT ${fmtEUR(rowTotal(row))}` : ""}`
           : `${summary.label} : non chiffrée`;
       });
       return [
@@ -1252,6 +1262,7 @@ function buildHtmlMultiQuantityEmail(params: {
   carbon: CarbonEstimateResult | null;
   commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
+  showLineSubtotals: boolean;
 }) {
   const {
     clientName,
@@ -1266,6 +1277,7 @@ function buildHtmlMultiQuantityEmail(params: {
     carbon,
     commonInfo,
     showGlobalTotals,
+    showLineSubtotals,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
@@ -1313,7 +1325,7 @@ function buildHtmlMultiQuantityEmail(params: {
                   const total = totalForSummary(summary);
                   return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
                     <div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(unitPriceFromTotal(summary, total)))} / u</div>
-                    <div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(total))}</div>
+                    ${showLineSubtotals ? `<div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Sous-total HT ${escapeHtml(fmtEUR(total))}</div>` : ""}
                   </td>`;
                 })
                 .join("")}
@@ -1376,7 +1388,7 @@ function buildHtmlMultiQuantityEmail(params: {
                 .map((summary) => {
                   const row = findOptionForScenario(summary, option);
                   return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
-                  ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
+                  ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div>${showLineSubtotals ? `<div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Sous-total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : ""}` : `<div>—</div>`}
                 </td>`;
                 })
                 .join("")}
@@ -1528,6 +1540,7 @@ export function OfferEmailDialog({
   );
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [showGlobalTotals, setShowGlobalTotals] = useState(true);
+  const [showLineSubtotals, setShowLineSubtotals] = useState(true);
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
@@ -1598,6 +1611,7 @@ export function OfferEmailDialog({
         carbon,
         commonInfo,
         showGlobalTotals,
+        showLineSubtotals,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -1612,6 +1626,7 @@ export function OfferEmailDialog({
         carbon,
         commonInfo,
         showGlobalTotals,
+        showLineSubtotals,
       });
       const previewWidth = 920;
 
@@ -1651,6 +1666,7 @@ export function OfferEmailDialog({
       commonInfo,
       quantity: Number(scenario.quantite) || 0,
       showGlobalTotals,
+      showLineSubtotals,
     });
     const html = buildHtmlEmail({
       clientName,
@@ -1670,6 +1686,7 @@ export function OfferEmailDialog({
       commonInfo,
       quantity: Number(scenario.quantite) || 0,
       showGlobalTotals,
+      showLineSubtotals,
     });
     const previewWidth = 760;
 
@@ -1690,6 +1707,7 @@ export function OfferEmailDialog({
     scenarioItems,
     selectedItem,
     showGlobalTotals,
+    showLineSubtotals,
   ]);
 
   async function copyBody() {
@@ -1880,6 +1898,24 @@ export function OfferEmailDialog({
                 Décochez cette option lorsque plusieurs versions sont proposées et que le client
                 doit d’abord en choisir une. Les prix détaillés et unitaires restent affichés.
               </p>
+              {!showGlobalTotals && (
+                <div className="mt-3 border-t pt-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="offer-line-subtotals"
+                      checked={showLineSubtotals}
+                      onCheckedChange={(checked) => setShowLineSubtotals(checked === true)}
+                    />
+                    <Label htmlFor="offer-line-subtotals" className="cursor-pointer">
+                      Afficher les sous-totaux de chaque ligne
+                    </Label>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Chaque ligne conserve son prix unitaire et peut afficher son propre sous-total
+                    HT, sans total général.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
