@@ -91,6 +91,11 @@ type OfferPrototype = {
   comment: string;
 };
 
+type OfferCommonInfo = {
+  title: string;
+  text: string;
+};
+
 const FONT = '"Avenir LT Pro Book 45", "Avenir LT Pro", Avenir, Arial, Helvetica, sans-serif';
 const YETI_ORANGE = "#ff7900";
 const MAIL_TEXT = "#222222";
@@ -252,6 +257,34 @@ function normalizeOfferPrototype(value: unknown): OfferPrototype | null {
 
 function multilineHtml(value: string) {
   return escapeHtml(value).replace(/\n/g, "<br />");
+}
+
+function normalizeOfferCommonInfo(value: unknown): OfferCommonInfo | null {
+  if (!value || typeof value !== "object") return null;
+  const info = value as { title?: unknown; text?: unknown };
+  const title = String(info.title ?? "").trim();
+  const text = String(info.text ?? "").trim();
+  if (!title && !text) return null;
+  return { title, text };
+}
+
+function buildCommonOfferInfoPlainText(info: OfferCommonInfo | null) {
+  if (!info) return [];
+  return [(info.title || "Informations communes").toUpperCase(), ...(info.text ? [info.text] : [])];
+}
+
+function buildCommonOfferInfoHtmlRow(info: OfferCommonInfo | null) {
+  if (!info) return "";
+  return `<tr>
+    <td style="padding:0 0 14px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:4px solid ${YETI_ORANGE};background:#fffaf6;font-family:${FONT};">
+        <tr><td style="padding:11px 12px;color:${MAIL_TEXT};">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:${YETI_ORANGE};">${escapeHtml(info.title || "Informations communes")}</div>
+          ${info.text ? `<div style="margin-top:7px;font-size:12px;line-height:1.45;">${multilineHtml(info.text)}</div>` : ""}
+        </td></tr>
+      </table>
+    </td>
+  </tr>`;
 }
 
 function buildPrototypePlainText(prototype: OfferPrototype | null) {
@@ -832,6 +865,7 @@ function buildPlainTextEmail(params: {
   vat: number;
   totalTTC: number;
   carbon: CarbonEstimateResult | null;
+  commonInfo: OfferCommonInfo | null;
   quantity: number;
   showGlobalTotals: boolean;
 }) {
@@ -848,6 +882,7 @@ function buildPlainTextEmail(params: {
     vat,
     totalTTC,
     carbon,
+    commonInfo,
     quantity,
     showGlobalTotals,
   } = params;
@@ -861,6 +896,8 @@ function buildPlainTextEmail(params: {
     clientName ? `Client : ${clientName}` : "",
     reference ? `Référence interne : ${reference}` : "",
     "",
+    ...buildCommonOfferInfoPlainText(commonInfo),
+    commonInfo ? "" : "",
     hasOptions ? "Offre principale :" : "Détail de l'offre :",
     ...buildPlainRows(mainRows),
     hasOptions ? `Total offre principale HT : ${fmtEUR(mainTotalHT)}` : "",
@@ -901,6 +938,7 @@ function buildHtmlEmail(params: {
   vat: number;
   totalTTC: number;
   carbon: CarbonEstimateResult | null;
+  commonInfo: OfferCommonInfo | null;
   quantity: number;
   showGlobalTotals: boolean;
 }) {
@@ -919,6 +957,7 @@ function buildHtmlEmail(params: {
     vat,
     totalTTC,
     carbon,
+    commonInfo,
     quantity,
     showGlobalTotals,
   } = params;
@@ -1043,6 +1082,7 @@ function buildHtmlEmail(params: {
       </td>
     </tr>
     ${buildMailImageRow(image)}
+    ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${offerTable(
       hasOptions ? "Offre principale" : "Détail de l'offre",
       mainRows,
@@ -1131,6 +1171,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   transportCondition: string;
   outillageIncluded: boolean;
   carbon: CarbonEstimateResult | null;
+  commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
 }) {
   const {
@@ -1142,6 +1183,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     transportCondition,
     outillageIncluded,
     carbon,
+    commonInfo,
     showGlobalTotals,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
@@ -1156,6 +1198,8 @@ function buildPlainTextMultiQuantityEmail(params: {
     clientName ? `Client : ${clientName}` : "",
     reference ? `Référence interne : ${reference}` : "",
     "",
+    ...buildCommonOfferInfoPlainText(commonInfo),
+    commonInfo ? "" : "",
     objet,
     ...buildPlainDetailLines(mainDetails),
     "",
@@ -1206,6 +1250,7 @@ function buildHtmlMultiQuantityEmail(params: {
   transportCondition: string;
   outillageIncluded: boolean;
   carbon: CarbonEstimateResult | null;
+  commonInfo: OfferCommonInfo | null;
   showGlobalTotals: boolean;
 }) {
   const {
@@ -1219,6 +1264,7 @@ function buildHtmlMultiQuantityEmail(params: {
     transportCondition,
     outillageIncluded,
     carbon,
+    commonInfo,
     showGlobalTotals,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
@@ -1420,6 +1466,7 @@ function buildHtmlMultiQuantityEmail(params: {
       </td>
     </tr>
     ${buildMailImageRow(image)}
+    ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
     ${hasOptions ? optionPriceTable() : ""}
     ${unitPriceTable}
@@ -1526,6 +1573,7 @@ export function OfferEmailDialog({
     const subject = `Offre de prix - ${clientName || "Client"} - ${objet}`;
     const carbon = calculateCarbonEstimate(payload?.carbonEstimate);
     const prototype = normalizeOfferPrototype(payload?.offerPrototype);
+    const commonInfo = normalizeOfferCommonInfo(payload?.offerCommonInfo);
 
     if (dossier?.type !== "stands") {
       const summaries = scenarioItems.map((item) =>
@@ -1548,6 +1596,7 @@ export function OfferEmailDialog({
         transportCondition,
         outillageIncluded,
         carbon,
+        commonInfo,
         showGlobalTotals,
       });
       const html = buildHtmlMultiQuantityEmail({
@@ -1561,6 +1610,7 @@ export function OfferEmailDialog({
         transportCondition,
         outillageIncluded,
         carbon,
+        commonInfo,
         showGlobalTotals,
       });
       const previewWidth = 920;
@@ -1598,6 +1648,7 @@ export function OfferEmailDialog({
       vat,
       totalTTC,
       carbon,
+      commonInfo,
       quantity: Number(scenario.quantite) || 0,
       showGlobalTotals,
     });
@@ -1616,6 +1667,7 @@ export function OfferEmailDialog({
       vat,
       totalTTC,
       carbon,
+      commonInfo,
       quantity: Number(scenario.quantite) || 0,
       showGlobalTotals,
     });
