@@ -394,6 +394,7 @@ function buildStandardRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats principaux",
+  detailedMainRows = false,
 ): OfferRow[] {
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
@@ -422,21 +423,35 @@ function buildStandardRows(
         lineBase,
         `standard-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Prestation ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        lineBase,
+        `standard-main-${index}`,
+      );
     } else {
       achatsPrincipauxUnit += lineUnit;
       achatsPrincipauxBasisUnit += lineBase;
       achatsPrincipauxDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    primaryDesignation,
-    quantite,
-    achatsPrincipauxUnit,
-    achatsPrincipauxDetails,
-    false,
-    achatsPrincipauxBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      primaryDesignation,
+      quantite,
+      achatsPrincipauxUnit,
+      achatsPrincipauxDetails,
+      false,
+      achatsPrincipauxBasisUnit,
+      "standard-main-total",
+    );
+  }
   rows.push(...optionRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
@@ -477,6 +492,7 @@ function buildContraRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation = "Achats chez Contra",
+  detailedMainRows = false,
 ): OfferRow[] {
   // Mêmes règles que le calcul : ligne confirmée > quantité confirmée > 25 %.
   const payload = sanitizeContraInput(rawPayload);
@@ -517,21 +533,35 @@ function buildContraRows(
         lineBase * contraFactor,
         `contra-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Prestation Contra ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        lineBase * contraFactor,
+        `contra-main-${index}`,
+      );
     } else {
       achatsContraUnit += lineUnit;
       achatsContraBasisUnit += lineBase * contraFactor;
       achatsContraDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    primaryDesignation,
-    quantite,
-    achatsContraUnit,
-    achatsContraDetails,
-    false,
-    achatsContraBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      primaryDesignation,
+      quantite,
+      achatsContraUnit,
+      achatsContraDetails,
+      false,
+      achatsContraBasisUnit,
+      "contra-main-total",
+    );
+  }
   rows.push(...optionsContraRows);
 
   let forfaitsContraUnit = 0;
@@ -554,21 +584,35 @@ function buildContraRows(
         share * contraFactor,
         `forfait-option-${index}`,
       );
+    } else if (detailedMainRows) {
+      addRow(
+        rows,
+        cleanLabel(line?.libelle, `Forfait Contra ${index + 1}`),
+        quantite,
+        lineUnit,
+        buildOptionRowDetails(line),
+        false,
+        share * contraFactor,
+        `contra-forfait-${index}`,
+      );
     } else {
       forfaitsContraUnit += lineUnit;
       forfaitsContraBasisUnit += share * contraFactor;
       forfaitsContraDetails.push(lineDetail);
     }
   }
-  addRow(
-    rows,
-    "Forfaits Contra",
-    quantite,
-    forfaitsContraUnit,
-    forfaitsContraDetails,
-    false,
-    forfaitsContraBasisUnit,
-  );
+  if (!detailedMainRows) {
+    addRow(
+      rows,
+      "Forfaits Contra",
+      quantite,
+      forfaitsContraUnit,
+      forfaitsContraDetails,
+      false,
+      forfaitsContraBasisUnit,
+      "contra-forfaits-total",
+    );
+  }
   rows.push(...optionsForfaitsRows);
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
@@ -658,11 +702,12 @@ function buildOfferRows(
   scenario: any,
   scenarioIndex: number,
   primaryDesignation?: string,
+  detailedMainRows = false,
 ) {
   if (type === "standard")
-    return buildStandardRows(payload, scenario, scenarioIndex, primaryDesignation);
+    return buildStandardRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
   if (type === "contra")
-    return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation);
+    return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
   if (type === "stands") return buildStandRows(payload, output, scenario);
   return [];
 }
@@ -752,6 +797,7 @@ function buildScenarioSummary(
   output: any,
   item: ScenarioItem,
   primaryDesignation?: string,
+  detailedMainRows = false,
 ) {
   const rawRows = buildOfferRows(
     type,
@@ -760,6 +806,7 @@ function buildScenarioSummary(
     item.scenario,
     item.index,
     primaryDesignation,
+    detailedMainRows,
   );
   return summarizeRows(
     reconcileRows(distributeFixedFees(rawRows, item.scenario), item.scenario),
@@ -848,6 +895,24 @@ function findOptionForScenario(summary: OfferScenarioSummary, option: OfferRow) 
   return summary.optionRows.find((row, index) => {
     const key = row.rowKey ?? `option-${normalizeSearch(row.designation)}-${index}`;
     return key === option.rowKey;
+  });
+}
+
+function collectMainRows(summaries: OfferScenarioSummary[]) {
+  const rowsByKey = new Map<string, OfferRow>();
+  for (const summary of summaries) {
+    summary.mainRows.forEach((row, index) => {
+      const key = row.rowKey ?? `main-${normalizeSearch(row.designation)}-${index}`;
+      if (!rowsByKey.has(key)) rowsByKey.set(key, { ...row, rowKey: key });
+    });
+  }
+  return [...rowsByKey.values()];
+}
+
+function findMainForScenario(summary: OfferScenarioSummary, mainRow: OfferRow) {
+  return summary.mainRows.find((row, index) => {
+    const key = row.rowKey ?? `main-${normalizeSearch(row.designation)}-${index}`;
+    return key === mainRow.rowKey;
   });
 }
 
@@ -1198,7 +1263,9 @@ function buildPlainTextMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const mainRows = collectMainRows(summaries);
   const optionRows = collectOptionRows(summaries);
+  const showDetailedLines = !showGlobalTotals && showLineSubtotals;
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
 
   return [
@@ -1210,11 +1277,29 @@ function buildPlainTextMultiQuantityEmail(params: {
     "",
     ...buildCommonOfferInfoPlainText(commonInfo),
     commonInfo ? "" : "",
-    objet,
-    ...buildPlainDetailLines(mainDetails),
-    "",
-    "Prix HT tout inclus :",
-    ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals)),
+    ...(showDetailedLines
+      ? mainRows.flatMap((mainRow) => {
+          const prices = summaries.map((summary) => {
+            const row = findMainForScenario(summary, mainRow);
+            return row
+              ? `${summary.label} : PU HT ${fmtEUR(row.unitPrice)} / u - Sous-total HT ${fmtEUR(rowTotal(row))}`
+              : `${summary.label} : non chiffrée`;
+          });
+          return [
+            `- ${mainRow.designation}`,
+            ...buildPlainDetailLines(mainRow.details ?? [], "  "),
+            ...prices.map((price) => `  ${price}`),
+          ];
+        })
+      : [
+          objet,
+          ...buildPlainDetailLines(mainDetails),
+          "",
+          "Prix HT tout inclus :",
+          ...summaries.map((summary) =>
+            buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals),
+          ),
+        ]),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
     ...optionRows.flatMap((option) => {
@@ -1281,7 +1366,9 @@ function buildHtmlMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const mainRows = collectMainRows(summaries);
   const optionRows = collectOptionRows(summaries);
+  const showDetailedLines = !showGlobalTotals && showLineSubtotals;
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
   const columnWidth = Math.max(118, Math.min(160, 520 / Math.max(1, summaries.length)));
 
@@ -1365,6 +1452,35 @@ function buildHtmlMultiQuantityEmail(params: {
         </table>
       </td>
     </tr>`;
+
+  const mainLinePriceTable = () =>
+    mainRows.length
+      ? `<tr>
+      <td style="padding:0 0 14px 0;">
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(objet || "Détail de l’offre")}</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+          <thead><tr>
+            <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+            ${summaries.map((summary) => `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`).join("")}
+          </tr></thead>
+          <tbody>
+            ${mainRows.map((mainRow) => `<tr>
+              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
+                <div style="font-weight:700;">${escapeHtml(mainRow.designation)}</div>
+                ${detailHtml(mainRow.details)}
+              </td>
+              ${summaries.map((summary) => {
+                const row = findMainForScenario(summary, mainRow);
+                return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
+                  ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Sous-total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
+                </td>`;
+              }).join("")}
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </td>
+    </tr>`
+      : "";
 
   const optionPriceTable = () =>
     optionRows.length
@@ -1479,9 +1595,9 @@ function buildHtmlMultiQuantityEmail(params: {
     </tr>
     ${buildMailImageRow(image)}
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
-    ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
+    ${showDetailedLines ? mainLinePriceTable() : priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
     ${hasOptions ? optionPriceTable() : ""}
-    ${unitPriceTable}
+    ${showDetailedLines ? "" : unitPriceTable}
     ${showGlobalTotals ? globalTotalsTable : ""}
     <tr>
       <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
@@ -1589,8 +1705,9 @@ export function OfferEmailDialog({
     const commonInfo = normalizeOfferCommonInfo(payload?.offerCommonInfo);
 
     if (dossier?.type !== "stands") {
+      const detailedMainRows = !showGlobalTotals && showLineSubtotals;
       const summaries = scenarioItems.map((item) =>
-        buildScenarioSummary(dossier?.type, payload, output, item, "Base"),
+        buildScenarioSummary(dossier?.type, payload, output, item, "Base", detailedMainRows),
       );
       const transportCondition = buildTransportCondition(payload, scenarioItems);
       const outillageIncluded =
@@ -1744,7 +1861,7 @@ export function OfferEmailDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="max-w-5xl max-h-[92vh] overflow-y-auto"
+        className="h-[96vh] w-[98vw] max-w-none overflow-y-auto p-6"
         onPaste={(event) => {
           if (!imageEnabled || isPreparingImage) return;
           const item = Array.from(event.clipboardData.items).find(
@@ -1766,7 +1883,7 @@ export function OfferEmailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
           <div className="space-y-4">
             {isStandOffer ? (
               <div className="space-y-2">
@@ -1934,7 +2051,7 @@ export function OfferEmailDialog({
             </p>
           </div>
 
-          <div className="rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
+          <div className="min-w-0 rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
             <div
               style={{ minWidth: offer?.previewWidth ?? 920 }}
               dangerouslySetInnerHTML={{ __html: offer?.html ?? "" }}
