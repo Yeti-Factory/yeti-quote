@@ -898,6 +898,24 @@ function findOptionForScenario(summary: OfferScenarioSummary, option: OfferRow) 
   });
 }
 
+function collectMainRows(summaries: OfferScenarioSummary[]) {
+  const rowsByKey = new Map<string, OfferRow>();
+  for (const summary of summaries) {
+    summary.mainRows.forEach((row, index) => {
+      const key = row.rowKey ?? `main-${normalizeSearch(row.designation)}-${index}`;
+      if (!rowsByKey.has(key)) rowsByKey.set(key, { ...row, rowKey: key });
+    });
+  }
+  return [...rowsByKey.values()];
+}
+
+function findMainForScenario(summary: OfferScenarioSummary, mainRow: OfferRow) {
+  return summary.mainRows.find((row, index) => {
+    const key = row.rowKey ?? `main-${normalizeSearch(row.designation)}-${index}`;
+    return key === mainRow.rowKey;
+  });
+}
+
 function buildPlainTextEmail(params: {
   subject: string;
   clientName: string;
@@ -1245,7 +1263,9 @@ function buildPlainTextMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const mainRows = collectMainRows(summaries);
   const optionRows = collectOptionRows(summaries);
+  const showDetailedLines = !showGlobalTotals && showLineSubtotals;
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
 
   return [
@@ -1257,11 +1277,29 @@ function buildPlainTextMultiQuantityEmail(params: {
     "",
     ...buildCommonOfferInfoPlainText(commonInfo),
     commonInfo ? "" : "",
-    objet,
-    ...buildPlainDetailLines(mainDetails),
-    "",
-    "Prix HT tout inclus :",
-    ...summaries.map((summary) => buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals)),
+    ...(showDetailedLines
+      ? mainRows.flatMap((mainRow) => {
+          const prices = summaries.map((summary) => {
+            const row = findMainForScenario(summary, mainRow);
+            return row
+              ? `${summary.label} : PU HT ${fmtEUR(row.unitPrice)} / u - Sous-total HT ${fmtEUR(rowTotal(row))}`
+              : `${summary.label} : non chiffrée`;
+          });
+          return [
+            `- ${mainRow.designation}`,
+            ...buildPlainDetailLines(mainRow.details ?? [], "  "),
+            ...prices.map((price) => `  ${price}`),
+          ];
+        })
+      : [
+          objet,
+          ...buildPlainDetailLines(mainDetails),
+          "",
+          "Prix HT tout inclus :",
+          ...summaries.map((summary) =>
+            buildPlainQuantityPrice(summary, summary.mainTotalHT, showLineSubtotals),
+          ),
+        ]),
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
     ...optionRows.flatMap((option) => {
@@ -1328,7 +1366,9 @@ function buildHtmlMultiQuantityEmail(params: {
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const mainDetails = collectDetails(summaries.map((summary) => summary.mainRows));
+  const mainRows = collectMainRows(summaries);
   const optionRows = collectOptionRows(summaries);
+  const showDetailedLines = !showGlobalTotals && showLineSubtotals;
   const hasOptions = summaries.some((summary) => summary.optionsTotalHT > 0);
   const columnWidth = Math.max(118, Math.min(160, 520 / Math.max(1, summaries.length)));
 
@@ -1412,6 +1452,35 @@ function buildHtmlMultiQuantityEmail(params: {
         </table>
       </td>
     </tr>`;
+
+  const mainLinePriceTable = () =>
+    mainRows.length
+      ? `<tr>
+      <td style="padding:0 0 14px 0;">
+        <div style="padding:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;text-transform:uppercase;font-size:11px;">${escapeHtml(objet || "Détail de l’offre")}</div>
+        <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};font-family:${FONT};">
+          <thead><tr>
+            <th style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_TEXT};border-bottom:1px solid ${MAIL_BORDER};text-align:left;font-size:11px;text-transform:uppercase;">Désignation</th>
+            ${summaries.map((summary) => `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`).join("")}
+          </tr></thead>
+          <tbody>
+            ${mainRows.map((mainRow) => `<tr>
+              <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
+                <div style="font-weight:700;">${escapeHtml(mainRow.designation)}</div>
+                ${detailHtml(mainRow.details)}
+              </td>
+              ${summaries.map((summary) => {
+                const row = findMainForScenario(summary, mainRow);
+                return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
+                  ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Sous-total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
+                </td>`;
+              }).join("")}
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </td>
+    </tr>`
+      : "";
 
   const optionPriceTable = () =>
     optionRows.length
@@ -1526,7 +1595,7 @@ function buildHtmlMultiQuantityEmail(params: {
     </tr>
     ${buildMailImageRow(image)}
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
-    ${priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
+    ${showDetailedLines ? mainLinePriceTable() : priceTable(objet || "Offre principale", mainDetails, "Prix HT tout inclus", (summary) => summary.mainTotalHT)}
     ${hasOptions ? optionPriceTable() : ""}
     ${unitPriceTable}
     ${showGlobalTotals ? globalTotalsTable : ""}
@@ -1792,7 +1861,7 @@ export function OfferEmailDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="max-w-5xl max-h-[92vh] overflow-y-auto"
+        className="h-[96vh] w-[98vw] max-w-none overflow-y-auto p-6"
         onPaste={(event) => {
           if (!imageEnabled || isPreparingImage) return;
           const item = Array.from(event.clipboardData.items).find(
@@ -1814,7 +1883,7 @@ export function OfferEmailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
           <div className="space-y-4">
             {isStandOffer ? (
               <div className="space-y-2">
@@ -1982,7 +2051,7 @@ export function OfferEmailDialog({
             </p>
           </div>
 
-          <div className="rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
+          <div className="min-w-0 rounded-md border bg-white p-4 shadow-inner overflow-x-auto">
             <div
               style={{ minWidth: offer?.previewWidth ?? 920 }}
               dangerouslySetInnerHTML={{ __html: offer?.html ?? "" }}
