@@ -325,7 +325,9 @@ function appendPrototypeHtml(html: string, prototype: OfferPrototype | null) {
   const block = buildPrototypeHtmlRow(prototype);
   if (!block) return html;
   const closing = /<\/table>\s*<\/div>\s*$/;
-  return closing.test(html) ? html.replace(closing, `${block}\n  </table>\n</div>`) : `${html}${block}`;
+  return closing.test(html)
+    ? html.replace(closing, `${block}\n  </table>\n</div>`)
+    : `${html}${block}`;
 }
 
 function buildOfferContactName(dossier: any) {
@@ -458,7 +460,16 @@ function buildStandardRows(
 
   const tpUnit = Number(scenario.transportPackagingUnit) || 0;
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
-  addRow(rows, "Transport / Packaging", quantite, tpUnit * (1 + tpMarge / 100), [], false, tpUnit);
+  addRow(
+    rows,
+    "Transport / Packaging",
+    quantite,
+    tpUnit * (1 + tpMarge / 100),
+    [],
+    false,
+    tpUnit,
+    "standard-transport-packaging",
+  );
 
   const outillageUnit = Number(scenario.outillageUnit) || 0;
   const outillageMarge = Number(scenario.outillageMargePct) || 0;
@@ -470,6 +481,7 @@ function buildStandardRows(
     [],
     false,
     outillageUnit,
+    "standard-tooling",
   );
 
   const sourcingUnit = Number(scenario.commissionSourcingUnit) || 0;
@@ -482,9 +494,19 @@ function buildStandardRows(
     [],
     false,
     sourcingUnit,
+    "standard-sourcing-commission",
   );
 
-  addRow(rows, "Commission rapporteur", quantite, Number(scenario.commissionRapporteurUnit) || 0);
+  addRow(
+    rows,
+    "Commission rapporteur",
+    quantite,
+    Number(scenario.commissionRapporteurUnit) || 0,
+    [],
+    false,
+    0,
+    "standard-referrer-commission",
+  );
 
   return rows;
 }
@@ -630,6 +652,7 @@ function buildContraRows(
     [],
     false,
     tpUnit * contraFactor,
+    "contra-transport-packaging",
   );
 
   const outillageUnit = Number(scenario.outillageUnit) || 0;
@@ -642,6 +665,7 @@ function buildContraRows(
     [],
     false,
     outillageUnit * contraFactor,
+    "contra-tooling",
   );
 
   addRow(
@@ -652,8 +676,18 @@ function buildContraRows(
     [],
     false,
     Number(scenario.commissionSourcingUnit) || 0,
+    "contra-sourcing-commission",
   );
-  addRow(rows, "Commission rapporteur", quantite, Number(scenario.commissionRapporteurUnit) || 0);
+  addRow(
+    rows,
+    "Commission rapporteur",
+    quantite,
+    Number(scenario.commissionRapporteurUnit) || 0,
+    [],
+    false,
+    0,
+    "contra-referrer-commission",
+  );
 
   return rows;
 }
@@ -707,7 +741,13 @@ function buildOfferRows(
   detailedMainRows = false,
 ) {
   if (type === "standard")
-    return buildStandardRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
+    return buildStandardRows(
+      payload,
+      scenario,
+      scenarioIndex,
+      primaryDesignation,
+      detailedMainRows,
+    );
   if (type === "contra")
     return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
   if (type === "stands") return buildStandRows(payload, output, scenario);
@@ -1019,7 +1059,9 @@ function buildPlainTextEmail(params: {
     commonInfo ? "" : "",
     hasOptions ? "Offre principale :" : "Détail de l'offre :",
     ...buildPlainRows(mainRows, showLineSubtotals),
-    hasOptions && showLineSubtotals ? `Sous-total offre principale HT : ${fmtEUR(mainTotalHT)}` : "",
+    hasOptions && showLineSubtotals
+      ? `Sous-total offre principale HT : ${fmtEUR(mainTotalHT)}`
+      : "",
     hasOptions ? "Options :" : "",
     ...buildPlainRows(optionRows, showLineSubtotals),
     hasOptions && showLineSubtotals ? `Sous-total options HT : ${fmtEUR(optionsTotalHT)}` : "",
@@ -1121,10 +1163,14 @@ function buildHtmlEmail(params: {
           </thead>
           <tbody>
             ${rowHtml(rows)}
-${showLineSubtotals ? `<tr>
+${
+  showLineSubtotals
+    ? `<tr>
               <td colspan="3" style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:700;">${escapeHtml(totalLabel.replace(/^Total/, "Sous-total"))}</td>
               <td style="padding:8px 10px;text-align:right;background:#fffaf6;color:${MAIL_TEXT};font-size:12px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(total))}</td>
-            </tr>` : ""}
+            </tr>`
+    : ""
+}
           </tbody>
         </table>
       </td>
@@ -1529,18 +1575,24 @@ function buildHtmlMultiQuantityEmail(params: {
             ${summaries.map((summary) => `<th style="padding:7px 10px;background:${MAIL_SOFT};color:${YETI_ORANGE};border-bottom:1px solid ${MAIL_BORDER};text-align:right;font-size:11px;text-transform:uppercase;width:${columnWidth}px;">${escapeHtml(summary.label)}</th>`).join("")}
           </tr></thead>
           <tbody>
-            ${mainRows.map((mainRow) => `<tr>
+            ${mainRows
+              .map(
+                (mainRow) => `<tr>
               <td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};color:${MAIL_TEXT};font-size:12px;">
                 <div style="font-weight:700;">${escapeHtml(mainRow.designation)}</div>
                 ${detailHtml(mainRow.details)}
               </td>
-              ${summaries.map((summary) => {
-                const row = findMainForScenario(summary, mainRow);
-                return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
+              ${summaries
+                .map((summary) => {
+                  const row = findMainForScenario(summary, mainRow);
+                  return `<td style="padding:8px 10px;border-bottom:1px solid ${MAIL_BORDER};text-align:right;color:${MAIL_TEXT};font-size:12px;white-space:nowrap;width:${columnWidth}px;">
                   ${row ? `<div style="font-weight:800;font-size:14px;">${escapeHtml(fmtEUR(row.unitPrice))} / u</div><div style="font-size:10.5px;color:${MAIL_MUTED};margin-top:2px;">Sous-total HT ${escapeHtml(fmtEUR(rowTotal(row)))}</div>` : `<div>—</div>`}
                 </td>`;
-              }).join("")}
-            </tr>`).join("")}
+                })
+                .join("")}
+            </tr>`,
+              )
+              .join("")}
           </tbody>
         </table>
       </td>
@@ -1723,7 +1775,8 @@ export function OfferEmailDialog({
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [showGlobalTotals, setShowGlobalTotals] = useState(true);
   const [showLineSubtotals, setShowLineSubtotals] = useState(true);
-  const [toolingPresentation, setToolingPresentation] = useState<ToolingPresentation>("distributed");
+  const [toolingPresentation, setToolingPresentation] =
+    useState<ToolingPresentation>("distributed");
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
@@ -1880,11 +1933,11 @@ export function OfferEmailDialog({
     const previewWidth = 760;
 
     return {
-        subject,
-        plainText: appendPrototypePlainText(plainText, prototype),
-        html: appendPrototypeHtml(html, prototype),
-        previewWidth,
-      };
+      subject,
+      plainText: appendPrototypePlainText(plainText, prototype),
+      html: appendPrototypeHtml(html, prototype),
+      previewWidth,
+    };
   }, [
     dossier,
     mailImage,
@@ -2078,9 +2131,7 @@ export function OfferEmailDialog({
                 <Label htmlFor="offer-tooling-presentation">Présentation de l’outillage</Label>
                 <Select
                   value={toolingPresentation}
-                  onValueChange={(value) =>
-                    setToolingPresentation(value as ToolingPresentation)
-                  }
+                  onValueChange={(value) => setToolingPresentation(value as ToolingPresentation)}
                 >
                   <SelectTrigger id="offer-tooling-presentation">
                     <SelectValue />
