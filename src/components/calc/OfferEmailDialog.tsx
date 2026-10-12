@@ -1723,9 +1723,13 @@ export function OfferEmailDialog({
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [showGlobalTotals, setShowGlobalTotals] = useState(true);
   const [showLineSubtotals, setShowLineSubtotals] = useState(true);
+  const [toolingPresentation, setToolingPresentation] = useState<ToolingPresentation>("distributed");
   const selectedIndex = Math.min(Number(scenarioIndex) || 0, Math.max(0, scenarioItems.length - 1));
   const selectedItem = scenarioItems[selectedIndex];
   const scenario = selectedItem?.scenario;
+  const hasTooling =
+    Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
+    scenarioItems.some((item) => Math.abs(Number(item.scenario.outillageGlobal) || 0) > 0.005);
 
   useEffect(() => {
     setMailImage(savedMailImage);
@@ -1795,6 +1799,7 @@ export function OfferEmailDialog({
         commonInfo,
         showGlobalTotals,
         showLineSubtotals,
+        toolingPresentation,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -1810,6 +1815,7 @@ export function OfferEmailDialog({
         commonInfo,
         showGlobalTotals,
         showLineSubtotals,
+        toolingPresentation,
       });
       const previewWidth = 920;
 
@@ -1891,6 +1897,7 @@ export function OfferEmailDialog({
     selectedItem,
     showGlobalTotals,
     showLineSubtotals,
+    toolingPresentation,
   ]);
 
   async function copyBody() {
@@ -2065,6 +2072,30 @@ export function OfferEmailDialog({
                 </div>
               )}
             </div>
+
+            {!isStandOffer && hasTooling && (
+              <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                <Label htmlFor="offer-tooling-presentation">Présentation de l’outillage</Label>
+                <Select
+                  value={toolingPresentation}
+                  onValueChange={(value) =>
+                    setToolingPresentation(value as ToolingPresentation)
+                  }
+                >
+                  <SelectTrigger id="offer-tooling-presentation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="distributed">Dispatcher par quantité</SelectItem>
+                    <SelectItem value="global">Présenter en montant global</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  En montant global, l’outillage apparaît une seule fois et n’est plus intégré aux
+                  prix unitaires présentés.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2 rounded-md border bg-muted/20 p-3">
               <div className="flex items-center gap-2">
