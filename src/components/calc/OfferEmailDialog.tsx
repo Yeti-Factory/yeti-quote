@@ -318,12 +318,33 @@ function buildPrototypeHtmlRow(prototype: OfferPrototype | null) {
 
 function appendPrototypePlainText(plainText: string, prototype: OfferPrototype | null) {
   const block = buildPrototypePlainText(prototype);
-  return block ? `${plainText.trimEnd()}\n\n${block}` : plainText;
+  if (!block) return plainText;
+
+  const markers = [
+    "\nConditions :\n",
+    "\nCette offre est indicative et valable 8 jours,",
+  ];
+  const insertionIndex = markers
+    .map((marker) => plainText.indexOf(marker))
+    .filter((index) => index >= 0)
+    .sort((left, right) => left - right)[0];
+
+  if (insertionIndex === undefined) return `${plainText.trimEnd()}\n\n${block}`;
+  return `${plainText.slice(0, insertionIndex).trimEnd()}\n\n${block}\n${plainText.slice(insertionIndex).trimStart()}`;
 }
 
 function appendPrototypeHtml(html: string, prototype: OfferPrototype | null) {
   const block = buildPrototypeHtmlRow(prototype);
   if (!block) return html;
+
+  const conditionsLabel = ">Conditions</p>";
+  const conditionsIndex = html.indexOf(conditionsLabel);
+  const conditionsRowIndex =
+    conditionsIndex >= 0 ? html.lastIndexOf("<tr>", conditionsIndex) : -1;
+  if (conditionsRowIndex >= 0) {
+    return `${html.slice(0, conditionsRowIndex)}${block}\n    ${html.slice(conditionsRowIndex)}`;
+  }
+
   const closing = /<\/table>\s*<\/div>\s*$/;
   return closing.test(html)
     ? html.replace(closing, `${block}\n  </table>\n</div>`)
