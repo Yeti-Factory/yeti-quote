@@ -356,7 +356,7 @@ function DossierDetail() {
       const { data, error } = await backend
         .from("dossiers")
         .select(
-          "*, clients(id, entreprise, contact, email, telephone, adresse, notes, created_at, updated_at)",
+          "*, clients(id, entreprise, contact, email, telephone, adresse, code_sage, notes, created_at, updated_at)",
         )
         .eq("id", id)
         .single();
@@ -986,4 +986,3 @@ function DossierDetail() {
     </>
   );
 }
-

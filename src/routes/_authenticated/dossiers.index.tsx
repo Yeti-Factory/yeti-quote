@@ -118,6 +118,7 @@ function DossiersList() {
       email: backup.client.email ?? null,
       telephone: backup.client.telephone ?? null,
       adresse: backup.client.adresse ?? null,
+      code_sage: backup.client.code_sage ?? null,
       notes: backup.client.notes ?? null,
     };
 

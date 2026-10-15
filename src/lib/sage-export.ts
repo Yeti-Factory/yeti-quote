@@ -35,14 +35,6 @@ export type SageExportRow = {
 export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
-  depotCode?: string;
-  pieceType?: string;
-  includeHeader?: boolean;
-  repeatHeaderOnDetailLines?: boolean;
-  decimalSeparator?: "comma" | "dot";
-  columnSeparator?: "semicolon" | "tab";
-  includeDepotColumn?: boolean;
-  includeSageOptions?: boolean;
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -70,22 +62,6 @@ const SAGE_PIECE_HEADERS = [
   "Code_cli",
   "Nom_Cli",
   "Code article",
-  "Désignation",
-  "Quantite",
-  "PU HT",
-  "Taux TVA",
-] as const;
-
-const SAGE_PIECE_HEADERS_WITH_DEPOT = [
-  "Type de Ligne",
-  "Type pièce",
-  "Numero",
-  "Date",
-  "Code_cli",
-  "Nom_Cli",
-  "Code article",
-  "Depot",
-  "Désignation",
   "Quantite",
   "PU HT",
   "Taux TVA",
@@ -184,10 +160,6 @@ function commercialConditions(payload: any, scenario: any) {
   ].filter(Boolean);
 }
 
-function sageLineDesignation(row: SageExportRow) {
-  return [row.designation, row.description].map(cleanText).filter(Boolean).join(" - ");
-}
-
 function commonRowBase(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -231,16 +203,7 @@ export function getSageClientCode(dossier: any) {
 
 export function getDefaultSageArticleCode(dossier: any) {
   void dossier;
-  return "ART0016";
-}
-
-export function getDefaultSageDepotCode(dossier: any) {
-  const client = dossier?.clients ?? {};
-  return cleanText(client.code_depot_sage ?? client.codeDepotSage ?? "");
-}
-
-export function getDefaultSagePieceType() {
-  return "Devis";
+  return "ARTDIVERS";
 }
 
 function buildStandardRows(params: {
@@ -506,76 +469,39 @@ export function makeSageQuoteCsv(params: {
   const defaultArticleCode = cleanText(
     params.options?.defaultArticleCode || getDefaultSageArticleCode(params.dossier),
   );
-  const depotCode = cleanText(params.options?.depotCode || getDefaultSageDepotCode(params.dossier));
-  const pieceType = cleanText(params.options?.pieceType || getDefaultSagePieceType());
-  const includeHeader = params.options?.includeHeader === true;
-  const repeatHeaderOnDetailLines = params.options?.repeatHeaderOnDetailLines === true;
-  const decimalSeparator = params.options?.decimalSeparator ?? "dot";
-  const includeDepotColumn = params.options?.includeDepotColumn === true && Boolean(depotCode);
-  const includeSageOptions = params.options?.includeSageOptions === true;
-  const delimiter = params.options?.columnSeparator === "semicolon" ? ";" : "\t";
-  const headers = [
-    ...(includeDepotColumn ? SAGE_PIECE_HEADERS_WITH_DEPOT : SAGE_PIECE_HEADERS),
-    ...(includeSageOptions ? ["Option"] : []),
-  ];
-  const numericStartIndex = includeDepotColumn ? 9 : 8;
-  const header = headers.map((label) => csvText(label, delimiter)).join(delimiter);
+  const delimiter = ";";
+  const header = SAGE_PIECE_HEADERS.map((label) => csvText(label, delimiter)).join(delimiter);
   const pieceHeader = [
     "E",
-    pieceType,
+    "Devis",
     "",
     datePiece,
     sageClientCode,
     cleanText(client.entreprise),
-    ...(includeDepotColumn ? [""] : []),
     "",
     "",
     "",
     "",
-    "",
-    ...(includeSageOptions ? ["-NoStock"] : []),
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
   const detailRows = rows.map((row) =>
-    (repeatHeaderOnDetailLines
-      ? [
-          "L",
-          pieceType,
-          "",
-          datePiece,
-          sageClientCode,
-          cleanText(client.entreprise),
-          defaultArticleCode,
-          ...(includeDepotColumn ? [depotCode] : []),
-          sageLineDesignation(row),
-          csvNumber(row.quantite, 3, decimalSeparator),
-          csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
-          csvNumber(row.tauxTVA, 2, decimalSeparator),
-          ...(includeSageOptions ? [""] : []),
-        ]
-      : [
-          "L",
-          "",
-          "",
-          "",
-          "",
-          "",
-          defaultArticleCode,
-          ...(includeDepotColumn ? [depotCode] : []),
-          sageLineDesignation(row),
-          csvNumber(row.quantite, 3, decimalSeparator),
-          csvNumber(row.prixUnitaireHT, 2, decimalSeparator),
-          csvNumber(row.tauxTVA, 2, decimalSeparator),
-          ...(includeSageOptions ? [""] : []),
-        ]
-    )
-      .map((value, index) =>
-        index >= numericStartIndex ? String(value) : csvText(value, delimiter),
-      )
+    [
+      "L",
+      "",
+      "",
+      "",
+      "",
+      "",
+      defaultArticleCode,
+      csvNumber(row.quantite, 3, "comma"),
+      csvNumber(row.prixUnitaireHT, 2, "comma"),
+      csvNumber(row.tauxTVA, 2, "comma"),
+    ]
+      .map((value, index) => (index >= 7 ? String(value) : csvText(value, delimiter)))
       .join(delimiter),
   );
-  const lines = includeHeader ? [header, pieceHeader, ...detailRows] : [pieceHeader, ...detailRows];
+  const lines = [header, pieceHeader, ...detailRows];
   return lines.join("\r\n") + "\r\n";
 }
 
@@ -589,11 +515,48 @@ export function makeSageQuoteFilename(params: {
   );
   const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
   const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
-  return `sage-devis-${reference}-${client}-${objet}.txt`;
+  return `sage-devis-${reference}-${client}-${objet}.csv`;
+}
+
+function encodeWindows1252(text: string) {
+  const special = new Map<number, number>([
+    [0x20ac, 0x80],
+    [0x201a, 0x82],
+    [0x0192, 0x83],
+    [0x201e, 0x84],
+    [0x2026, 0x85],
+    [0x2020, 0x86],
+    [0x2021, 0x87],
+    [0x02c6, 0x88],
+    [0x2030, 0x89],
+    [0x0160, 0x8a],
+    [0x2039, 0x8b],
+    [0x0152, 0x8c],
+    [0x017d, 0x8e],
+    [0x2018, 0x91],
+    [0x2019, 0x92],
+    [0x201c, 0x93],
+    [0x201d, 0x94],
+    [0x2022, 0x95],
+    [0x2013, 0x96],
+    [0x2014, 0x97],
+    [0x02dc, 0x98],
+    [0x2122, 0x99],
+    [0x0161, 0x9a],
+    [0x203a, 0x9b],
+    [0x0153, 0x9c],
+    [0x017e, 0x9e],
+    [0x0178, 0x9f],
+  ]);
+  return Uint8Array.from(Array.from(text), (character) => {
+    const code = character.codePointAt(0) ?? 0x3f;
+    if (code <= 0xff) return code;
+    return special.get(code) ?? 0x3f;
+  });
 }
 
 function createCsvBlob(csv: string) {
-  return new Blob([csv], { type: "text/plain;charset=utf-8" });
+  return new Blob([encodeWindows1252(csv)], { type: "text/csv;charset=windows-1252" });
 }
 
 function downloadCsv(filename: string, blob: Blob) {
@@ -630,8 +593,8 @@ export async function saveSageQuoteCsv(params: {
         suggestedName: filename,
         types: [
           {
-            description: "Fichier texte Sage",
-            accept: { "text/plain": [".txt"] },
+            description: "Fichier CSV Sage 50",
+            accept: { "text/csv": [".csv"] },
           },
         ],
       });
@@ -647,152 +610,4 @@ export async function saveSageQuoteCsv(params: {
 
   downloadCsv(filename, blob);
   return "downloaded";
-}
-
-export function downloadSageQuoteDiagnosticCsvs(params: {
-  dossier: any;
-  meta: { reference: string; objet: string };
-  payload: any;
-  output: any;
-  scenarioIndex: number;
-  options?: SageExportOptions;
-}) {
-  const baseFilename = makeSageQuoteFilename(params).replace(/\.(csv|txt)$/i, "");
-  const baseOptions = params.options ?? {};
-  const variants: Array<{ suffix: string; extension: "csv" | "txt"; options: SageExportOptions }> =
-    [
-      {
-        suffix: "01-officiel-titre-virgule",
-        extension: "csv",
-        options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: false },
-      },
-      {
-        suffix: "02-officiel-sans-titre-virgule",
-        extension: "csv",
-        options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: false },
-      },
-      {
-        suffix: "03-complet-titre-virgule",
-        extension: "csv",
-        options: { ...baseOptions, includeHeader: true, repeatHeaderOnDetailLines: true },
-      },
-      {
-        suffix: "04-complet-sans-titre-virgule",
-        extension: "csv",
-        options: { ...baseOptions, includeHeader: false, repeatHeaderOnDetailLines: true },
-      },
-      {
-        suffix: "05-officiel-titre-point",
-        extension: "csv",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "06-devis-proforma-titre-virgule",
-        extension: "csv",
-        options: {
-          ...baseOptions,
-          pieceType: "Devis/Proforma",
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-        },
-      },
-      {
-        suffix: "07-officiel-titre-tabulation",
-        extension: "txt",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          columnSeparator: "tab",
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "08-officiel-sans-titre-tabulation",
-        extension: "txt",
-        options: {
-          ...baseOptions,
-          includeHeader: false,
-          repeatHeaderOnDetailLines: false,
-          columnSeparator: "tab",
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "09-complet-titre-tabulation",
-        extension: "txt",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: true,
-          columnSeparator: "tab",
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "10-devis-majuscule-titre-tabulation",
-        extension: "txt",
-        options: {
-          ...baseOptions,
-          pieceType: "DEVIS",
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          columnSeparator: "tab",
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "11-officiel-titre-depot-virgule",
-        extension: "csv",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          includeDepotColumn: true,
-        },
-      },
-      {
-        suffix: "12-officiel-titre-depot-point",
-        extension: "csv",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          includeDepotColumn: true,
-          decimalSeparator: "dot",
-        },
-      },
-      {
-        suffix: "13-complet-titre-depot-virgule",
-        extension: "csv",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: true,
-          includeDepotColumn: true,
-        },
-      },
-      {
-        suffix: "14-officiel-titre-depot-tabulation",
-        extension: "txt",
-        options: {
-          ...baseOptions,
-          includeHeader: true,
-          repeatHeaderOnDetailLines: false,
-          includeDepotColumn: true,
-          columnSeparator: "tab",
-          decimalSeparator: "dot",
-        },
-      },
-    ];
-
-  for (const variant of variants) {
-    const csv = makeSageQuoteCsv({ ...params, options: variant.options });
-    downloadCsv(`${baseFilename}-${variant.suffix}.${variant.extension}`, createCsvBlob(csv));
-  }
 }
