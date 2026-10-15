@@ -22,7 +22,7 @@ try {
       params: { coef_marge_pct: 0 },
       quantites: [{ margePct: 0 }],
       achatsPrincipaux: [
-        { libelle: "Structure", prixParQuantite: [100] },
+        { libelle: "Structure", descriptif: "Structure aluminium", prixParQuantite: [100] },
         { libelle: "Éclairage", prixParQuantite: [50] },
         { libelle: "Option écran", prixParQuantite: [25], isOption: true },
       ],
@@ -71,10 +71,18 @@ try {
     options: { selectedLineNumbers: selectedMain, lineMode: "single_total" },
   });
   const dataLines = csv.split("\r\n").filter(Boolean);
-  assert.ok(dataLines.every((line) => line.split("\t").length === 14));
-  assert.equal(dataLines.filter((line) => line.startsWith("L\t")).length, 1);
-  assert.match(dataLines[1], /\tREF-CLIENT$/);
-  assert.match(dataLines[2], /\t1\.000\t300\.00\t20\.00\t\t$/);
+  assert.ok(dataLines.every((line) => line.split("\t").length === 15));
+  assert.equal(dataLines.filter((line) => line.startsWith("L\t")).length, 2);
+  assert.match(dataLines[1], /\tREF-CLIENT\t$/);
+  const articleFields = dataLines[2].split("\t");
+  const commentFields = dataLines[3].split("\t");
+  assert.equal(articleFields[8], "REF-CLIENT");
+  assert.equal(articleFields[14], "");
+  assert.equal(commentFields[6], "");
+  assert.match(commentFields[8], /Structure : Structure aluminium/);
+  assert.equal(commentFields[9], "");
+  assert.equal(commentFields[14], "T");
+  assert.match(dataLines[2], /\t1\.000\t300\.00\t20\.00\t\t/);
 
   console.log("Sage selection export checks passed.");
 } finally {

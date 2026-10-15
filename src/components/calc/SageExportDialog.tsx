@@ -167,7 +167,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Ce fichier reprend le format configuré dans votre Sage : une ligne <strong>E</strong>,
             puis les lignes <strong>L</strong>, séparées par des tabulations. Le dépôt reste vide et
-            Sage attribue automatiquement le prochain numéro de devis.
+            Sage attribue automatiquement le prochain numéro de devis. Le descriptif de chaque
+            élément est ajouté comme commentaire sous sa ligne dans Sage.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
