@@ -320,10 +320,7 @@ function appendPrototypePlainText(plainText: string, prototype: OfferPrototype |
   const block = buildPrototypePlainText(prototype);
   if (!block) return plainText;
 
-  const markers = [
-    "\nConditions :\n",
-    "\nCette offre est indicative et valable 8 jours,",
-  ];
+  const markers = ["\nConditions :\n", "\nCette offre est indicative et valable 8 jours,"];
   const insertionIndex = markers
     .map((marker) => plainText.indexOf(marker))
     .filter((index) => index >= 0)
@@ -339,8 +336,7 @@ function appendPrototypeHtml(html: string, prototype: OfferPrototype | null) {
 
   const conditionsLabel = ">Conditions</p>";
   const conditionsIndex = html.indexOf(conditionsLabel);
-  const conditionsRowIndex =
-    conditionsIndex >= 0 ? html.lastIndexOf("<tr>", conditionsIndex) : -1;
+  const conditionsRowIndex = conditionsIndex >= 0 ? html.lastIndexOf("<tr>", conditionsIndex) : -1;
   if (conditionsRowIndex >= 0) {
     return `${html.slice(0, conditionsRowIndex)}${block}\n    ${html.slice(conditionsRowIndex)}`;
   }
@@ -1780,8 +1776,7 @@ async function copyRichEmail(html: string, plainText: string) {
 }
 
 function buildPdfDocument(offer: { subject: string; html: string; previewWidth: number }) {
-  const isLandscape = offer.previewWidth > 900;
-  const printableWidth = isLandscape ? 1045 : 715;
+  const printableWidth = 715;
   const scale = Math.min(1, printableWidth / offer.previewWidth);
   const title = offer.subject
     .replace(/[\\/:*?"<>|]+/g, " ")
@@ -1795,7 +1790,7 @@ function buildPdfDocument(offer: { subject: string; html: string; previewWidth: 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(title || "Offre de prix Yeti Factory")}</title>
     <style>
-      @page { size: A4 ${isLandscape ? "landscape" : "portrait"}; margin: 10mm; }
+      @page { size: A4 portrait; margin: 10mm; }
       * { box-sizing: border-box; }
       html, body { margin: 0; background: #fff; color: #222; }
       body {
@@ -1837,7 +1832,7 @@ function buildPdfDocument(offer: { subject: string; html: string; previewWidth: 
           margin: 0;
           zoom: ${scale.toFixed(4)};
         }
-        tr, img {
+        img {
           break-inside: avoid;
           page-break-inside: avoid;
         }
@@ -2346,16 +2341,16 @@ export function OfferEmailDialog({
 
             <p className="text-xs text-muted-foreground">
               Le PDF reprend l’offre affichée et peut être joint à un message WhatsApp. Dans la
-              fenêtre d’impression, choisissez « Enregistrer au format PDF ». Le collage riche
-              garde la mise en forme quand le navigateur l'autorise. Sinon, le texte simple est
-              copié automatiquement.
+              fenêtre d’impression, choisissez « Enregistrer au format PDF ». Le collage riche garde
+              la mise en forme quand le navigateur l'autorise. Sinon, le texte simple est copié
+              automatiquement.
             </p>
           </div>
 
           <div className="min-w-0 rounded-md border bg-muted/20 p-4 shadow-inner overflow-x-auto">
             <p className="mb-3 text-xs text-muted-foreground">
-              Aperçu du contenu copié dans le mail, à taille réelle. Faites défiler
-              horizontalement si toutes les quantités ne tiennent pas à l’écran.
+              Aperçu du contenu copié dans le mail, à taille réelle. Faites défiler horizontalement
+              si toutes les quantités ne tiennent pas à l’écran.
             </p>
             <iframe
               title="Aperçu du mail"
