@@ -205,11 +205,11 @@ export function getSageClientCode(dossier: any) {
 
 export function getDefaultSageArticleCode(dossier: any) {
   void dossier;
-  return "ARTDIVERS";
+  return "ART0097";
 }
 
 export function getDefaultSageDepotCode() {
-  return "DEP0001";
+  return "";
 }
 
 function buildStandardRows(params: {
