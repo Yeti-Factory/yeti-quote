@@ -78,7 +78,8 @@ try {
   const commentFields = dataLines[3].split("\t");
   assert.equal(articleFields[8], "REF-CLIENT");
   assert.equal(articleFields[14], "");
-  assert.equal(commentFields[6], "");
+  assert.equal(commentFields[6], "ARTDIVERS");
+  assert.equal(commentFields[7], "");
   assert.match(commentFields[8], /Structure : Structure aluminium/);
   assert.equal(commentFields[9], "");
   assert.equal(commentFields[14], "T");
