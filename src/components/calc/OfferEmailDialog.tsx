@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clipboard, ImagePlus, Mail, X } from "lucide-react";
+import { Clipboard, FileDown, ImagePlus, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -1779,6 +1779,100 @@ async function copyRichEmail(html: string, plainText: string) {
   await navigator.clipboard.writeText(plainText);
 }
 
+function buildPdfDocument(offer: { subject: string; html: string; previewWidth: number }) {
+  const isLandscape = offer.previewWidth > 900;
+  const printableWidth = isLandscape ? 1045 : 715;
+  const scale = Math.min(1, printableWidth / offer.previewWidth);
+  const title = offer.subject
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title || "Offre de prix Yeti Factory")}</title>
+    <style>
+      @page { size: A4 ${isLandscape ? "landscape" : "portrait"}; margin: 10mm; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: #fff; color: #222; }
+      body {
+        font-family: ${FONT};
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .pdf-actions {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 18px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+        font: 14px Arial, sans-serif;
+      }
+      .pdf-actions button {
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 16px;
+        background: ${YETI_ORANGE};
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .offer-print-root {
+        width: ${offer.previewWidth}px;
+        margin: 18px auto;
+        transform-origin: top left;
+      }
+      img { max-width: 100%; }
+      @media print {
+        .pdf-actions { display: none !important; }
+        .offer-print-root {
+          margin: 0;
+          zoom: ${scale.toFixed(4)};
+        }
+        tr, img {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pdf-actions">
+      <span>Choisissez « Enregistrer au format PDF » dans la fenêtre d’impression.</span>
+      <button type="button" onclick="window.print()">Enregistrer le PDF</button>
+    </div>
+    <div class="offer-print-root">${offer.html}</div>
+  </body>
+</html>`;
+}
+
+async function waitForPrintContent(printWindow: Window) {
+  const doc = printWindow.document;
+  const images = Array.from(doc.images);
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise<void>((resolve) => {
+          if (image.complete) {
+            resolve();
+            return;
+          }
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        }),
+    ),
+  );
+  await doc.fonts?.ready;
+}
+
 export function OfferEmailDialog({
   dossier,
   meta,
@@ -2000,6 +2094,32 @@ export function OfferEmailDialog({
     }
   }
 
+  function createPdf() {
+    if (!offer) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error(
+        "Le navigateur a bloqué l’ouverture du PDF. Autorisez les fenêtres pop-up puis réessayez.",
+      );
+      return;
+    }
+
+    printWindow.opener = null;
+    printWindow.document.open();
+    printWindow.document.write(buildPdfDocument(offer));
+    printWindow.document.close();
+
+    void waitForPrintContent(printWindow)
+      .then(() => {
+        printWindow.focus();
+        printWindow.print();
+      })
+      .catch(() => {
+        toast.error("Impossible de préparer le PDF de l’offre");
+      });
+  }
+
   function removeImage() {
     setMailImage(null);
     onImageChange?.(null);
@@ -2215,14 +2335,20 @@ export function OfferEmailDialog({
                 <Clipboard className="w-4 h-4 mr-1.5" />
                 Copier le corps du mail
               </Button>
+              <Button variant="outline" onClick={createPdf} disabled={!offer}>
+                <FileDown className="w-4 h-4 mr-1.5" />
+                Créer le PDF de l’offre
+              </Button>
               <Button variant="outline" onClick={copySubject} disabled={!offer}>
                 Copier l'objet
               </Button>
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Le collage riche garde la mise en forme quand le navigateur l'autorise. Sinon, le
-              texte simple est copié automatiquement.
+              Le PDF reprend l’offre affichée et peut être joint à un message WhatsApp. Dans la
+              fenêtre d’impression, choisissez « Enregistrer au format PDF ». Le collage riche
+              garde la mise en forme quand le navigateur l'autorise. Sinon, le texte simple est
+              copié automatiquement.
             </p>
           </div>
 
