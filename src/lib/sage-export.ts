@@ -67,6 +67,7 @@ const SAGE_PIECE_HEADERS = [
   "Quantite",
   "PU HT",
   "Taux TVA",
+  "Option",
 ] as const;
 
 function cleanText(value: unknown) {
@@ -490,6 +491,7 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
     "",
+    "-NoStock",
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
@@ -506,6 +508,7 @@ export function makeSageQuoteCsv(params: {
       csvNumber(row.quantite, 3, "dot"),
       csvNumber(row.prixUnitaireHT, 2, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
+      "",
     ]
       .map((value, index) => (index >= 8 ? String(value) : csvText(value, delimiter)))
       .join(delimiter),
