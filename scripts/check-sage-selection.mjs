@@ -19,6 +19,7 @@ try {
     },
     meta: { reference: "DOS-42", objet: "REF-CLIENT" },
     payload: {
+      offerCommonInfo: { title: "Titre de l'offre", text: "Informations complémentaires" },
       params: { coef_marge_pct: 0 },
       quantites: [{ margePct: 0 }],
       achatsPrincipaux: [
@@ -71,18 +72,23 @@ try {
     options: { selectedLineNumbers: selectedMain, lineMode: "single_total" },
   });
   const dataLines = csv.split("\r\n").filter(Boolean);
-  assert.ok(dataLines.every((line) => line.split("\t").length === 15));
+  assert.ok(dataLines.every((line) => line.split("\t").length === 16));
   assert.equal(dataLines.filter((line) => line.startsWith("L\t")).length, 2);
-  assert.match(dataLines[1], /\tREF-CLIENT\t$/);
+  const headerFields = dataLines[1].split("\t");
+  assert.equal(headerFields[13], "REF-CLIENT");
+  assert.equal(headerFields[14], "");
+  assert.equal(headerFields[15], "Titre de l'offre");
   const articleFields = dataLines[2].split("\t");
   const commentFields = dataLines[3].split("\t");
   assert.equal(articleFields[8], "REF-CLIENT");
   assert.equal(articleFields[14], "");
+  assert.equal(articleFields[15], "");
   assert.equal(commentFields[6], "ARTDIVERS");
   assert.equal(commentFields[7], "");
   assert.match(commentFields[8], /Structure : Structure aluminium/);
   assert.equal(commentFields[9], "");
   assert.equal(commentFields[14], "T");
+  assert.equal(commentFields[15], "");
   assert.match(dataLines[2], /\t1\.000\t300\.00\t20\.00\t\t/);
 
   console.log("Sage selection export checks passed.");

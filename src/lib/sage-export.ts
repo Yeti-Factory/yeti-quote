@@ -76,6 +76,7 @@ const SAGE_PIECE_HEADERS = [
   "Option",
   "Référence devis",
   "Commentaire",
+  "Remarque",
 ] as const;
 
 function cleanText(value: unknown) {
@@ -676,6 +677,7 @@ export function makeSageQuoteCsv(params: {
     "-NoStock",
     cleanText(params.meta.objet || params.dossier?.objet),
     "",
+    cleanText(params.payload?.offerCommonInfo?.title),
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
@@ -693,6 +695,7 @@ export function makeSageQuoteCsv(params: {
       csvNumber(row.quantite, 3, "dot"),
       csvNumber(row.prixUnitaireHT, 2, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
+      "",
       "",
       "",
       "",
@@ -720,6 +723,7 @@ export function makeSageQuoteCsv(params: {
       "",
       "",
       "T",
+      "",
     ]
       .map((value) => csvText(value, delimiter))
       .join(delimiter);
