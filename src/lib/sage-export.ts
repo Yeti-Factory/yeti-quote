@@ -35,6 +35,7 @@ export type SageExportRow = {
 export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
+  depotCode?: string;
 };
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
@@ -62,6 +63,7 @@ const SAGE_PIECE_HEADERS = [
   "Code_cli",
   "Nom_Cli",
   "Code article",
+  "Depot",
   "Quantite",
   "PU HT",
   "Taux TVA",
@@ -204,6 +206,10 @@ export function getSageClientCode(dossier: any) {
 export function getDefaultSageArticleCode(dossier: any) {
   void dossier;
   return "ARTDIVERS";
+}
+
+export function getDefaultSageDepotCode() {
+  return "DEP0001";
 }
 
 function buildStandardRows(params: {
@@ -469,7 +475,8 @@ export function makeSageQuoteCsv(params: {
   const defaultArticleCode = cleanText(
     params.options?.defaultArticleCode || getDefaultSageArticleCode(params.dossier),
   );
-  const delimiter = ";";
+  const depotCode = cleanText(params.options?.depotCode || getDefaultSageDepotCode());
+  const delimiter = "\t";
   const header = SAGE_PIECE_HEADERS.map((label) => csvText(label, delimiter)).join(delimiter);
   const pieceHeader = [
     "E",
@@ -478,6 +485,7 @@ export function makeSageQuoteCsv(params: {
     datePiece,
     sageClientCode,
     cleanText(client.entreprise),
+    "",
     "",
     "",
     "",
@@ -494,11 +502,12 @@ export function makeSageQuoteCsv(params: {
       "",
       "",
       defaultArticleCode,
-      csvNumber(row.quantite, 3, "comma"),
-      csvNumber(row.prixUnitaireHT, 2, "comma"),
-      csvNumber(row.tauxTVA, 2, "comma"),
+      depotCode,
+      csvNumber(row.quantite, 3, "dot"),
+      csvNumber(row.prixUnitaireHT, 2, "dot"),
+      csvNumber(row.tauxTVA, 2, "dot"),
     ]
-      .map((value, index) => (index >= 7 ? String(value) : csvText(value, delimiter)))
+      .map((value, index) => (index >= 8 ? String(value) : csvText(value, delimiter)))
       .join(delimiter),
   );
   const lines = [header, pieceHeader, ...detailRows];
@@ -515,7 +524,7 @@ export function makeSageQuoteFilename(params: {
   );
   const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
   const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
-  return `sage-devis-${reference}-${client}-${objet}.csv`;
+  return `sage-devis-${reference}-${client}-${objet}.txt`;
 }
 
 function encodeWindows1252(text: string) {
@@ -556,7 +565,7 @@ function encodeWindows1252(text: string) {
 }
 
 function createCsvBlob(csv: string) {
-  return new Blob([encodeWindows1252(csv)], { type: "text/csv;charset=windows-1252" });
+  return new Blob([encodeWindows1252(csv)], { type: "text/plain;charset=windows-1252" });
 }
 
 function downloadCsv(filename: string, blob: Blob) {
@@ -593,8 +602,8 @@ export async function saveSageQuoteCsv(params: {
         suggestedName: filename,
         types: [
           {
-            description: "Fichier CSV Sage 50",
-            accept: { "text/csv": [".csv"] },
+            description: "Fichier texte Sage 50",
+            accept: { "text/plain": [".txt"] },
           },
         ],
       });
