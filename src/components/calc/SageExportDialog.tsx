@@ -81,10 +81,6 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Renseignez le code article Sage.");
       return;
     }
-    if (!depotCode.trim()) {
-      toast.error("Renseignez le code dépôt Sage.");
-      return;
-    }
     try {
       if (sageClientCode.trim() !== getSageClientCode(dossier)) {
         const { error } = await backend
@@ -131,8 +127,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Ce fichier reprend le format configuré dans votre Sage : une ligne <strong>E</strong>,
-            puis les lignes <strong>L</strong>, séparées par des tabulations. Le dépôt utilisé est{" "}
-            <strong>DEP0001</strong> et Sage attribue automatiquement le prochain numéro de devis.
+            puis les lignes <strong>L</strong>, séparées par des tabulations. Le dépôt reste vide et
+            Sage attribue automatiquement le prochain numéro de devis.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -153,18 +149,22 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <Input
                 value={defaultArticleCode}
                 onChange={(event) => setDefaultArticleCode(event.target.value)}
-                placeholder="ARTDIVERS"
+                placeholder="ART0097"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Chaque ligne utilisera ce code existant dans Sage. <strong>ARTDIVERS</strong> est
-                utilisé par défaut pour convenir à tous les dossiers.
+                Chaque ligne utilisera ce code existant dans Sage. <strong>ART0097</strong> —
+                Prestation de services — est utilisé par défaut.
               </p>
             </div>
             <div>
-              <Label>Code dépôt Sage *</Label>
-              <Input value={depotCode} onChange={(event) => setDepotCode(event.target.value)} />
+              <Label>Code dépôt Sage</Label>
+              <Input
+                value={depotCode}
+                onChange={(event) => setDepotCode(event.target.value)}
+                placeholder="Laisser vide"
+              />
               <p className="mt-1 text-xs text-muted-foreground">
-                Le dépôt principal identifié dans votre base est <strong>DEP0001</strong>.
+                Votre Sage n'utilise pas de liste de dépôts : laissez ce champ vide.
               </p>
             </div>
           </div>
