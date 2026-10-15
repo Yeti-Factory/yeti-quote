@@ -25,6 +25,7 @@ import { fmtEUR } from "@/lib/format";
 import {
   buildSageQuoteRows,
   getDefaultSageArticleCode,
+  getDefaultSageDepotCode,
   getSageClientCode,
   saveSageQuoteCsv,
 } from "@/lib/sage-export";
@@ -52,6 +53,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
     getDefaultSageArticleCode(dossier),
   );
+  const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode());
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -79,6 +81,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Renseignez le code article Sage.");
       return;
     }
+    if (!depotCode.trim()) {
+      toast.error("Renseignez le code dépôt Sage.");
+      return;
+    }
     try {
       if (sageClientCode.trim() !== getSageClientCode(dossier)) {
         const { error } = await backend
@@ -96,6 +102,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         options: {
           sageClientCode,
           defaultArticleCode,
+          depotCode,
         },
       });
       if (result === "saved") toast.success("Fichier Sage enregistré");
@@ -117,16 +124,15 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         <DialogHeader className="px-6 pt-6 pb-3">
           <DialogTitle>Exporter pour import Sage</DialogTitle>
           <DialogDescription>
-            Fichier CSV prêt pour l'import des pièces clients dans Sage 50 / Ciel.
+            Fichier texte prêt pour « Import des pièces clients » dans Sage 50 / Ciel.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
-            Ce fichier reprend exactement les 10 colonnes du format Sage officiel : une ligne{" "}
-            <strong>E</strong> pour le devis, puis les lignes <strong>L</strong> de détail. Le
-            numéro du devis est laissé vide pour que Sage attribue le suivant automatiquement. Aucun
-            dépôt n'est imposé : Sage utilise celui prévu dans votre configuration.
+            Ce fichier reprend le format configuré dans votre Sage : une ligne <strong>E</strong>,
+            puis les lignes <strong>L</strong>, séparées par des tabulations. Le dépôt utilisé est{" "}
+            <strong>DEP0001</strong> et Sage attribue automatiquement le prochain numéro de devis.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -152,6 +158,13 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <p className="mt-1 text-xs text-muted-foreground">
                 Chaque ligne utilisera ce code existant dans Sage. <strong>ARTDIVERS</strong> est
                 utilisé par défaut pour convenir à tous les dossiers.
+              </p>
+            </div>
+            <div>
+              <Label>Code dépôt Sage *</Label>
+              <Input value={depotCode} onChange={(event) => setDepotCode(event.target.value)} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Le dépôt principal identifié dans votre base est <strong>DEP0001</strong>.
               </p>
             </div>
           </div>
@@ -235,7 +248,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
 
         <div className="border-t bg-background px-6 py-4 flex flex-wrap justify-end gap-2">
           <Button onClick={exportCsv} disabled={rows.length === 0}>
-            Télécharger le CSV Sage 50
+            Télécharger le fichier Sage 50
           </Button>
         </div>
       </DialogContent>
