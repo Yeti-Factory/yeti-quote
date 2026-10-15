@@ -12,6 +12,7 @@ const tables = {
     "email",
     "telephone",
     "adresse",
+    "code_sage",
     "notes",
     "created_by",
     "created_at",

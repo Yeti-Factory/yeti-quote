@@ -53,6 +53,7 @@ function makeClientForm(initial?: any) {
     email: initial?.email ?? "",
     telephone: initial?.telephone ?? "",
     adresse: initial?.adresse ?? "",
+    code_sage: initial?.code_sage ?? "",
     notes: initial?.notes ?? "",
   };
 }
@@ -169,6 +170,7 @@ export function ClientDialog({
         email: nullableTrim(form.email),
         telephone: nullableTrim(form.telephone),
         adresse: nullableTrim(form.adresse),
+        code_sage: nullableTrim(form.code_sage),
         notes: nullableTrim(form.notes),
       };
 
@@ -271,6 +273,18 @@ export function ClientDialog({
               value={form.adresse}
               onChange={(e) => setForm({ ...form, adresse: e.target.value })}
             />
+          </div>
+          <div>
+            <Label>Code client Sage</Label>
+            <Input
+              value={form.code_sage}
+              onChange={(e) => setForm({ ...form, code_sage: e.target.value })}
+              placeholder="Ex. 057"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Code exact de la fiche client dans Sage 50. Il sera repris automatiquement dans les
+              prochains exports.
+            </p>
           </div>
           <div>
             <Label>Notes</Label>

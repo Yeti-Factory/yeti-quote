@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
+import { backend } from "@/integrations/native/client";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +24,7 @@ import {
 import { fmtEUR } from "@/lib/format";
 import {
   buildSageQuoteRows,
-  downloadSageQuoteDiagnosticCsvs,
   getDefaultSageArticleCode,
-  getDefaultSageDepotCode,
-  getDefaultSagePieceType,
   getSageClientCode,
   saveSageQuoteCsv,
 } from "@/lib/sage-export";
@@ -55,10 +52,6 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
     getDefaultSageArticleCode(dossier),
   );
-  const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode(dossier));
-  const [pieceType, setPieceType] = useState(() => getDefaultSagePieceType());
-  const [includeHeader, setIncludeHeader] = useState(true);
-  const [includeSageOptions, setIncludeSageOptions] = useState(false);
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -86,55 +79,30 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       toast.error("Renseignez le code article Sage.");
       return;
     }
-    if (!pieceType.trim()) {
-      toast.error("Renseignez le type de pièce Sage.");
-      return;
+    try {
+      if (sageClientCode.trim() !== getSageClientCode(dossier)) {
+        const { error } = await backend
+          .from("clients")
+          .update({ code_sage: sageClientCode.trim() })
+          .eq("id", dossier.client_id);
+        if (error) throw error;
+      }
+      const result = await saveSageQuoteCsv({
+        dossier,
+        meta,
+        payload,
+        output,
+        scenarioIndex: selectedIndex,
+        options: {
+          sageClientCode,
+          defaultArticleCode,
+        },
+      });
+      if (result === "saved") toast.success("Fichier Sage enregistré");
+      else if (result === "downloaded") toast.success("Fichier Sage téléchargé");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Export Sage impossible");
     }
-    const result = await saveSageQuoteCsv({
-      dossier,
-      meta,
-      payload,
-      output,
-      scenarioIndex: selectedIndex,
-      options: {
-        sageClientCode,
-        defaultArticleCode,
-        depotCode,
-        pieceType,
-        includeHeader,
-        includeDepotColumn: Boolean(depotCode.trim()),
-        includeSageOptions,
-      },
-    });
-    if (result === "saved") toast.success("Fichier Sage enregistré");
-    else if (result === "downloaded") toast.success("Fichier Sage téléchargé");
-  }
-
-  function exportDiagnosticPack() {
-    if (rows.length === 0) {
-      toast.error("Aucune ligne Sage à exporter.");
-      return;
-    }
-    if (!sageClientCode.trim() || !defaultArticleCode.trim() || !pieceType.trim()) {
-      toast.error("Renseignez le type de pièce, le code client et le code article Sage.");
-      return;
-    }
-    downloadSageQuoteDiagnosticCsvs({
-      dossier,
-      meta,
-      payload,
-      output,
-      scenarioIndex: selectedIndex,
-      options: {
-        sageClientCode,
-        defaultArticleCode,
-        depotCode,
-        pieceType,
-        includeHeader,
-        includeSageOptions,
-      },
-    });
-    toast.success("Pack test Sage téléchargé : essayez les fichiers dans l'ordre 01, 02, 03...");
   }
 
   return (
@@ -149,66 +117,16 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         <DialogHeader className="px-6 pt-6 pb-3">
           <DialogTitle>Exporter pour import Sage</DialogTitle>
           <DialogDescription>
-            Fichier texte tabulé conforme à l'exemple d'import paramétrable Sage. Les lignes sont
-            construites depuis les éléments et groupes du dossier Yeti Quote.
+            Fichier CSV prêt pour l'import des pièces clients dans Sage 50 / Ciel.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
-            Sage attend une ligne <strong>E</strong> pour l'en-tête du devis et des lignes{" "}
-            <strong>L</strong> pour le détail. Le format officiel simple contient : type de ligne,
-            type de pièce, numéro, date, code client, nom client, code article, désignation,
-            quantité, prix HT et TVA. La désignation contient le nom de la ligne puis son
-            descriptif, comme sur le devis Sage.
-          </div>
-
-          <div className="flex items-start gap-3 rounded-md border px-3 py-2">
-            <Checkbox
-              id="sage-include-header"
-              checked={includeHeader}
-              onCheckedChange={(checked) => setIncludeHeader(checked === true)}
-              className="mt-0.5"
-            />
-            <div>
-              <Label htmlFor="sage-include-header">Inclure la ligne de titre</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                À laisser coché si Sage est paramétré pour ignorer la première ligne du fichier.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Si le rapport Sage parle de la ligne 2, cela peut viser l'en-tête <strong>E</strong>{" "}
-                quand cette case est cochée, ou la première ligne <strong>L</strong> quand elle est
-                décochée.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-md border px-3 py-2">
-            <Checkbox
-              id="sage-include-options"
-              checked={includeSageOptions}
-              onCheckedChange={(checked) => setIncludeSageOptions(checked === true)}
-              className="mt-0.5"
-            />
-            <div>
-              <Label htmlFor="sage-include-options">Ajouter l'option Sage -NoStock</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                À cocher seulement si votre format d'import contient la rubrique Option. Sage
-                accepte cette valeur pour ne pas mettre à jour les stocks lors de l'import.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <Label>Type de pièce Sage *</Label>
-            <Input
-              value={pieceType}
-              onChange={(event) => setPieceType(event.target.value)}
-              placeholder="Ex. Devis, D, DE, DV..."
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Champ libre : renseignez exactement la valeur attendue par votre format d'import Sage.
-            </p>
+            Ce fichier reprend exactement les 10 colonnes du format Sage officiel : une ligne{" "}
+            <strong>E</strong> pour le devis, puis les lignes <strong>L</strong> de détail. Le
+            numéro du devis est laissé vide pour que Sage attribue le suivant automatiquement. Aucun
+            dépôt n'est imposé : Sage utilise celui prévu dans votre configuration.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -217,7 +135,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <Input
                 value={sageClientCode}
                 onChange={(event) => setSageClientCode(event.target.value)}
-                placeholder="Ex. 154 ou CL0006"
+                placeholder="Ex. 057"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Utilisez le code exact de la fiche client Sage Gestion commerciale, sans préfixe,
@@ -229,23 +147,11 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <Input
                 value={defaultArticleCode}
                 onChange={(event) => setDefaultArticleCode(event.target.value)}
-                placeholder="ART0016"
+                placeholder="ARTDIVERS"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Chaque ligne utilisera ce code. Il doit exister dans Sage : ART0016 est utilisé par
-                défaut pour éviter le rejet de l'import.
-              </p>
-            </div>
-            <div>
-              <Label>Code dépôt Sage optionnel</Label>
-              <Input
-                value={depotCode}
-                onChange={(event) => setDepotCode(event.target.value)}
-                placeholder="Ex. 01, DEPOT, PRINCIPAL..."
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Laissez vide pour suivre l'exemple Sage officiel sans colonne dépôt. À renseigner
-                uniquement si votre format d'import Sage contient une rubrique Dépôt.
+                Chaque ligne utilisera ce code existant dans Sage. <strong>ARTDIVERS</strong> est
+                utilisé par défaut pour convenir à tous les dossiers.
               </p>
             </div>
           </div>
@@ -328,11 +234,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         </div>
 
         <div className="border-t bg-background px-6 py-4 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={exportDiagnosticPack} disabled={rows.length === 0}>
-            Exporter pack test Sage
-          </Button>
           <Button onClick={exportCsv} disabled={rows.length === 0}>
-            Télécharger le fichier Sage
+            Télécharger le CSV Sage 50
           </Button>
         </div>
       </DialogContent>
