@@ -1070,7 +1070,7 @@ function buildPlainTextEmail(params: {
     "",
     `Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée pour : ${objet}.`,
     clientName ? `Client : ${clientName}` : "",
-    reference ? `Référence interne : ${reference}` : "",
+    reference ? `Dossier : ${reference}` : "",
     "",
     ...buildCommonOfferInfoPlainText(commonInfo),
     commonInfo ? "" : "",
@@ -1250,7 +1250,7 @@ ${
               : ""
           }
           <tr>
-            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Projet</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td>
             <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(objet || "-")}</td>
           </tr>
           <tr>
@@ -1259,7 +1259,7 @@ ${
           </tr>
           ${
             reference
-              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Dossier</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
               : ""
           }
         </table>
@@ -1394,7 +1394,7 @@ function buildPlainTextMultiQuantityEmail(params: {
     "",
     `Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée pour : ${objet}.`,
     clientName ? `Client : ${clientName}` : "",
-    reference ? `Référence interne : ${reference}` : "",
+    reference ? `Dossier : ${reference}` : "",
     "",
     ...buildCommonOfferInfoPlainText(commonInfo),
     commonInfo ? "" : "",
@@ -1718,7 +1718,7 @@ function buildHtmlMultiQuantityEmail(params: {
               : ""
           }
           <tr>
-            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Projet</td>
+            <td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td>
             <td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(objet || "-")}</td>
           </tr>
           <tr>
@@ -1727,7 +1727,7 @@ function buildHtmlMultiQuantityEmail(params: {
           </tr>
           ${
             reference
-              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Référence</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
+              ? `<tr><td style="padding:7px 10px;background:${MAIL_SOFT};color:${MAIL_MUTED};font-size:11px;font-weight:700;">Dossier</td><td style="padding:7px 10px;background:#ffffff;color:${MAIL_TEXT};font-size:12px;">${escapeHtml(reference)}</td></tr>`
               : ""
           }
         </table>

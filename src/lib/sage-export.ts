@@ -10,6 +10,7 @@ import {
   isOptionLine,
   normalizeTransportPackaging,
   resolveLineMargePct,
+  resolveMargePct,
 } from "@/lib/calculs/types";
 
 export type SageExportRow = {
@@ -36,7 +37,11 @@ export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
   depotCode?: string;
+  selectedLineNumbers?: number[];
+  lineMode?: SageLineMode;
 };
+
+export type SageLineMode = "detailed" | "main_and_options" | "single_total";
 
 type SageSaveResult = "saved" | "downloaded" | "cancelled";
 
@@ -69,6 +74,8 @@ const SAGE_PIECE_HEADERS = [
   "PU HT",
   "Taux TVA",
   "Option",
+  "Référence devis",
+  "Commentaire",
 ] as const;
 
 function cleanText(value: unknown) {
@@ -164,10 +171,6 @@ function commercialConditions(payload: any, scenario: any) {
   ].filter(Boolean);
 }
 
-function sageLineDesignation(row: SageExportRow) {
-  return [row.designation, row.description].map(cleanText).filter(Boolean).join(" - ");
-}
-
 function commonRowBase(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -218,6 +221,52 @@ export function getDefaultSageDepotCode() {
   return "";
 }
 
+function addCalculatedRow(
+  rows: SageExportRow[],
+  params: Omit<Parameters<typeof commonRowBase>[0], "lineNumber">,
+) {
+  if (!Number.isFinite(params.unitPrice) || Math.abs(params.unitPrice) < 0.005) return;
+  rows.push(commonRowBase({ ...params, lineNumber: rows.length + 1 }));
+}
+
+function reconcileRowsToTotal(
+  rows: SageExportRow[],
+  expectedTotal: number,
+  fallback: Parameters<typeof commonRowBase>[0],
+) {
+  if (rows.length === 0) {
+    if (Math.abs(expectedTotal) <= 0.005) return rows;
+    return [
+      commonRowBase({
+        ...fallback,
+        unitPrice: rowUnitFromTotal(expectedTotal, fallback.quantity),
+      }),
+    ];
+  }
+
+  const currentTotal = rows.reduce((sum, row) => sum + row.montantHT, 0);
+  const delta = expectedTotal - currentTotal;
+  if (Math.abs(delta) <= 0.01) return rows;
+
+  const bases = rows.map((row) => Math.abs(row.montantHT));
+  const totalBasis = bases.reduce((sum, value) => sum + value, 0);
+  if (totalBasis <= 0) return rows;
+
+  return rows.map((row, index) => {
+    const deltaShare = delta * (bases[index] / totalBasis);
+    const montantHT = row.montantHT + deltaShare;
+    return {
+      ...row,
+      prixUnitaireHT: rowUnitFromTotal(montantHT, row.quantite),
+      montantHT,
+    };
+  });
+}
+
+function renumberRows(rows: SageExportRow[]) {
+  return rows.map((row, index) => ({ ...row, numeroLigne: index + 1 }));
+}
+
 function buildStandardRows(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -232,59 +281,95 @@ function buildStandardRows(params: {
   const quantity = scenarioQuantity(scenario);
   const quantiteMarge = payload?.quantites?.[scenarioIndex]?.margePct ?? null;
   const defaultMarge = Number(payload?.params?.coef_marge_pct) || 0;
-  const mainLines: any[] = [];
-  const optionLines: any[] = [];
-  let optionsTotal = 0;
+  let mainRows: SageExportRow[] = [];
+  const optionRows: SageExportRow[] = [];
 
-  for (const line of payload?.achatsPrincipaux ?? []) {
+  for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
     const lineBase = achat + transportLigneUnit;
     const marge = resolveLineMargePct(line, scenarioIndex, quantiteMarge, defaultMarge);
     const unit = lineBase * (1 + marge / 100);
-    if (isOptionLine(line)) {
-      optionLines.push(line);
-      optionsTotal += unit * quantity;
-    } else {
-      mainLines.push(line);
-    }
-  }
-
-  const totalHT = Number(scenario.totalCA) || 0;
-  const mainTotal = totalHT - optionsTotal;
-  const rows = [
-    commonRowBase({
+    const isOption = isOptionLine(line);
+    addCalculatedRow(isOption ? optionRows : mainRows, {
       dossier,
       meta,
-      lineNumber: 1,
-      codeArticle: "YQ-PRESTATION",
-      designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
-      description: [
-        ...(lineDetails(mainLines) ? [lineDetails(mainLines)] : []),
-        ...commercialConditions(payload, scenario),
-      ].join(" | "),
+      codeArticle: isOption ? "YQ-OPTION" : "YQ-PRESTATION",
+      designation: cleanText(line?.libelle || `${isOption ? "Option" : "Prestation"} ${index + 1}`),
+      description: cleanText(line?.descriptif),
       quantity,
-      unitPrice: rowUnitFromTotal(mainTotal, quantity),
-    }),
-  ];
-
-  if (Math.abs(optionsTotal) > 0.005) {
-    rows.push(
-      commonRowBase({
-        dossier,
-        meta,
-        lineNumber: rows.length + 1,
-        codeArticle: "YQ-OPTION",
-        designation: "Options",
-        description: lineDetails(optionLines),
-        quantity,
-        unitPrice: rowUnitFromTotal(optionsTotal, quantity),
-        option: true,
-      }),
-    );
+      unitPrice: unit,
+      option: isOption,
+    });
   }
 
-  return rows;
+  const tpUnit = Number(scenario.transportPackagingUnit) || 0;
+  const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-TRANSPORT",
+    designation: "Transport / Packaging",
+    description: "",
+    quantity,
+    unitPrice: tpUnit * (1 + tpMarge / 100),
+  });
+
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = Number(scenario.outillageMargePct) || 0;
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-OUTILLAGE",
+    designation: "Outillage",
+    description: "",
+    quantity,
+    unitPrice: outillageUnit * (1 + outillageMarge / 100),
+  });
+
+  const sourcingUnit = Number(scenario.commissionSourcingUnit) || 0;
+  const sourcingMarge = resolveMargePct(null, quantiteMarge, defaultMarge);
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-SOURCING",
+    designation: "Commission sourcing",
+    description: "",
+    quantity,
+    unitPrice: sourcingUnit * (1 + sourcingMarge / 100),
+  });
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-SUIVI",
+    designation: "Coordination / suivi projet",
+    description: "",
+    quantity,
+    unitPrice: Number(scenario.commissionRapporteurUnit) || 0,
+  });
+
+  const optionsTotal = optionRows.reduce((sum, row) => sum + row.montantHT, 0);
+  const mainTotal = (Number(scenario.totalCA) || 0) - optionsTotal;
+  mainRows = reconcileRowsToTotal(mainRows, mainTotal, {
+    dossier,
+    meta,
+    lineNumber: 1,
+    codeArticle: "YQ-PRESTATION",
+    designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
+    description: "",
+    quantity,
+    unitPrice: rowUnitFromTotal(mainTotal, quantity),
+  });
+
+  if (mainRows[0]) {
+    mainRows[0] = {
+      ...mainRows[0],
+      description: [mainRows[0].description, ...commercialConditions(payload, scenario)]
+        .filter(Boolean)
+        .join(" | "),
+    };
+  }
+  return renumberRows([...mainRows, ...optionRows]);
 }
 
 function buildContraRows(params: {
@@ -306,11 +391,10 @@ function buildContraRows(params: {
   const coefContra = Number(payload?.params?.coef_contra_pct) || 0;
   const margeFor = (m: number | null | undefined, c: boolean | undefined) =>
     resolveContraMargePct(m, c, quantiteMarge, quantiteConfirmed);
-  const mainLines: any[] = [];
-  const optionLines: any[] = [];
-  let optionsTotal = 0;
+  let mainRows: SageExportRow[] = [];
+  const optionRows: SageExportRow[] = [];
 
-  for (const line of payload?.achatsContra ?? []) {
+  for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
     const raw = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
     const lineBase = raw + transportLigneUnit;
@@ -319,64 +403,109 @@ function buildContraRows(params: {
       coefContra,
       resolveContraLineMargePct(line, scenarioIndex, quantiteMarge, quantiteConfirmed),
     );
-    if (isOptionLine(line)) {
-      optionLines.push(line);
-      optionsTotal += unit * quantity;
-    } else {
-      mainLines.push(line);
-    }
+    const isOption = isOptionLine(line);
+    addCalculatedRow(isOption ? optionRows : mainRows, {
+      dossier,
+      meta,
+      codeArticle: isOption ? "YQ-OPTION" : "YQ-PRESTATION",
+      designation: cleanText(
+        line?.libelle || `${isOption ? "Option" : "Prestation Contra"} ${index + 1}`,
+      ),
+      description: cleanText(line?.descriptif),
+      quantity,
+      unitPrice: unit,
+      option: isOption,
+    });
   }
 
-  for (const line of payload?.forfaitsContra ?? []) {
+  for (const [index, line] of (payload?.forfaitsContra ?? []).entries()) {
     const share = quantity > 0 ? (Number(line?.montantGlobal) || 0) / quantity : 0;
     const unit = pvFromContraSharedRaw(
       share,
       coefContra,
       margeFor(line?.margePct, line?.margeConfirmed),
     );
-    if (isOptionLine(line)) {
-      optionLines.push(line);
-      optionsTotal += unit * quantity;
-    } else {
-      mainLines.push(line);
-    }
-  }
-
-  const totalHT = Number(scenario.totalCA) || 0;
-  const mainTotal = totalHT - optionsTotal;
-  const rows = [
-    commonRowBase({
+    const isOption = isOptionLine(line);
+    addCalculatedRow(isOption ? optionRows : mainRows, {
       dossier,
       meta,
-      lineNumber: 1,
-      codeArticle: "YQ-PRESTATION",
-      designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
-      description: [
-        ...(lineDetails(mainLines) ? [lineDetails(mainLines)] : []),
-        ...commercialConditions(payload, scenario),
-      ].join(" | "),
+      codeArticle: isOption ? "YQ-OPTION" : "YQ-FORFAIT",
+      designation: cleanText(
+        line?.libelle || `${isOption ? "Option forfaitaire" : "Forfait Contra"} ${index + 1}`,
+      ),
+      description: cleanText(line?.descriptif),
       quantity,
-      unitPrice: rowUnitFromTotal(mainTotal, quantity),
-    }),
-  ];
-
-  if (Math.abs(optionsTotal) > 0.005) {
-    rows.push(
-      commonRowBase({
-        dossier,
-        meta,
-        lineNumber: rows.length + 1,
-        codeArticle: "YQ-OPTION",
-        designation: "Options",
-        description: lineDetails(optionLines),
-        quantity,
-        unitPrice: rowUnitFromTotal(optionsTotal, quantity),
-        option: true,
-      }),
-    );
+      unitPrice: unit,
+      option: isOption,
+    });
   }
 
-  return rows;
+  const tpUnit = Number(scenario.transportPackagingUnit) || 0;
+  const tpMarge = margeFor(
+    payload?.transportPackaging?.margePct,
+    payload?.transportPackaging?.margeConfirmed,
+  );
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-TRANSPORT",
+    designation: "Transport / Packaging",
+    description: "",
+    quantity,
+    unitPrice: pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
+  });
+
+  const outillageUnit = Number(scenario.outillageUnit) || 0;
+  const outillageMarge = margeFor(payload?.outillage?.margePct, payload?.outillage?.margeConfirmed);
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-OUTILLAGE",
+    designation: "Outillage",
+    description: "",
+    quantity,
+    unitPrice: pvFromContraSharedRaw(outillageUnit, coefContra, outillageMarge),
+  });
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-SOURCING",
+    designation: "Commission sourcing",
+    description: "",
+    quantity,
+    unitPrice: Number(scenario.commissionSourcingUnit) || 0,
+  });
+  addCalculatedRow(mainRows, {
+    dossier,
+    meta,
+    codeArticle: "YQ-SUIVI",
+    designation: "Coordination / suivi projet",
+    description: "",
+    quantity,
+    unitPrice: Number(scenario.commissionRapporteurUnit) || 0,
+  });
+
+  const optionsTotal = optionRows.reduce((sum, row) => sum + row.montantHT, 0);
+  const mainTotal = (Number(scenario.totalCA) || 0) - optionsTotal;
+  mainRows = reconcileRowsToTotal(mainRows, mainTotal, {
+    dossier,
+    meta,
+    lineNumber: 1,
+    codeArticle: "YQ-PRESTATION",
+    designation: cleanText(meta.objet || dossier?.objet || "Prestation"),
+    description: "",
+    quantity,
+    unitPrice: rowUnitFromTotal(mainTotal, quantity),
+  });
+  if (mainRows[0]) {
+    mainRows[0] = {
+      ...mainRows[0],
+      description: [mainRows[0].description, ...commercialConditions(payload, scenario)]
+        .filter(Boolean)
+        .join(" | "),
+    };
+  }
+  return renumberRows([...mainRows, ...optionRows]);
 }
 
 function buildStandRows(params: {
@@ -391,7 +520,8 @@ function buildStandRows(params: {
   if (!scenario) return [];
   const quantity = Number(scenario.quantite) || 1;
   const groups = Array.isArray(output?.extra?.groupes) ? output.extra.groupes : [];
-  const rows: SageExportRow[] = [];
+  let mainRows: SageExportRow[] = [];
+  const optionRows: SageExportRow[] = [];
 
   groups.forEach((group: any, index: number) => {
     const unitPrice = Number(group?.pvTotal) || 0;
@@ -399,56 +529,45 @@ function buildStandRows(params: {
     const hasLines = Array.isArray(section?.lignes) && section.lignes.length > 0;
     if (!hasLines && Math.abs(unitPrice) < 0.005) return;
 
-    rows.push(
-      commonRowBase({
-        dossier,
-        meta,
-        lineNumber: rows.length + 1,
-        codeArticle: isOptionLabel(group?.libelle) ? "YQ-OPTION" : "YQ-STAND",
-        designation: cleanText(group?.libelle || section?.libelle || `Section ${index + 1}`),
-        description: lineDetails(section?.lignes ?? []),
-        quantity,
-        unitPrice,
-        option: isOptionLabel(group?.libelle || section?.libelle),
-      }),
-    );
+    const isOption = isOptionLabel(group?.libelle || section?.libelle);
+    addCalculatedRow(isOption ? optionRows : mainRows, {
+      dossier,
+      meta,
+      codeArticle: isOption ? "YQ-OPTION" : "YQ-STAND",
+      designation: cleanText(group?.libelle || section?.libelle || `Section ${index + 1}`),
+      description: lineDetails(section?.lignes ?? []),
+      quantity,
+      unitPrice,
+      option: isOption,
+    });
   });
 
   const coordination = Number(scenario.commissionRapporteurUnit) || 0;
   if (Math.abs(coordination) > 0.005) {
-    rows.push(
-      commonRowBase({
-        dossier,
-        meta,
-        lineNumber: rows.length + 1,
-        codeArticle: "YQ-SUIVI",
-        designation: "Coordination / suivi projet",
-        description: "",
-        quantity,
-        unitPrice: coordination,
-      }),
-    );
+    addCalculatedRow(mainRows, {
+      dossier,
+      meta,
+      codeArticle: "YQ-SUIVI",
+      designation: "Coordination / suivi projet",
+      description: "",
+      quantity,
+      unitPrice: coordination,
+    });
   }
 
-  const currentTotal = rows.reduce((sum, row) => sum + row.montantHT, 0);
-  const expectedTotal = Number(scenario.totalCA) || 0;
-  const delta = expectedTotal - currentTotal;
-  if (Math.abs(delta) > 0.01) {
-    rows.push(
-      commonRowBase({
-        dossier,
-        meta,
-        lineNumber: rows.length + 1,
-        codeArticle: "YQ-AJUST",
-        designation: "Ajustement calcul",
-        description: "",
-        quantity,
-        unitPrice: quantity > 0 ? delta / quantity : delta,
-      }),
-    );
-  }
-
-  return rows;
+  const optionsTotal = optionRows.reduce((sum, row) => sum + row.montantHT, 0);
+  const mainTotal = (Number(scenario.totalCA) || 0) - optionsTotal;
+  mainRows = reconcileRowsToTotal(mainRows, mainTotal, {
+    dossier,
+    meta,
+    lineNumber: 1,
+    codeArticle: "YQ-STAND",
+    designation: cleanText(meta.objet || dossier?.objet || "Stand"),
+    description: "",
+    quantity,
+    unitPrice: rowUnitFromTotal(mainTotal, quantity),
+  });
+  return renumberRows([...mainRows, ...optionRows]);
 }
 
 export function buildSageQuoteRows(params: {
@@ -464,6 +583,63 @@ export function buildSageQuoteRows(params: {
   return [];
 }
 
+function combineRows(
+  rows: SageExportRow[],
+  designation: string,
+  option: boolean,
+): SageExportRow | null {
+  if (rows.length === 0) return null;
+  const amount = rows.reduce((sum, row) => sum + row.montantHT, 0);
+  const first = rows[0];
+  return {
+    ...first,
+    numeroLigne: 1,
+    codeArticle: option ? "YQ-OPTION" : "YQ-PRESTATION",
+    designation: cleanText(designation),
+    description: rows
+      .map((row) => [row.designation, row.description].filter(Boolean).join(" : "))
+      .filter(Boolean)
+      .join(" | "),
+    quantite: 1,
+    prixUnitaireHT: amount,
+    montantHT: amount,
+    option: option ? "Oui" : "Non",
+  };
+}
+
+export function prepareSageQuoteRows(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+  scenarioIndex: number;
+  options?: SageExportOptions;
+}) {
+  const allRows = buildSageQuoteRows(params);
+  const selectedLineNumbers = params.options?.selectedLineNumbers;
+  const selectedRows = Array.isArray(selectedLineNumbers)
+    ? allRows.filter((row) => selectedLineNumbers.includes(row.numeroLigne))
+    : allRows;
+  const lineMode = params.options?.lineMode ?? "detailed";
+
+  if (lineMode === "detailed") return renumberRows(selectedRows);
+
+  const quoteReference = cleanText(params.meta.objet || params.dossier?.objet || "Prestation");
+  if (lineMode === "single_total") {
+    const totalRow = combineRows(selectedRows, quoteReference, false);
+    return totalRow ? [totalRow] : [];
+  }
+
+  const mainRows = selectedRows.filter((row) => row.option !== "Oui");
+  const optionRows = selectedRows.filter((row) => row.option === "Oui");
+  return renumberRows(
+    [
+      combineRows(mainRows, quoteReference, false),
+      combineRows(optionRows, "Options retenues", true),
+    ].filter((row): row is SageExportRow => row !== null),
+  );
+}
+
 export function makeSageQuoteCsv(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -472,7 +648,7 @@ export function makeSageQuoteCsv(params: {
   scenarioIndex: number;
   options?: SageExportOptions;
 }) {
-  const rows = buildSageQuoteRows(params);
+  const rows = prepareSageQuoteRows(params);
   const client = params.dossier?.clients ?? {};
   const datePiece = new Date().toLocaleDateString("fr-FR");
   const sageClientCode = cleanText(
@@ -498,11 +674,13 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
     "-NoStock",
+    cleanText(params.meta.objet || params.dossier?.objet),
+    "",
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
-  const detailRows = rows.map((row) =>
-    [
+  const detailRows = rows.flatMap((row) => {
+    const articleLine = [
       "L",
       "",
       "",
@@ -511,15 +689,27 @@ export function makeSageQuoteCsv(params: {
       "",
       defaultArticleCode,
       depotCode,
-      sageLineDesignation(row),
+      cleanText(row.designation),
       csvNumber(row.quantite, 3, "dot"),
       csvNumber(row.prixUnitaireHT, 2, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
       "",
+      "",
+      "",
     ]
-      .map((value, index) => (index >= 9 ? String(value) : csvText(value, delimiter)))
-      .join(delimiter),
-  );
+      .map((value, index) =>
+        [9, 10, 11].includes(index) ? String(value) : csvText(value, delimiter),
+      )
+      .join(delimiter);
+    const description = cleanText(row.description);
+    if (!description) return [articleLine];
+
+    const commentLine = ["L", "", "", "", "", "", "", "", description, "", "", "", "", "", "T"]
+      .map((value) => csvText(value, delimiter))
+      .join(delimiter);
+
+    return [articleLine, commentLine];
+  });
   const lines = [header, pieceHeader, ...detailRows];
   return lines.join("\r\n") + "\r\n";
 }
@@ -528,13 +718,13 @@ export function makeSageQuoteFilename(params: {
   dossier: any;
   meta: { reference: string; objet: string };
 }) {
-  const reference = safeFilenamePart(
+  const dossierNumber = safeFilenamePart(
     params.meta.reference || params.dossier?.reference,
-    "sans-reference",
+    "sans-dossier",
   );
   const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
-  const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
-  return `sage-devis-${reference}-${client}-${objet}.txt`;
+  const quoteReference = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
+  return `sage-devis-${dossierNumber}-${client}-${quoteReference}.txt`;
 }
 
 function encodeWindows1252(text: string) {

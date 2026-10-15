@@ -47,11 +47,11 @@ function NewDossier() {
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Reference is generated automatically server-side (BEFORE INSERT trigger) when left empty.
+  // The dossier number is generated automatically server-side when left empty.
 
   async function create() {
     if (!clientId) return toast.error("Sélectionnez un client.");
-    if (!objet.trim()) return toast.error("L'objet est requis.");
+    if (!objet.trim()) return toast.error("La référence est requise.");
     setBusy(true);
     try {
       const client = clients?.find((c: any) => c.id === clientId);
@@ -87,9 +87,9 @@ function NewDossier() {
       />
       <Card className="p-6 space-y-4">
         <div>
-          <Label>Référence</Label>
+          <Label>Dossier</Label>
           <Input value={reference} onChange={(e) => setReference(e.target.value)} />
-          <p className="text-xs text-muted-foreground mt-1">Générée automatiquement, modifiable.</p>
+          <p className="text-xs text-muted-foreground mt-1">Généré automatiquement, modifiable.</p>
         </div>
         <div>
           <Label>Client *</Label>
@@ -107,7 +107,7 @@ function NewDossier() {
           </Select>
         </div>
         <div>
-          <Label>Objet *</Label>
+          <Label>Référence *</Label>
           <Input
             value={objet}
             onChange={(e) => setObjet(e.target.value)}

@@ -119,7 +119,7 @@ function Dashboard() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-2 break-words text-base font-bold text-foreground">
                         <span className="mt-3 h-0.5 w-4 shrink-0 rounded-full bg-primary" />
-                        {d.objet || "(Sans objet)"}
+                        {d.objet || "(Sans référence)"}
                       </div>
                       <div className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                         {d.reference || `Indice v${d.version ?? 1}`}

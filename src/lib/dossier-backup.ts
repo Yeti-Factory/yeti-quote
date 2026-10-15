@@ -121,10 +121,10 @@ export function parseDossierBackup(value: unknown): DossierBackup {
 }
 
 export function makeDossierBackupFilename(backup: DossierBackup) {
-  const reference = backup.dossier.reference || "sans-reference";
+  const dossierNumber = backup.dossier.reference || "sans-dossier";
   const client = backup.client.entreprise || "client";
-  const object = backup.dossier.objet || "dossier";
-  const raw = `${reference}-${client}-${object}`
+  const quoteReference = backup.dossier.objet || "reference";
+  const raw = `${dossierNumber}-${client}-${quoteReference}`
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9_-]+/gi, "-")

@@ -146,7 +146,7 @@ function ClientDetail() {
               className="flex items-center px-5 py-3 hover:bg-muted/40"
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">{d.objet || "(Sans objet)"}</div>
+                <div className="font-medium text-sm">{d.objet || "(Sans référence)"}</div>
                 <div className="text-xs text-muted-foreground">Indice v{d.version ?? 1}</div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

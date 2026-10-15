@@ -718,7 +718,7 @@ function DossierDetail() {
           </Link>
           <div className="[&>div]:mb-2">
             <PageHeader
-              title={meta.objet || "(Sans objet)"}
+              title={meta.objet || "(Sans référence)"}
               subtitle={`v${(dossier as any).version ?? 1} · ${dossier.clients?.entreprise ?? ""} · type ${dossier.type}`}
               actions={
                 <div className="flex flex-wrap gap-2">
@@ -821,14 +821,14 @@ function DossierDetail() {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 mb-4">
           <Card className="p-4 space-y-3 xl:col-span-1">
             <div>
-              <Label>Référence</Label>
+              <Label>Dossier</Label>
               <Input
                 value={meta.reference}
                 onChange={(e) => setMeta({ ...meta, reference: e.target.value })}
               />
             </div>
             <div>
-              <Label>Objet</Label>
+              <Label>Référence</Label>
               <Input
                 value={meta.objet}
                 onChange={(e) => setMeta({ ...meta, objet: e.target.value })}
