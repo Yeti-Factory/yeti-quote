@@ -704,7 +704,23 @@ export function makeSageQuoteCsv(params: {
     const description = cleanText(row.description);
     if (!description) return [articleLine];
 
-    const commentLine = ["L", "", "", "", "", "", "", "", description, "", "", "", "", "", "T"]
+    const commentLine = [
+      "L",
+      "",
+      "",
+      "",
+      "",
+      "",
+      defaultArticleCode,
+      depotCode,
+      description,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "T",
+    ]
       .map((value) => csvText(value, delimiter))
       .join(delimiter);
 
