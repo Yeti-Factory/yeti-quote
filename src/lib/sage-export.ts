@@ -205,7 +205,7 @@ export function getSageClientCode(dossier: any) {
 
 export function getDefaultSageArticleCode(dossier: any) {
   void dossier;
-  return "ART0097";
+  return "ARTDIVERS";
 }
 
 export function getDefaultSageDepotCode() {

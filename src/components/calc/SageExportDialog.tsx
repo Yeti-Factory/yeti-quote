@@ -149,11 +149,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               <Input
                 value={defaultArticleCode}
                 onChange={(event) => setDefaultArticleCode(event.target.value)}
-                placeholder="ART0097"
+                placeholder="ARTDIVERS"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Chaque ligne utilisera ce code existant dans Sage. <strong>ART0097</strong> —
-                Prestation de services — est utilisé par défaut.
+                Chaque ligne utilisera votre article générique <strong>ARTDIVERS</strong>.
               </p>
             </div>
             <div>
