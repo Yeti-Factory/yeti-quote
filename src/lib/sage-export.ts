@@ -499,7 +499,7 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
     "-NoStock",
-    cleanText(params.meta.reference || params.dossier?.reference),
+    cleanText(params.meta.objet || params.dossier?.objet),
   ]
     .map((value) => csvText(value, delimiter))
     .join(delimiter);
@@ -531,13 +531,13 @@ export function makeSageQuoteFilename(params: {
   dossier: any;
   meta: { reference: string; objet: string };
 }) {
-  const reference = safeFilenamePart(
+  const dossierNumber = safeFilenamePart(
     params.meta.reference || params.dossier?.reference,
-    "sans-reference",
+    "sans-dossier",
   );
   const client = safeFilenamePart(params.dossier?.clients?.entreprise, "client");
-  const objet = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
-  return `sage-devis-${reference}-${client}-${objet}.txt`;
+  const quoteReference = safeFilenamePart(params.meta.objet || params.dossier?.objet, "devis");
+  return `sage-devis-${dossierNumber}-${client}-${quoteReference}.txt`;
 }
 
 function encodeWindows1252(text: string) {

@@ -267,7 +267,7 @@ function DossiersList() {
         <div className="px-4 py-3 border-b flex flex-wrap gap-3 items-center">
           <Search className="w-4 h-4 shrink-0 text-muted-foreground" />
           <Input
-            placeholder="Rechercher (référence ou objet)"
+            placeholder="Rechercher (dossier ou référence)"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="border-0 focus-visible:ring-0 shadow-none px-0 min-w-0 flex-1 basis-[calc(100%-2rem)] lg:basis-0"
@@ -340,7 +340,7 @@ function DossiersList() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2 break-words text-base font-bold text-foreground">
                             <span className="mt-3 h-0.5 w-4 shrink-0 rounded-full bg-primary" />
-                            {d.objet || "(Sans objet)"}
+                            {d.objet || "(Sans référence)"}
                           </div>
                           <div className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                             Indice v{d.version ?? 1}

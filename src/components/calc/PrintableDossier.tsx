@@ -51,7 +51,7 @@ function Header({ meta }: { meta: Meta }) {
         <div>
           <h1>Feuille de calcul — {TypeLabel(meta.type)}</h1>
           <div style={{ fontSize: "9pt", color: "#333" }}>
-            <strong>{meta.reference || "(sans réf.)"}</strong> · {meta.objet || "(sans objet)"}
+            <strong>{meta.reference || "(sans dossier)"}</strong> · {meta.objet || "(sans référence)"}
           </div>
         </div>
       </div>
