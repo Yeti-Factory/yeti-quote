@@ -64,6 +64,7 @@ const SAGE_PIECE_HEADERS = [
   "Nom_Cli",
   "Code article",
   "Depot",
+  "Désignation",
   "Quantite",
   "PU HT",
   "Taux TVA",
@@ -161,6 +162,10 @@ function commercialConditions(payload: any, scenario: any) {
     hasTransport(payload, scenario) ? "Transport inclus" : "EXW depart nos ateliers",
     hasOutillage(payload, scenario) ? "Outillage inclus" : "",
   ].filter(Boolean);
+}
+
+function sageLineDesignation(row: SageExportRow) {
+  return [row.designation, row.description].map(cleanText).filter(Boolean).join(" - ");
 }
 
 function commonRowBase(params: {
@@ -491,6 +496,7 @@ export function makeSageQuoteCsv(params: {
     "",
     "",
     "",
+    "",
     "-NoStock",
   ]
     .map((value) => csvText(value, delimiter))
@@ -505,12 +511,13 @@ export function makeSageQuoteCsv(params: {
       "",
       defaultArticleCode,
       depotCode,
+      sageLineDesignation(row),
       csvNumber(row.quantite, 3, "dot"),
       csvNumber(row.prixUnitaireHT, 2, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
       "",
     ]
-      .map((value, index) => (index >= 8 ? String(value) : csvText(value, delimiter)))
+      .map((value, index) => (index >= 9 ? String(value) : csvText(value, delimiter)))
       .join(delimiter),
   );
   const lines = [header, pieceHeader, ...detailRows];
