@@ -131,7 +131,7 @@ export function DossierWorkspacePicker({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-2xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Choisir le dossier de travail partagé</DialogTitle>
           <DialogDescription>
@@ -139,7 +139,7 @@ export function DossierWorkspacePicker({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-sm">
             <Button
               type="button"
@@ -159,32 +159,32 @@ export function DossierWorkspacePicker({
             ))}
           </div>
 
-          <div className="min-h-52 rounded-md border">
+          <div className="min-h-52 flex-1 overflow-y-auto overscroll-contain rounded-md border">
             {loading && (
               <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement…
               </div>
             )}
-            {!loading && error && (
-              <div className="p-4 text-sm text-destructive">{error}</div>
-            )}
+            {!loading && error && <div className="p-4 text-sm text-destructive">{error}</div>}
             {!loading && !error && data?.folders.length === 0 && (
               <div className="p-8 text-center text-sm text-muted-foreground">
                 Aucun sous-dossier.
               </div>
             )}
-            {!loading && !error && data?.folders.map((folder) => (
-              <button
-                type="button"
-                key={folder.id}
-                className="flex w-full items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
-                onClick={() => enterFolder(folder)}
-              >
-                <Folder className="h-5 w-5 shrink-0 text-primary" />
-                <span className="min-w-0 flex-1 truncate font-medium">{folder.name}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
+            {!loading &&
+              !error &&
+              data?.folders.map((folder) => (
+                <button
+                  type="button"
+                  key={folder.id}
+                  className="flex w-full items-center gap-3 border-b px-4 py-3 text-left last:border-b-0 hover:bg-muted/50"
+                  onClick={() => enterFolder(folder)}
+                >
+                  <Folder className="h-5 w-5 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{folder.name}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
           </div>
 
           {data && !error && (
@@ -213,10 +213,19 @@ export function DossierWorkspacePicker({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={() => onOpenChange(false)}
+          >
             Annuler
           </Button>
-          <Button type="button" disabled={!data || Boolean(error) || saving} onClick={selectCurrent}>
+          <Button
+            type="button"
+            disabled={!data || Boolean(error) || saving}
+            onClick={selectCurrent}
+          >
             Utiliser ce dossier
           </Button>
         </DialogFooter>
