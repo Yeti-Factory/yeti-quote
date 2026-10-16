@@ -18,12 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-  chooseDossierWorkspace,
-  setDossierWorkspace,
-  supportsDossierWorkspace,
-  type DossierWorkspace,
-} from "@/lib/dossier-workspace";
+import { DossierWorkspacePicker } from "@/components/DossierWorkspacePicker";
+import { workspaceFields, type DossierWorkspace } from "@/lib/dossier-workspace";
 
 const searchSchema = z.object({ client: z.string().optional() });
 
@@ -54,22 +50,19 @@ function NewDossier() {
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [workspace, setWorkspace] = useState<DossierWorkspace | null>(null);
+  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
 
   // The dossier number is generated automatically server-side when left empty.
 
   async function create() {
     if (!clientId) return toast.error("Sélectionnez un client.");
     if (!objet.trim()) return toast.error("La référence est requise.");
-    if (!supportsDossierWorkspace()) {
-      return toast.error(
-        "Ouvrez YetiQuote dans Microsoft Edge ou Google Chrome pour choisir le dossier de travail.",
-      );
+    if (!workspace) {
+      setWorkspacePickerOpen(true);
+      return;
     }
     setBusy(true);
-    let createdDossierId: string | null = null;
     try {
-      const selectedWorkspace = workspace ?? (await chooseDossierWorkspace());
-      setWorkspace(selectedWorkspace);
       const client = clients?.find((c: any) => c.id === clientId);
       const { data, error } = await backend
         .from("dossiers")
@@ -82,19 +75,14 @@ function NewDossier() {
           type,
           statut: "brouillon",
           created_by: user!.id,
+          ...workspaceFields(workspace),
         })
         .select("id")
         .single();
       if (error) throw error;
-      createdDossierId = data.id;
-      await setDossierWorkspace(data.id, selectedWorkspace);
       toast.success("Dossier créé");
       navigate({ to: "/dossiers/$id", params: { id: data.id } });
     } catch (e: any) {
-      if (createdDossierId) {
-        await backend.from("dossiers").delete().eq("id", createdDossierId);
-      }
-      if (e instanceof DOMException && e.name === "AbortError") return;
       toast.error(e.message);
     } finally {
       setBusy(false);
@@ -150,23 +138,16 @@ function NewDossier() {
           </Select>
         </div>
         <div className="rounded-md border p-4 space-y-2">
-          <Label>Dossier de travail OneDrive *</Label>
+          <Label>Dossier de travail partagé *</Label>
           <p className="text-sm text-muted-foreground">
-            Choisissez le dossier client/projet existant, ou créez-le dans la fenêtre OneDrive. Les
-            exports de ce dossier y seront ensuite enregistrés automatiquement.
+            Choisissez ou créez le dossier client/projet dans l’espace Microsoft 365 commun. Tous les
+            utilisateurs de YetiQuote retrouveront le même emplacement.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
               variant="outline"
-              onClick={async () => {
-                try {
-                  setWorkspace(await chooseDossierWorkspace());
-                } catch (error) {
-                  if (error instanceof DOMException && error.name === "AbortError") return;
-                  toast.error(error instanceof Error ? error.message : "Dossier inaccessible");
-                }
-              }}
+              onClick={() => setWorkspacePickerOpen(true)}
             >
               <FolderOpen className="w-4 h-4 mr-1.5" />
               {workspace ? "Changer de dossier" : "Choisir ou créer le dossier"}
@@ -185,6 +166,12 @@ function NewDossier() {
           </Button>
         </div>
       </Card>
+      <DossierWorkspacePicker
+        open={workspacePickerOpen}
+        onOpenChange={setWorkspacePickerOpen}
+        suggestedName={objet.trim()}
+        onSelect={(selected) => setWorkspace(selected)}
+      />
     </div>
   );
 }

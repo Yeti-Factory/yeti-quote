@@ -20,6 +20,23 @@ La variable suivante est à saisir :
 
 - `APP_BASE_URL`, avec l’URL exacte de l’environnement (temporaire pendant la recette, puis domaine Yeti Factory lors de la bascule)
 
+## Bibliothèque Microsoft 365 partagée
+
+YetiQuote enregistre les exports Sage et les sauvegardes directement dans la bibliothèque
+SharePoint synchronisée par OneDrive. Les variables suivantes sont obligatoires :
+
+- `M365_TENANT_ID`
+- `M365_CLIENT_ID`
+- `M365_CLIENT_SECRET`
+- `M365_SITE_ID`
+- `M365_DRIVE_ID`
+- `M365_ROOT_FOLDER_ID`
+- `M365_ROOT_FOLDER_NAME` (par exemple `Partage`)
+
+L’application Entra ID doit recevoir la permission d’application `Sites.Selected`, puis le rôle
+`write` uniquement sur le site SharePoint utilisé par YetiQuote. Aucun secret Microsoft ne doit être
+enregistré dans Git.
+
 Yeti Quote n’envoie aucun e-mail. Les créations et réinitialisations d’accès sont administrées localement sur le VPS.
 
 ## Import initial

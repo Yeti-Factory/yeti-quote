@@ -6,6 +6,8 @@
 # Variables d'environnement à définir dans Coolify :
 #   DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, TRUSTED_ORIGINS
 #   RESEND_API_KEY, EMAIL_FROM, APP_PUBLIC_URL
+#   M365_TENANT_ID, M365_CLIENT_ID, M365_CLIENT_SECRET
+#   M365_SITE_ID, M365_DRIVE_ID, M365_ROOT_FOLDER_ID, M365_ROOT_FOLDER_NAME
 #   NITRO_PRESET=node-server   (déjà positionné ci-dessous à la build)
 #   PORT=3000                  (port d'écoute Node runtime)
 

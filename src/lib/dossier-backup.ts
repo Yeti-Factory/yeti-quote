@@ -136,26 +136,7 @@ export function makeDossierBackupFilename(backup: DossierBackup) {
   return `yeti-dossier-${raw || "export"}.json`;
 }
 
-type BackupSaveResult = "saved" | "downloaded" | "cancelled";
-
-type FilePickerWritable = {
-  write: (data: Blob) => Promise<void>;
-  close: () => Promise<void>;
-};
-
-type FilePickerHandle = {
-  createWritable: () => Promise<FilePickerWritable>;
-};
-
-type WindowWithSaveFilePicker = Window & {
-  showSaveFilePicker?: (options: {
-    suggestedName?: string;
-    types?: Array<{
-      description: string;
-      accept: Record<string, string[]>;
-    }>;
-  }) => Promise<FilePickerHandle>;
-};
+type BackupSaveResult = "saved";
 
 function createBackupBlob(backup: DossierBackup) {
   return new Blob([JSON.stringify(backup, null, 2)], {
@@ -163,47 +144,9 @@ function createBackupBlob(backup: DossierBackup) {
   });
 }
 
-function downloadDossierBackup(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 export async function saveDossierBackup(backup: DossierBackup): Promise<BackupSaveResult> {
   const filename = makeDossierBackupFilename(backup);
   const blob = createBackupBlob(backup);
-  const workspaceResult = await saveFileToDossierWorkspace(backup.dossier.id, filename, blob);
-  if (workspaceResult === "saved") return "saved";
-  if (workspaceResult === "cancelled") return "cancelled";
-  const saveFilePicker = (window as WindowWithSaveFilePicker).showSaveFilePicker;
-
-  if (typeof saveFilePicker === "function" && window.isSecureContext) {
-    try {
-      const handle = await saveFilePicker.call(window, {
-        suggestedName: filename,
-        types: [
-          {
-            description: "Sauvegarde dossier Yeti Quote",
-            accept: { "application/json": [".json"] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return "saved";
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return "cancelled";
-      }
-    }
-  }
-
-  downloadDossierBackup(filename, blob);
-  return "downloaded";
+  await saveFileToDossierWorkspace(backup.dossier.id, filename, blob);
+  return "saved";
 }

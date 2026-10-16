@@ -26,17 +26,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { FolderKanban, Plus, Search, Trash2, Upload, Users } from "lucide-react";
+import { Cloud, FolderKanban, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
 import { parseDossierBackup, type DossierBackup } from "@/lib/dossier-backup";
 import type { Json } from "@/integrations/native/types";
-import {
-  chooseDossierWorkspace,
-  removeDossierWorkspace,
-  setDossierWorkspace,
-} from "@/lib/dossier-workspace";
+import { DossierWorkspacePicker } from "@/components/DossierWorkspacePicker";
+import { workspaceFields, type DossierWorkspace } from "@/lib/dossier-workspace";
 
 export const Route = createFileRoute("/_authenticated/dossiers/")({
   component: DossiersList,
@@ -47,15 +44,17 @@ function DossiersList() {
   const [q, setQ] = useState("");
   const [type, setType] = useState<string>("all");
   const [statut, setStatut] = useState<string>("all");
+  const [workspaceFilter, setWorkspaceFilter] = useState<string>("all");
   const [pendingImport, setPendingImport] = useState<DossierBackup | null>(null);
   const [importing, setImporting] = useState(false);
+  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const { user } = useAuth();
   const { isAdmin } = useIsAdmin(user?.id);
   const qc = useQueryClient();
 
   const { data: dossiers } = useQuery({
-    queryKey: ["dossiers", q, type, statut],
+    queryKey: ["dossiers", q, type, statut, workspaceFilter],
     queryFn: async () => {
       let req = backend
         .from("dossiers")
@@ -66,6 +65,8 @@ function DossiersList() {
         .order("updated_at", { ascending: false });
       if (type !== "all") req = req.eq("type", type as any);
       if (statut !== "all") req = req.eq("statut", statut as any);
+      if (workspaceFilter === "missing") req = req.is("workspace_folder_id", null);
+      if (workspaceFilter === "configured") req = req.not("workspace_folder_id", "is", null);
       if (q.trim()) req = req.or(`objet.ilike.%${q.trim()}%,reference.ilike.%${q.trim()}%`);
       const { data, error } = await req;
       if (error) throw error;
@@ -79,7 +80,6 @@ function DossiersList() {
       toast.error(`Suppression impossible : ${error.message}`);
       return;
     }
-    await removeDossierWorkspace(id).catch(() => undefined);
     toast.success("Dossier supprimé");
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
@@ -98,27 +98,24 @@ function DossiersList() {
     }
   }
 
-  async function importPendingDossier() {
+  async function importPendingDossier(workspace: DossierWorkspace) {
     if (!pendingImport || !user) return;
     setImporting(true);
     try {
-      const workspace = await chooseDossierWorkspace();
-      const importedId = await restoreDossierBackup(pendingImport);
-      await setDossierWorkspace(importedId, workspace);
+      const importedId = await restoreDossierBackup(pendingImport, workspace);
       toast.success("Dossier importe");
       setPendingImport(null);
       qc.invalidateQueries({ queryKey: ["dossiers"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       navigate({ to: "/dossiers/$id", params: { id: importedId } });
     } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error(err instanceof Error ? err.message : "Import impossible");
     } finally {
       setImporting(false);
     }
   }
 
-  async function restoreDossierBackup(backup: DossierBackup) {
+  async function restoreDossierBackup(backup: DossierBackup, workspace: DossierWorkspace) {
     if (!user) throw new Error("Utilisateur non connecte");
 
     const clientFields = {
@@ -194,6 +191,7 @@ function DossiersList() {
       results: (backup.dossier.results ?? {}) as Json,
       params: (backup.dossier.params ?? {}) as Json,
       version: backup.dossier.version ?? 1,
+      ...workspaceFields(workspace),
     };
 
     const { data: dossierById, error: dossierByIdError } = await backend
@@ -303,6 +301,16 @@ function DossiersList() {
               <SelectItem value="archive">Archivé</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={workspaceFilter} onValueChange={setWorkspaceFilter}>
+            <SelectTrigger className="min-w-0 flex-1 lg:w-48 lg:flex-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les emplacements</SelectItem>
+              <SelectItem value="missing">À associer à Microsoft 365</SelectItem>
+              <SelectItem value="configured">Emplacement configuré</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
           {(dossiers ?? []).length === 0 && (
@@ -360,6 +368,11 @@ function DossiersList() {
                             {d.type}
                           </Badge>
                           <StatusBadge statut={d.statut} />
+                          {!d.workspace_folder_id && (
+                            <Badge variant="destructive" className="gap-1">
+                              <Cloud className="h-3 w-3" /> À associer
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground lg:w-24 lg:text-right">
                             {fmtDate(d.updated_at)}
                           </span>
@@ -409,7 +422,7 @@ function DossiersList() {
       </Card>
 
       <AlertDialog
-        open={Boolean(pendingImport)}
+        open={Boolean(pendingImport) && !workspacePickerOpen}
         onOpenChange={(open) => {
           if (!open && !importing) setPendingImport(null);
         }}
@@ -425,12 +438,24 @@ function DossiersList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={importing}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={importPendingDossier} disabled={importing}>
-              {importing ? "Import..." : "Importer"}
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                setWorkspacePickerOpen(true);
+              }}
+              disabled={importing}
+            >
+              {importing ? "Import..." : "Choisir l’emplacement"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <DossierWorkspacePicker
+        open={workspacePickerOpen}
+        onOpenChange={setWorkspacePickerOpen}
+        suggestedName={pendingImport?.dossier.objet}
+        onSelect={importPendingDossier}
+      />
     </div>
   );
 }
