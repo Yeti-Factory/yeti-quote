@@ -422,7 +422,7 @@ function DossiersList() {
       </Card>
 
       <AlertDialog
-        open={Boolean(pendingImport)}
+        open={Boolean(pendingImport) && !workspacePickerOpen}
         onOpenChange={(open) => {
           if (!open && !importing) setPendingImport(null);
         }}
