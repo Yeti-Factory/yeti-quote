@@ -8,7 +8,7 @@ const server = await createServer({
 });
 
 try {
-  const { buildSageQuoteRows, makeSageQuoteCsv, prepareSageQuoteRows } =
+  const { buildSageQuoteRows, createSageCsvBlob, makeSageQuoteCsv, prepareSageQuoteRows } =
     await server.ssrLoadModule("/src/lib/sage-export.ts");
   const params = {
     dossier: {
@@ -90,6 +90,13 @@ try {
   assert.equal(commentFields[14], "T");
   assert.equal(commentFields[15], "");
   assert.match(dataLines[2], /\t1\.000\t300\.00\t20\.00\t\t/);
+
+  const encodedBlob = createSageCsvBlob("Été – 10 €");
+  assert.equal(encodedBlob.type, "text/plain");
+  assert.deepEqual(
+    Array.from(new Uint8Array(await encodedBlob.arrayBuffer())),
+    [0xc9, 0x74, 0xe9, 0x20, 0x96, 0x20, 0x31, 0x30, 0x20, 0x80],
+  );
 
   console.log("Sage selection export checks passed.");
 } finally {
