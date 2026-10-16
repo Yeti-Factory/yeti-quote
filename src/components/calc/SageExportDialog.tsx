@@ -60,6 +60,16 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode());
   const [lineMode, setLineMode] = useState<SageLineMode>("detailed");
   const [selectedLineNumbers, setSelectedLineNumbers] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (
+      scenarioItems.length > 0 &&
+      !scenarioItems.some((item: any) => String(item.index) === scenarioIndex)
+    ) {
+      setScenarioIndex(String(scenarioItems[0].index));
+    }
+  }, [scenarioIndex, scenarioItems]);
+
   const selectedIndex = Number(scenarioIndex) || 0;
   const rows = useMemo(
     () =>
@@ -209,21 +219,37 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           </div>
 
           {scenarioItems.length > 1 && (
-            <div className="max-w-xs">
-              <Label>Quantité à exporter</Label>
-              <Select value={scenarioIndex} onValueChange={setScenarioIndex}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir une quantité" />
-                </SelectTrigger>
-                <SelectContent>
-                  {scenarioItems.map((item: any) => (
-                    <SelectItem key={item.index} value={String(item.index)}>
-                      Qté {Number(item.scenario.quantite).toLocaleString("fr-FR")} -{" "}
-                      {fmtEUR(Number(item.scenario.totalCA) || 0)} HT
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <Label>Quantité à exporter</Label>
+                <span className="text-xs text-muted-foreground">
+                  {scenarioItems.length} quantités disponibles dans le devis
+                </span>
+              </div>
+              <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-2 sm:grid-cols-2 lg:grid-cols-3">
+                {scenarioItems.map((item: any) => {
+                  const selected = scenarioIndex === String(item.index);
+                  return (
+                    <Button
+                      key={item.index}
+                      type="button"
+                      variant={selected ? "default" : "outline"}
+                      className="h-auto min-h-16 justify-start px-3 py-2 text-left"
+                      aria-pressed={selected}
+                      onClick={() => setScenarioIndex(String(item.index))}
+                    >
+                      <span className="flex w-full items-center justify-between gap-3">
+                        <span className="font-semibold">
+                          Qté {Number(item.scenario.quantite).toLocaleString("fr-FR")}
+                        </span>
+                        <span className="text-right text-xs tabular-nums opacity-85">
+                          {fmtEUR(Number(item.scenario.totalCA) || 0)} HT
+                        </span>
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
