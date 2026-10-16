@@ -770,8 +770,8 @@ function encodeWindows1252(text: string) {
   });
 }
 
-function createCsvBlob(csv: string) {
-  return new Blob([encodeWindows1252(csv)], { type: "text/plain;charset=windows-1252" });
+export function createSageCsvBlob(csv: string) {
+  return new Blob([encodeWindows1252(csv)], { type: "text/plain" });
 }
 
 export async function saveSageQuoteCsv(params: {
@@ -784,7 +784,7 @@ export async function saveSageQuoteCsv(params: {
 }): Promise<SageSaveResult> {
   const csv = makeSageQuoteCsv(params);
   const filename = makeSageQuoteFilename(params);
-  const blob = createCsvBlob(csv);
+  const blob = createSageCsvBlob(csv);
   await saveFileToDossierWorkspace(params.dossier.id, filename, blob);
   return "saved";
 }
