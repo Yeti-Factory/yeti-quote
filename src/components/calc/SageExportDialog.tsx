@@ -140,7 +140,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           lineMode,
         },
       });
-      if (result === "saved") toast.success("Fichier Sage enregistré");
+      if (result === "saved") toast.success("Export Sage créé dans le dossier de travail");
       else if (result === "downloaded") toast.success("Fichier Sage téléchargé");
     } catch (error: any) {
       toast.error(error?.message ?? "Export Sage impossible");
@@ -152,7 +152,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
       <DialogTrigger asChild>
         <Button variant="outline">
           <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-          Export Sage
+          Créer l’export Sage
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
@@ -362,7 +362,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
 
         <div className="border-t bg-background px-6 py-4 flex flex-wrap justify-end gap-2">
           <Button onClick={exportCsv} disabled={selectedRows.length === 0}>
-            Télécharger le fichier Sage 50
+            Créer le fichier Sage 50
           </Button>
         </div>
       </DialogContent>

@@ -32,6 +32,11 @@ import { StatusBadge } from "./dashboard";
 import { fmtDate } from "@/lib/format";
 import { parseDossierBackup, type DossierBackup } from "@/lib/dossier-backup";
 import type { Json } from "@/integrations/native/types";
+import {
+  chooseDossierWorkspace,
+  removeDossierWorkspace,
+  setDossierWorkspace,
+} from "@/lib/dossier-workspace";
 
 export const Route = createFileRoute("/_authenticated/dossiers/")({
   component: DossiersList,
@@ -74,6 +79,7 @@ function DossiersList() {
       toast.error(`Suppression impossible : ${error.message}`);
       return;
     }
+    await removeDossierWorkspace(id).catch(() => undefined);
     toast.success("Dossier supprimé");
     qc.invalidateQueries({ queryKey: ["dossiers"] });
   }
@@ -96,13 +102,16 @@ function DossiersList() {
     if (!pendingImport || !user) return;
     setImporting(true);
     try {
+      const workspace = await chooseDossierWorkspace();
       const importedId = await restoreDossierBackup(pendingImport);
+      await setDossierWorkspace(importedId, workspace);
       toast.success("Dossier importe");
       setPendingImport(null);
       qc.invalidateQueries({ queryKey: ["dossiers"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       navigate({ to: "/dossiers/$id", params: { id: importedId } });
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error(err instanceof Error ? err.message : "Import impossible");
     } finally {
       setImporting(false);

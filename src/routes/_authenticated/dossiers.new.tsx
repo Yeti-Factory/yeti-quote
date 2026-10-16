@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { FolderOpen } from "lucide-react";
 import { z } from "zod";
 import { backend } from "@/integrations/native/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  chooseDossierWorkspace,
+  setDossierWorkspace,
+  supportsDossierWorkspace,
+  type DossierWorkspace,
+} from "@/lib/dossier-workspace";
 
 const searchSchema = z.object({ client: z.string().optional() });
 
@@ -46,14 +53,23 @@ function NewDossier() {
   const [type, setType] = useState<"standard" | "contra" | "stands">("standard");
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
+  const [workspace, setWorkspace] = useState<DossierWorkspace | null>(null);
 
   // The dossier number is generated automatically server-side when left empty.
 
   async function create() {
     if (!clientId) return toast.error("Sélectionnez un client.");
     if (!objet.trim()) return toast.error("La référence est requise.");
+    if (!supportsDossierWorkspace()) {
+      return toast.error(
+        "Ouvrez YetiQuote dans Microsoft Edge ou Google Chrome pour choisir le dossier de travail.",
+      );
+    }
     setBusy(true);
+    let createdDossierId: string | null = null;
     try {
+      const selectedWorkspace = workspace ?? (await chooseDossierWorkspace());
+      setWorkspace(selectedWorkspace);
       const client = clients?.find((c: any) => c.id === clientId);
       const { data, error } = await backend
         .from("dossiers")
@@ -70,9 +86,15 @@ function NewDossier() {
         .select("id")
         .single();
       if (error) throw error;
+      createdDossierId = data.id;
+      await setDossierWorkspace(data.id, selectedWorkspace);
       toast.success("Dossier créé");
       navigate({ to: "/dossiers/$id", params: { id: data.id } });
     } catch (e: any) {
+      if (createdDossierId) {
+        await backend.from("dossiers").delete().eq("id", createdDossierId);
+      }
+      if (e instanceof DOMException && e.name === "AbortError") return;
       toast.error(e.message);
     } finally {
       setBusy(false);
@@ -127,12 +149,39 @@ function NewDossier() {
             </SelectContent>
           </Select>
         </div>
+        <div className="rounded-md border p-4 space-y-2">
+          <Label>Dossier de travail OneDrive *</Label>
+          <p className="text-sm text-muted-foreground">
+            Choisissez le dossier client/projet existant, ou créez-le dans la fenêtre OneDrive. Les
+            exports de ce dossier y seront ensuite enregistrés automatiquement.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  setWorkspace(await chooseDossierWorkspace());
+                } catch (error) {
+                  if (error instanceof DOMException && error.name === "AbortError") return;
+                  toast.error(error instanceof Error ? error.message : "Dossier inaccessible");
+                }
+              }}
+            >
+              <FolderOpen className="w-4 h-4 mr-1.5" />
+              {workspace ? "Changer de dossier" : "Choisir ou créer le dossier"}
+            </Button>
+            <span className={workspace ? "text-sm font-medium" : "text-sm text-destructive"}>
+              {workspace ? workspace.name : "Aucun dossier sélectionné"}
+            </span>
+          </div>
+        </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => navigate({ to: "/dossiers" })}>
             Annuler
           </Button>
           <Button onClick={create} disabled={busy}>
-            {busy ? "…" : "Créer le dossier"}
+            {busy ? "…" : workspace ? "Créer le dossier" : "Choisir le dossier et créer"}
           </Button>
         </div>
       </Card>
