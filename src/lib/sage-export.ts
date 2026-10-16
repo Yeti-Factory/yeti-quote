@@ -12,6 +12,7 @@ import {
   resolveLineMargePct,
   resolveMargePct,
 } from "@/lib/calculs/types";
+import { saveFileToDossierWorkspace } from "@/lib/dossier-workspace";
 
 export type SageExportRow = {
   reference: string;
@@ -810,6 +811,9 @@ export async function saveSageQuoteCsv(params: {
   const csv = makeSageQuoteCsv(params);
   const filename = makeSageQuoteFilename(params);
   const blob = createCsvBlob(csv);
+  const workspaceResult = await saveFileToDossierWorkspace(params.dossier.id, filename, blob);
+  if (workspaceResult === "saved") return "saved";
+  if (workspaceResult === "cancelled") return "cancelled";
   const picker = (
     window as unknown as {
       showSaveFilePicker?: (options?: SavePickerOptions) => Promise<FileSystemFileHandleLike>;

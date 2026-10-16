@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Copy, Download, Save, Trash2, Printer } from "lucide-react";
+import { ArrowLeft, Copy, Download, FolderOpen, Save, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -42,6 +42,14 @@ import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
 import { PrototypeOfferForm } from "@/components/calc/PrototypeOfferForm";
 import { CommonOfferInfoForm } from "@/components/calc/CommonOfferInfoForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
+import {
+  chooseDossierWorkspace,
+  copyDossierWorkspace,
+  getDossierWorkspace,
+  removeDossierWorkspace,
+  setDossierWorkspace,
+  supportsDossierWorkspace,
+} from "@/lib/dossier-workspace";
 import type { CarbonArticleSuggestion } from "@/lib/carbon";
 
 import { calculerStandard, STANDARD_DEFAULTS, type StandardInput } from "@/lib/calculs/standard";
@@ -382,7 +390,23 @@ function DossierDetail() {
   const [payload, setPayload] = useState<any>(null);
   const [pendingType, setPendingType] = useState<"standard" | "contra" | null>(null);
   const [modelBusy, setModelBusy] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const initialSnapshotRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getDossierWorkspace(id)
+      .then((workspace) => {
+        if (active) setWorkspaceName(workspace?.name ?? null);
+      })
+      .catch(() => {
+        if (active) setWorkspaceName(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!dossier) return;
@@ -628,6 +652,11 @@ function DossierDetail() {
       .select("id")
       .single();
     if (error) return toast.error(error.message);
+    try {
+      await copyDossierWorkspace(dossier.id, data.id);
+    } catch {
+      toast.warning("Le dossier a été dupliqué, mais son dossier de travail devra être resélectionné.");
+    }
     toast.success(`Dossier dupliqué (v${nextVersion})`);
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
@@ -657,6 +686,11 @@ function DossierDetail() {
       .select("id")
       .single();
     if (error) return toast.error(error.message);
+    try {
+      await copyDossierWorkspace(dossier.id, data.id);
+    } catch {
+      toast.warning("Le dossier a été dupliqué, mais son dossier de travail devra être resélectionné.");
+    }
     toast.success("Dossier duplique en Standard");
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
@@ -671,9 +705,31 @@ function DossierDetail() {
     });
     const result = await saveDossierBackup(backup);
     if (result === "saved") {
-      toast.success("Dossier enregistre");
+      toast.success("Sauvegarde créée dans le dossier de travail");
     } else if (result === "downloaded") {
       toast.success("Fichier telecharge");
+    }
+  }
+
+  async function changeWorkspace() {
+    if (!dossier) return;
+    if (!supportsDossierWorkspace()) {
+      toast.error(
+        "Ouvrez YetiQuote dans Microsoft Edge ou Google Chrome pour choisir le dossier de travail.",
+      );
+      return;
+    }
+    setWorkspaceBusy(true);
+    try {
+      const workspace = await chooseDossierWorkspace();
+      await setDossierWorkspace(dossier.id, workspace);
+      setWorkspaceName(workspace.name);
+      toast.success("Dossier de travail enregistré");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(error instanceof Error ? error.message : "Dossier de travail inaccessible");
+    } finally {
+      setWorkspaceBusy(false);
     }
   }
 
@@ -681,6 +737,7 @@ function DossierDetail() {
     if (!dossier) return;
     const { error } = await backend.from("dossiers").delete().eq("id", dossier.id);
     if (error) return toast.error(error.message);
+    await removeDossierWorkspace(dossier.id).catch(() => undefined);
     toast.success("Dossier supprimé");
     navigate({ to: "/dossiers" });
   }
@@ -747,7 +804,7 @@ function DossierDetail() {
                   </Button>
                   <Button variant="outline" onClick={exportDossier}>
                     <Download className="w-4 h-4 mr-1.5" />
-                    Enregistrer sous
+                    Sauvegarder le dossier
                   </Button>
                   <Button variant="outline" onClick={duplicate}>
                     <Copy className="w-4 h-4 mr-1.5" />
@@ -873,6 +930,28 @@ function DossierDetail() {
               <p className="text-xs text-muted-foreground mt-1">
                 Conversion directe disponible entre Standard et Contra.
               </p>
+            </div>
+            <div>
+              <Label>Dossier de travail OneDrive</Label>
+              <div className="mt-1 rounded-md border p-3 space-y-2">
+                <div className={workspaceName ? "text-sm font-medium" : "text-sm text-destructive"}>
+                  {workspaceName ?? "Non configuré sur cet appareil"}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={changeWorkspace}
+                  disabled={workspaceBusy}
+                >
+                  <FolderOpen className="w-4 h-4 mr-1.5" />
+                  {workspaceBusy ? "…" : workspaceName ? "Changer" : "Choisir ou créer"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Les exports Sage et les sauvegardes YetiQuote sont créés directement dans ce
+                  dossier.
+                </p>
+              </div>
             </div>
             <div>
               <Label>Note / lien dossier OneDrive</Label>

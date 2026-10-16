@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Database } from "@/integrations/native/types";
+import { saveFileToDossierWorkspace } from "@/lib/dossier-workspace";
 
 type ClientRow = Database["public"]["Tables"]["clients"]["Row"];
 type DossierRow = Database["public"]["Tables"]["dossiers"]["Row"];
@@ -176,6 +177,9 @@ function downloadDossierBackup(filename: string, blob: Blob) {
 export async function saveDossierBackup(backup: DossierBackup): Promise<BackupSaveResult> {
   const filename = makeDossierBackupFilename(backup);
   const blob = createBackupBlob(backup);
+  const workspaceResult = await saveFileToDossierWorkspace(backup.dossier.id, filename, blob);
+  if (workspaceResult === "saved") return "saved";
+  if (workspaceResult === "cancelled") return "cancelled";
   const saveFilePicker = (window as WindowWithSaveFilePicker).showSaveFilePicker;
 
   if (typeof saveFilePicker === "function" && window.isSecureContext) {
