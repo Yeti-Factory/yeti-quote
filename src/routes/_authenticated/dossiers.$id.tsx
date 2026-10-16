@@ -42,13 +42,11 @@ import { CarbonEstimateForm } from "@/components/calc/CarbonEstimateForm";
 import { PrototypeOfferForm } from "@/components/calc/PrototypeOfferForm";
 import { CommonOfferInfoForm } from "@/components/calc/CommonOfferInfoForm";
 import { createDossierBackup, saveDossierBackup } from "@/lib/dossier-backup";
+import { DossierWorkspacePicker } from "@/components/DossierWorkspacePicker";
 import {
-  chooseDossierWorkspace,
-  copyDossierWorkspace,
-  getDossierWorkspace,
-  removeDossierWorkspace,
-  setDossierWorkspace,
-  supportsDossierWorkspace,
+  workspaceFields,
+  workspaceFromFields,
+  type DossierWorkspace,
 } from "@/lib/dossier-workspace";
 import type { CarbonArticleSuggestion } from "@/lib/carbon";
 
@@ -390,23 +388,8 @@ function DossierDetail() {
   const [payload, setPayload] = useState<any>(null);
   const [pendingType, setPendingType] = useState<"standard" | "contra" | null>(null);
   const [modelBusy, setModelBusy] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
-  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const initialSnapshotRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void getDossierWorkspace(id)
-      .then((workspace) => {
-        if (active) setWorkspaceName(workspace?.name ?? null);
-      })
-      .catch(() => {
-        if (active) setWorkspaceName(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [id]);
 
   useEffect(() => {
     if (!dossier) return;
@@ -648,15 +631,14 @@ function DossierDetail() {
         results: dossier.results,
         created_by: user!.id,
         version: nextVersion,
+        workspace_drive_id: dossier.workspace_drive_id,
+        workspace_folder_id: dossier.workspace_folder_id,
+        workspace_folder_name: dossier.workspace_folder_name,
+        workspace_web_url: dossier.workspace_web_url,
       } as any)
       .select("id")
       .single();
     if (error) return toast.error(error.message);
-    try {
-      await copyDossierWorkspace(dossier.id, data.id);
-    } catch {
-      toast.warning("Le dossier a été dupliqué, mais son dossier de travail devra être resélectionné.");
-    }
     toast.success(`Dossier dupliqué (v${nextVersion})`);
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
@@ -682,67 +664,56 @@ function DossierDetail() {
         results: standardResults,
         created_by: user!.id,
         version: nextVersion,
+        workspace_drive_id: dossier.workspace_drive_id,
+        workspace_folder_id: dossier.workspace_folder_id,
+        workspace_folder_name: dossier.workspace_folder_name,
+        workspace_web_url: dossier.workspace_web_url,
       } as any)
       .select("id")
       .single();
     if (error) return toast.error(error.message);
-    try {
-      await copyDossierWorkspace(dossier.id, data.id);
-    } catch {
-      toast.warning("Le dossier a été dupliqué, mais son dossier de travail devra être resélectionné.");
-    }
     toast.success("Dossier duplique en Standard");
     navigate({ to: "/dossiers/$id", params: { id: data.id } });
   }
 
   async function exportDossier() {
     if (!dossier || !payload) return;
-    const backup = createDossierBackup({
-      dossier,
-      meta,
-      payload,
-      results: output ?? {},
-    });
-    const result = await saveDossierBackup(backup);
-    if (result === "saved") {
-      toast.success("Sauvegarde créée dans le dossier de travail");
-    } else if (result === "downloaded") {
-      toast.success("Fichier telecharge");
+    try {
+      const backup = createDossierBackup({
+        dossier,
+        meta,
+        payload,
+        results: output ?? {},
+      });
+      await saveDossierBackup(backup);
+      toast.success("Sauvegarde créée dans le dossier partagé");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sauvegarde impossible");
     }
   }
 
-  async function changeWorkspace() {
+  async function assignWorkspace(workspace: DossierWorkspace) {
     if (!dossier) return;
-    if (!supportsDossierWorkspace()) {
-      toast.error(
-        "Ouvrez YetiQuote dans Microsoft Edge ou Google Chrome pour choisir le dossier de travail.",
-      );
-      return;
-    }
-    setWorkspaceBusy(true);
-    try {
-      const workspace = await chooseDossierWorkspace();
-      await setDossierWorkspace(dossier.id, workspace);
-      setWorkspaceName(workspace.name);
-      toast.success("Dossier de travail enregistré");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      toast.error(error instanceof Error ? error.message : "Dossier de travail inaccessible");
-    } finally {
-      setWorkspaceBusy(false);
-    }
+    const { error } = await backend
+      .from("dossiers")
+      .update(workspaceFields(workspace))
+      .eq("id", dossier.id);
+    if (error) throw new Error(error.message);
+    await qc.invalidateQueries({ queryKey: ["dossier", id] });
+    await qc.invalidateQueries({ queryKey: ["dossiers"] });
+    toast.success("Dossier partagé associé à tous les utilisateurs");
   }
 
   async function del() {
     if (!dossier) return;
     const { error } = await backend.from("dossiers").delete().eq("id", dossier.id);
     if (error) return toast.error(error.message);
-    await removeDossierWorkspace(dossier.id).catch(() => undefined);
     toast.success("Dossier supprimé");
     navigate({ to: "/dossiers" });
   }
 
   if (!dossier || !payload) return <div className="text-sm text-muted-foreground">Chargement…</div>;
+  const workspace = workspaceFromFields(dossier);
 
   return (
     <>
@@ -932,24 +903,32 @@ function DossierDetail() {
               </p>
             </div>
             <div>
-              <Label>Dossier de travail OneDrive</Label>
+              <Label>Dossier de travail partagé</Label>
               <div className="mt-1 rounded-md border p-3 space-y-2">
-                <div className={workspaceName ? "text-sm font-medium" : "text-sm text-destructive"}>
-                  {workspaceName ?? "Non configuré sur cet appareil"}
+                <div className={workspace ? "text-sm font-medium" : "text-sm text-destructive"}>
+                  {workspace?.name ?? "À associer à Microsoft 365"}
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={changeWorkspace}
-                  disabled={workspaceBusy}
+                  onClick={() => setWorkspacePickerOpen(true)}
                 >
                   <FolderOpen className="w-4 h-4 mr-1.5" />
-                  {workspaceBusy ? "…" : workspaceName ? "Changer" : "Choisir ou créer"}
+                  {workspace ? "Changer" : "Choisir ou créer"}
                 </Button>
+                {workspace?.webUrl && (
+                  <a
+                    href={workspace.webUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 text-xs font-medium text-primary underline"
+                  >
+                    Ouvrir dans Microsoft 365
+                  </a>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Les exports Sage et les sauvegardes YetiQuote sont créés directement dans ce
-                  dossier.
+                  Cet emplacement est commun à tous les utilisateurs et à tous leurs appareils.
                 </p>
               </div>
             </div>
@@ -1062,6 +1041,12 @@ function DossierDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <DossierWorkspacePicker
+        open={workspacePickerOpen}
+        onOpenChange={setWorkspacePickerOpen}
+        suggestedName={meta.objet.trim()}
+        onSelect={assignWorkspace}
+      />
     </>
   );
 }

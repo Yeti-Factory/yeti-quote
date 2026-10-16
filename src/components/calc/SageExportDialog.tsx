@@ -126,7 +126,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           .eq("id", dossier.client_id);
         if (error) throw error;
       }
-      const result = await saveSageQuoteCsv({
+      await saveSageQuoteCsv({
         dossier,
         meta,
         payload,
@@ -140,8 +140,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           lineMode,
         },
       });
-      if (result === "saved") toast.success("Export Sage créé dans le dossier de travail");
-      else if (result === "downloaded") toast.success("Fichier Sage téléchargé");
+      toast.success("Export Sage créé dans le dossier partagé");
     } catch (error: any) {
       toast.error(error?.message ?? "Export Sage impossible");
     }

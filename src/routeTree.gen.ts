@@ -20,10 +20,12 @@ import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDossiersIndexRouteImport } from './routes/_authenticated/dossiers.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients.index'
+import { Route as ApiM365FoldersRouteImport } from './routes/api/m365/folders'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedDossiersNewRouteImport } from './routes/_authenticated/dossiers.new'
 import { Route as AuthenticatedDossiersIdRouteImport } from './routes/_authenticated/dossiers.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
+import { Route as ApiDossiersIdFilesRouteImport } from './routes/api/dossiers/$id/files'
 import { Route as ApiDataDatasetOperationRouteImport } from './routes/api/data/$dataset/$operation'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -82,6 +84,11 @@ const AuthenticatedClientsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedClientsRoute,
   } as any)
+const ApiM365FoldersRoute = ApiM365FoldersRouteImport.update({
+  id: '/api/m365/folders',
+  path: '/api/m365/folders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -103,6 +110,11 @@ const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuthenticatedClientsRoute,
 } as any)
+const ApiDossiersIdFilesRoute = ApiDossiersIdFilesRouteImport.update({
+  id: '/api/dossiers/$id/files',
+  path: '/api/dossiers/$id/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDataDatasetOperationRoute = ApiDataDatasetOperationRouteImport.update({
   id: '/api/data/$dataset/$operation',
   path: '/api/data/$dataset/$operation',
@@ -122,9 +134,11 @@ export interface FileRoutesByFullPath {
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/m365/folders': typeof ApiM365FoldersRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/dossiers/': typeof AuthenticatedDossiersIndexRoute
   '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
+  '/api/dossiers/$id/files': typeof ApiDossiersIdFilesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -137,9 +151,11 @@ export interface FileRoutesByTo {
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/m365/folders': typeof ApiM365FoldersRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/dossiers': typeof AuthenticatedDossiersIndexRoute
   '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
+  '/api/dossiers/$id/files': typeof ApiDossiersIdFilesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -156,9 +172,11 @@ export interface FileRoutesById {
   '/_authenticated/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/_authenticated/dossiers/new': typeof AuthenticatedDossiersNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/m365/folders': typeof ApiM365FoldersRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/dossiers/': typeof AuthenticatedDossiersIndexRoute
   '/api/data/$dataset/$operation': typeof ApiDataDatasetOperationRoute
+  '/api/dossiers/$id/files': typeof ApiDossiersIdFilesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -175,9 +193,11 @@ export interface FileRouteTypes {
     | '/dossiers/$id'
     | '/dossiers/new'
     | '/api/auth/$'
+    | '/api/m365/folders'
     | '/clients/'
     | '/dossiers/'
     | '/api/data/$dataset/$operation'
+    | '/api/dossiers/$id/files'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -190,9 +210,11 @@ export interface FileRouteTypes {
     | '/dossiers/$id'
     | '/dossiers/new'
     | '/api/auth/$'
+    | '/api/m365/folders'
     | '/clients'
     | '/dossiers'
     | '/api/data/$dataset/$operation'
+    | '/api/dossiers/$id/files'
   id:
     | '__root__'
     | '/'
@@ -208,9 +230,11 @@ export interface FileRouteTypes {
     | '/_authenticated/dossiers/$id'
     | '/_authenticated/dossiers/new'
     | '/api/auth/$'
+    | '/api/m365/folders'
     | '/_authenticated/clients/'
     | '/_authenticated/dossiers/'
     | '/api/data/$dataset/$operation'
+    | '/api/dossiers/$id/files'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -220,7 +244,9 @@ export interface RootRouteChildren {
   InstallRoute: typeof InstallRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiM365FoldersRoute: typeof ApiM365FoldersRoute
   ApiDataDatasetOperationRoute: typeof ApiDataDatasetOperationRoute
+  ApiDossiersIdFilesRoute: typeof ApiDossiersIdFilesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -302,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedClientsRoute
     }
+    '/api/m365/folders': {
+      id: '/api/m365/folders'
+      path: '/api/m365/folders'
+      fullPath: '/api/m365/folders'
+      preLoaderRoute: typeof ApiM365FoldersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -329,6 +362,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/$id'
       preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
       parentRoute: typeof AuthenticatedClientsRoute
+    }
+    '/api/dossiers/$id/files': {
+      id: '/api/dossiers/$id/files'
+      path: '/api/dossiers/$id/files'
+      fullPath: '/api/dossiers/$id/files'
+      preLoaderRoute: typeof ApiDossiersIdFilesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/data/$dataset/$operation': {
       id: '/api/data/$dataset/$operation'
@@ -394,7 +434,9 @@ const rootRouteChildren: RootRouteChildren = {
   InstallRoute: InstallRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiM365FoldersRoute: ApiM365FoldersRoute,
   ApiDataDatasetOperationRoute: ApiDataDatasetOperationRoute,
+  ApiDossiersIdFilesRoute: ApiDossiersIdFilesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

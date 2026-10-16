@@ -80,6 +80,10 @@ export type Database = {
           id: string
           objet: string
           onedrive_note: string | null
+          workspace_drive_id: string | null
+          workspace_folder_id: string | null
+          workspace_folder_name: string | null
+          workspace_web_url: string | null
           params: Json
           payload: Json
           reference: string
@@ -98,6 +102,10 @@ export type Database = {
           id?: string
           objet: string
           onedrive_note?: string | null
+          workspace_drive_id?: string | null
+          workspace_folder_id?: string | null
+          workspace_folder_name?: string | null
+          workspace_web_url?: string | null
           params?: Json
           payload?: Json
           reference: string
@@ -116,6 +124,10 @@ export type Database = {
           id?: string
           objet?: string
           onedrive_note?: string | null
+          workspace_drive_id?: string | null
+          workspace_folder_id?: string | null
+          workspace_folder_name?: string | null
+          workspace_web_url?: string | null
           params?: Json
           payload?: Json
           reference?: string

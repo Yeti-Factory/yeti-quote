@@ -44,22 +44,7 @@ export type SageExportOptions = {
 
 export type SageLineMode = "detailed" | "main_and_options" | "single_total";
 
-type SageSaveResult = "saved" | "downloaded" | "cancelled";
-
-type FileSystemFileHandleLike = {
-  createWritable: () => Promise<{
-    write: (data: Blob) => Promise<void>;
-    close: () => Promise<void>;
-  }>;
-};
-
-type SavePickerOptions = {
-  suggestedName?: string;
-  types?: Array<{
-    description: string;
-    accept: Record<string, string[]>;
-  }>;
-};
+type SageSaveResult = "saved";
 
 const SAGE_PIECE_HEADERS = [
   "Type de Ligne",
@@ -789,17 +774,6 @@ function createCsvBlob(csv: string) {
   return new Blob([encodeWindows1252(csv)], { type: "text/plain;charset=windows-1252" });
 }
 
-function downloadCsv(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 export async function saveSageQuoteCsv(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -811,36 +785,6 @@ export async function saveSageQuoteCsv(params: {
   const csv = makeSageQuoteCsv(params);
   const filename = makeSageQuoteFilename(params);
   const blob = createCsvBlob(csv);
-  const workspaceResult = await saveFileToDossierWorkspace(params.dossier.id, filename, blob);
-  if (workspaceResult === "saved") return "saved";
-  if (workspaceResult === "cancelled") return "cancelled";
-  const picker = (
-    window as unknown as {
-      showSaveFilePicker?: (options?: SavePickerOptions) => Promise<FileSystemFileHandleLike>;
-    }
-  ).showSaveFilePicker;
-
-  if (picker) {
-    try {
-      const handle = await picker({
-        suggestedName: filename,
-        types: [
-          {
-            description: "Fichier texte Sage 50",
-            accept: { "text/plain": [".txt"] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return "saved";
-    } catch (error: any) {
-      if (error?.name === "AbortError") return "cancelled";
-      throw error;
-    }
-  }
-
-  downloadCsv(filename, blob);
-  return "downloaded";
+  await saveFileToDossierWorkspace(params.dossier.id, filename, blob);
+  return "saved";
 }
