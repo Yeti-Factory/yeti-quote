@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { fmtEUR } from "@/lib/format";
 import {
-  buildSageQuoteRows,
+  buildSageQuoteRowGroups,
   getDefaultSageArticleCode,
   getDefaultSageDepotCode,
   getSageClientCode,
@@ -45,52 +45,63 @@ type SageExportDialogProps = {
 };
 
 export function SageExportDialog({ dossier, meta, payload, output }: SageExportDialogProps) {
-  const scenarioItems = useMemo(
-    () =>
-      (output?.scenarios ?? [])
-        .map((scenario: any, index: number) => ({ scenario, index }))
-        .filter((item: any) => Number(item.scenario?.quantite) > 0),
-    [output],
+  const rowGroups = useMemo(
+    () => buildSageQuoteRowGroups({ dossier, meta, payload, output }),
+    [dossier, meta, output, payload],
   );
-  const [scenarioIndex, setScenarioIndex] = useState(() => String(scenarioItems[0]?.index ?? 0));
+  const [selectedVariantByGroup, setSelectedVariantByGroup] = useState<
+    Record<string, number | null>
+  >({});
   const [sageClientCode, setSageClientCode] = useState(() => getSageClientCode(dossier));
   const [defaultArticleCode, setDefaultArticleCode] = useState(() =>
     getDefaultSageArticleCode(dossier),
   );
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode());
   const [lineMode, setLineMode] = useState<SageLineMode>("detailed");
-  const [selectedLineNumbers, setSelectedLineNumbers] = useState<number[]>([]);
 
   useEffect(() => {
-    if (
-      scenarioItems.length > 0 &&
-      !scenarioItems.some((item: any) => String(item.index) === scenarioIndex)
-    ) {
-      setScenarioIndex(String(scenarioItems[0].index));
-    }
-  }, [scenarioIndex, scenarioItems]);
+    setSelectedVariantByGroup((current) => {
+      const next: Record<string, number | null> = {};
+      rowGroups.forEach((group) => {
+        const previous = current[group.key];
+        const hasPrevious = Object.prototype.hasOwnProperty.call(current, group.key);
+        const previousStillExists = group.variants.some(
+          (variant) => variant.scenarioIndex === previous,
+        );
+        next[group.key] =
+          hasPrevious && previous === null
+            ? null
+            : previousStillExists
+              ? previous
+              : group.option
+                ? null
+                : (group.variants[0]?.scenarioIndex ?? null);
+      });
+      return next;
+    });
+  }, [rowGroups]);
 
-  const selectedIndex = Number(scenarioIndex) || 0;
-  const rows = useMemo(
+  const displayedGroups = useMemo(
     () =>
-      buildSageQuoteRows({
-        dossier,
-        meta,
-        payload,
-        output,
-        scenarioIndex: selectedIndex,
+      rowGroups.map((group) => {
+        const selectedScenarioIndex = selectedVariantByGroup[group.key];
+        const variant =
+          group.variants.find((item) => item.scenarioIndex === selectedScenarioIndex) ??
+          group.variants[0];
+        return {
+          group,
+          variant,
+          selected: typeof selectedScenarioIndex === "number" && variant != null,
+        };
       }),
-    [dossier, meta, output, payload, selectedIndex],
+    [rowGroups, selectedVariantByGroup],
   );
-  useEffect(() => {
-    setSelectedLineNumbers(
-      rows.filter((row) => row.option !== "Oui").map((row) => row.numeroLigne),
-    );
-  }, [rows]);
-
   const selectedRows = useMemo(
-    () => rows.filter((row) => selectedLineNumbers.includes(row.numeroLigne)),
-    [rows, selectedLineNumbers],
+    () =>
+      displayedGroups
+        .filter((item) => item.selected)
+        .map((item, index) => ({ ...item.variant.row, numeroLigne: index + 1 })),
+    [displayedGroups],
   );
   const exportedRows = useMemo(
     () =>
@@ -99,20 +110,24 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         meta,
         payload,
         output,
-        scenarioIndex: selectedIndex,
-        options: { selectedLineNumbers, lineMode },
+        scenarioIndex: 0,
+        options: { selectedRows, lineMode },
       }),
-    [dossier, lineMode, meta, output, payload, selectedIndex, selectedLineNumbers],
+    [dossier, lineMode, meta, output, payload, selectedRows],
   );
   const totalHT = selectedRows.reduce((sum, row) => sum + row.montantHT, 0);
-  const optionCount = rows.filter((row) => row.option === "Oui").length;
+  const optionCount = rowGroups.filter((group) => group.option).length;
 
-  function toggleLine(lineNumber: number, checked: boolean) {
-    setSelectedLineNumbers((current) =>
-      checked
-        ? Array.from(new Set([...current, lineNumber])).sort((a, b) => a - b)
-        : current.filter((number) => number !== lineNumber),
-    );
+  function toggleGroup(groupKey: string, checked: boolean) {
+    setSelectedVariantByGroup((current) => {
+      const group = rowGroups.find((item) => item.key === groupKey);
+      return {
+        ...current,
+        [groupKey]: checked
+          ? (current[groupKey] ?? group?.variants[0]?.scenarioIndex ?? null)
+          : null,
+      };
+    });
   }
 
   async function exportCsv() {
@@ -141,12 +156,12 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         meta,
         payload,
         output,
-        scenarioIndex: selectedIndex,
+        scenarioIndex: 0,
         options: {
           sageClientCode,
           defaultArticleCode,
           depotCode,
-          selectedLineNumbers,
+          selectedRows,
           lineMode,
         },
       });
@@ -218,40 +233,10 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
             </div>
           </div>
 
-          {scenarioItems.length > 1 && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <Label>Quantité à exporter</Label>
-                <span className="text-xs text-muted-foreground">
-                  {scenarioItems.length} quantités disponibles dans le devis
-                </span>
-              </div>
-              <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-2 sm:grid-cols-2 lg:grid-cols-3">
-                {scenarioItems.map((item: any) => {
-                  const selected = scenarioIndex === String(item.index);
-                  return (
-                    <Button
-                      key={item.index}
-                      type="button"
-                      variant={selected ? "default" : "outline"}
-                      className="h-auto min-h-16 justify-start px-3 py-2 text-left"
-                      aria-pressed={selected}
-                      onClick={() => setScenarioIndex(String(item.index))}
-                    >
-                      <span className="flex w-full items-center justify-between gap-3">
-                        <span className="font-semibold">
-                          Qté {Number(item.scenario.quantite).toLocaleString("fr-FR")}
-                        </span>
-                        <span className="text-right text-xs tabular-nums opacity-85">
-                          {fmtEUR(Number(item.scenario.totalCA) || 0)} HT
-                        </span>
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <div className="rounded-md border border-primary/25 bg-primary/5 px-3 py-2 text-sm">
+            <strong>Choisissez la quantité ligne par ligne.</strong> Chaque élément propose
+            uniquement les quantités pour lesquelles un prix a été renseigné dans le devis.
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border p-3">
             <div>
@@ -289,7 +274,16 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setSelectedLineNumbers(rows.map((row) => row.numeroLigne))}
+                onClick={() =>
+                  setSelectedVariantByGroup((current) =>
+                    Object.fromEntries(
+                      rowGroups.map((group) => [
+                        group.key,
+                        current[group.key] ?? group.variants[0]?.scenarioIndex ?? null,
+                      ]),
+                    ),
+                  )
+                }
               >
                 Tout sélectionner
               </Button>
@@ -299,8 +293,15 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    setSelectedLineNumbers(
-                      rows.filter((row) => row.option !== "Oui").map((row) => row.numeroLigne),
+                    setSelectedVariantByGroup((current) =>
+                      Object.fromEntries(
+                        rowGroups.map((group) => [
+                          group.key,
+                          group.option
+                            ? null
+                            : (current[group.key] ?? group.variants[0]?.scenarioIndex ?? null),
+                        ]),
+                      ),
                     )
                   }
                 >
@@ -320,7 +321,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                   <th className="text-left px-3 py-2 font-bold uppercase text-[11px]">
                     Désignation
                   </th>
-                  <th className="text-right px-3 py-2 font-bold uppercase text-[11px]">Qté</th>
+                  <th className="min-w-44 text-right px-3 py-2 font-bold uppercase text-[11px]">
+                    Quantité retenue
+                  </th>
                   <th className="text-right px-3 py-2 font-bold uppercase text-[11px]">PU HT</th>
                   <th className="text-right px-3 py-2 font-bold uppercase text-[11px]">
                     Montant HT
@@ -328,39 +331,72 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.numeroLigne}
-                    className={row.option === "Oui" ? "border-t bg-amber-500/5" : "border-t"}
-                  >
-                    <td className="px-3 py-2 text-center">
-                      <Checkbox
-                        checked={selectedLineNumbers.includes(row.numeroLigne)}
-                        onCheckedChange={(checked) => toggleLine(row.numeroLigne, checked === true)}
-                        aria-label={`Retenir ${row.designation}`}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-2 font-medium">
-                        <span>{row.designation}</span>
-                        {row.option === "Oui" && <Badge variant="outline">Option</Badge>}
-                      </div>
-                      {row.description && (
-                        <div className="text-xs text-muted-foreground mt-1">{row.description}</div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {row.quantite.toLocaleString("fr-FR")}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {fmtEUR(row.prixUnitaireHT)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-medium">
-                      {fmtEUR(row.montantHT)}
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
+                {displayedGroups.map(({ group, variant, selected }) => {
+                  const row = variant.row;
+                  return (
+                    <tr
+                      key={group.key}
+                      className={`${group.option ? "bg-amber-500/5 " : ""}border-t ${selected ? "" : "opacity-60"}`}
+                    >
+                      <td className="px-3 py-2 text-center">
+                        <Checkbox
+                          checked={selected}
+                          onCheckedChange={(checked) => toggleGroup(group.key, checked === true)}
+                          aria-label={`Retenir ${row.designation}`}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-2 font-medium">
+                          <span>{row.designation}</span>
+                          {group.option && <Badge variant="outline">Option</Badge>}
+                        </div>
+                        {row.description && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {row.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {group.variants.length > 1 ? (
+                          <Select
+                            value={String(variant.scenarioIndex)}
+                            onValueChange={(value) =>
+                              setSelectedVariantByGroup((current) => ({
+                                ...current,
+                                [group.key]: Number(value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="ml-auto w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {group.variants.map((item) => (
+                                <SelectItem
+                                  key={item.scenarioIndex}
+                                  value={String(item.scenarioIndex)}
+                                >
+                                  Qté {item.quantity.toLocaleString("fr-FR")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="tabular-nums">
+                            Qté {row.quantite.toLocaleString("fr-FR")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {fmtEUR(row.prixUnitaireHT)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                        {fmtEUR(row.montantHT)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {rowGroups.length === 0 && (
                   <tr>
                     <td className="px-3 py-6 text-center text-muted-foreground" colSpan={5}>
                       Aucune ligne à exporter.
@@ -368,7 +404,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                   </tr>
                 )}
               </tbody>
-              {rows.length > 0 && (
+              {rowGroups.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-muted/50">
                     <td className="px-3 py-2 font-bold" colSpan={4}>

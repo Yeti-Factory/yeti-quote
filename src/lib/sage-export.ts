@@ -39,7 +39,21 @@ export type SageExportOptions = {
   defaultArticleCode?: string;
   depotCode?: string;
   selectedLineNumbers?: number[];
+  selectedRows?: SageExportRow[];
   lineMode?: SageLineMode;
+};
+
+export type SageQuoteRowVariant = {
+  scenarioIndex: number;
+  quantity: number;
+  row: SageExportRow;
+};
+
+export type SageQuoteRowGroup = {
+  key: string;
+  designation: string;
+  option: boolean;
+  variants: SageQuoteRowVariant[];
 };
 
 export type SageLineMode = "detailed" | "main_and_options" | "single_total";
@@ -570,6 +584,50 @@ export function buildSageQuoteRows(params: {
   return [];
 }
 
+/**
+ * Builds one stable entry per quote line, with every quantity for which that
+ * line has a price. This lets the final Sage quote mix quantities from
+ * different product families (for example furniture at qty 15 and columns at
+ * qty 9) instead of forcing one global scenario on the whole quote.
+ */
+export function buildSageQuoteRowGroups(params: {
+  dossier: any;
+  meta: { reference: string; objet: string };
+  payload: any;
+  output: any;
+}): SageQuoteRowGroup[] {
+  const groups = new Map<string, SageQuoteRowGroup>();
+  const scenarios = Array.isArray(params.output?.scenarios) ? params.output.scenarios : [];
+
+  scenarios.forEach((scenario: any, scenarioIndex: number) => {
+    const quantity = scenarioQuantity(scenario);
+    if (quantity <= 0) return;
+
+    const occurrences = new Map<string, number>();
+    const rows = buildSageQuoteRows({ ...params, scenarioIndex });
+    rows.forEach((row) => {
+      const baseKey = [row.codeArticle, row.option, row.designation].join("\u001f");
+      const occurrence = occurrences.get(baseKey) ?? 0;
+      occurrences.set(baseKey, occurrence + 1);
+      const key = `${baseKey}\u001f${occurrence}`;
+      const variant = { scenarioIndex, quantity, row };
+      const existing = groups.get(key);
+      if (existing) {
+        existing.variants.push(variant);
+      } else {
+        groups.set(key, {
+          key,
+          designation: row.designation,
+          option: row.option === "Oui",
+          variants: [variant],
+        });
+      }
+    });
+  });
+
+  return Array.from(groups.values());
+}
+
 function combineRows(
   rows: SageExportRow[],
   designation: string,
@@ -602,7 +660,7 @@ export function prepareSageQuoteRows(params: {
   scenarioIndex: number;
   options?: SageExportOptions;
 }) {
-  const allRows = buildSageQuoteRows(params);
+  const allRows = params.options?.selectedRows ?? buildSageQuoteRows(params);
   const selectedLineNumbers = params.options?.selectedLineNumbers;
   const selectedRows = Array.isArray(selectedLineNumbers)
     ? allRows.filter((row) => selectedLineNumbers.includes(row.numeroLigne))

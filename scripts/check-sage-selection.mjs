@@ -8,8 +8,13 @@ const server = await createServer({
 });
 
 try {
-  const { buildSageQuoteRows, createSageCsvBlob, makeSageQuoteCsv, prepareSageQuoteRows } =
-    await server.ssrLoadModule("/src/lib/sage-export.ts");
+  const {
+    buildSageQuoteRowGroups,
+    buildSageQuoteRows,
+    createSageCsvBlob,
+    makeSageQuoteCsv,
+    prepareSageQuoteRows,
+  } = await server.ssrLoadModule("/src/lib/sage-export.ts");
   const params = {
     dossier: {
       type: "standard",
@@ -96,6 +101,60 @@ try {
   assert.deepEqual(
     Array.from(new Uint8Array(await encodedBlob.arrayBuffer())),
     [0xc9, 0x74, 0xe9, 0x20, 0x96, 0x20, 0x31, 0x30, 0x20, 0x80],
+  );
+
+  const mixedQuantityParams = {
+    dossier: params.dossier,
+    meta: params.meta,
+    payload: {
+      params: { coef_marge_pct: 0 },
+      quantites: [{ margePct: 0 }, { margePct: 0 }, { margePct: 0 }],
+      achatsPrincipaux: [
+        {
+          libelle: "Grand meuble",
+          descriptif: "Famille grand meuble",
+          prixParQuantite: [100, 90, 0],
+        },
+        {
+          libelle: "Meuble colonne",
+          descriptif: "Famille colonne",
+          prixParQuantite: [0, 0, 80],
+        },
+      ],
+    },
+    output: {
+      scenarios: [
+        { quantite: 15, totalCA: 1500 },
+        { quantite: 50, totalCA: 4500 },
+        { quantite: 9, totalCA: 720 },
+      ],
+    },
+  };
+  const groups = buildSageQuoteRowGroups(mixedQuantityParams);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(
+    groups.map((group) => ({
+      designation: group.designation,
+      quantities: group.variants.map((variant) => variant.quantity),
+    })),
+    [
+      { designation: "Grand meuble", quantities: [15, 50] },
+      { designation: "Meuble colonne", quantities: [9] },
+    ],
+  );
+
+  const mixedRows = [groups[0].variants[0].row, groups[1].variants[0].row];
+  const mixedPrepared = prepareSageQuoteRows({
+    ...mixedQuantityParams,
+    scenarioIndex: 0,
+    options: { selectedRows: mixedRows, lineMode: "detailed" },
+  });
+  assert.deepEqual(
+    mixedPrepared.map((row) => [row.designation, row.quantite, row.montantHT]),
+    [
+      ["Grand meuble", 15, 1500],
+      ["Meuble colonne", 9, 720],
+    ],
   );
 
   console.log("Sage selection export checks passed.");
