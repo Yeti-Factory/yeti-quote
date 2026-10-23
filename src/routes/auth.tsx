@@ -88,6 +88,8 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -102,6 +104,89 @@ function LoginForm() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function requestReset(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.message ?? "Impossible d’envoyer le lien");
+      }
+      setResetSent(true);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Impossible d’envoyer le lien");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (forgotMode) {
+    return (
+      <>
+        <h1 className="mb-1 text-xl font-semibold">Mot de passe oublié</h1>
+        {resetSent ? (
+          <>
+            <div className="my-5 rounded-md border border-green-600/30 bg-green-500/10 p-4 text-sm">
+              Si cette adresse correspond à un compte YetiQuote, un lien vient d’être envoyé. Pensez
+              à vérifier les courriers indésirables.
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                setForgotMode(false);
+                setResetSent(false);
+              }}
+            >
+              Retour à la connexion
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Saisissez votre adresse Yeti Factory. Vous recevrez un lien pour choisir un nouveau
+              mot de passe.
+            </p>
+            <form onSubmit={requestReset} className="space-y-3">
+              <div>
+                <Label htmlFor="reset-email">Email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={busy}>
+                {busy ? "Envoi…" : "Recevoir le lien"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setForgotMode(false)}
+              >
+                Retour à la connexion
+              </Button>
+            </form>
+          </>
+        )}
+      </>
+    );
   }
 
   return (
@@ -125,7 +210,16 @@ function LoginForm() {
         <div>
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Mot de passe</Label>
-            <span className="text-xs text-muted-foreground">Accès géré par l’administrateur</span>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={() => {
+                setForgotMode(true);
+                setResetSent(false);
+              }}
+            >
+              Mot de passe oublié ?
+            </button>
           </div>
           <PasswordInput id="password" value={password} onChange={setPassword} />
         </div>
@@ -133,8 +227,8 @@ function LoginForm() {
           {busy ? "…" : "Se connecter"}
         </Button>
       </form>
-      <p className="text-xs text-muted-foreground mt-4 text-center">
-        Pour créer ou réinitialiser un accès, contactez l’administrateur Yeti Factory.
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        Pour créer un nouvel accès, contactez l’administrateur Yeti Factory.
       </p>
     </>
   );
