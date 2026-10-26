@@ -933,6 +933,7 @@ function DossierDetail() {
             <div>
               <Label>Note / lien dossier OneDrive</Label>
               <Textarea
+                autoResize
                 rows={3}
                 value={meta.onedrive_note}
                 onChange={(e) => setMeta({ ...meta, onedrive_note: e.target.value })}

@@ -46,6 +46,7 @@ export function CommonOfferInfoForm({ value, onChange }: CommonOfferInfoFormProp
       <div className="space-y-2">
         <Label htmlFor="offer-common-text">Texte commun</Label>
         <Textarea
+          autoResize
           id="offer-common-text"
           rows={5}
           value={info.text}

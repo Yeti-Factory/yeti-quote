@@ -255,6 +255,7 @@ export function StandsForm({
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
                     <Textarea
+                      autoResize
                       value={l.descriptif ?? ""}
                       placeholder="Descriptif client : visible dans l'offre mail si rempli..."
                       className="min-h-14 text-sm"
@@ -268,6 +269,7 @@ export function StandsForm({
                       }}
                     />
                     <Textarea
+                      autoResize
                       value={l.commentaire ?? ""}
                       placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
                       className="min-h-16 text-sm"
