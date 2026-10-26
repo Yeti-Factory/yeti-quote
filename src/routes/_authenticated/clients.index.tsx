@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { backend } from "@/integrations/native/client";
-import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,7 +146,6 @@ export function ClientDialog({
   initial?: any;
   onSaved?: (id: string) => void;
 }) {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [form, setForm] = useState(() => makeClientForm(initial));
@@ -182,7 +180,7 @@ export function ClientDialog({
       } else {
         const { data, error } = await backend
           .from("clients")
-          .insert({ ...clientPayload, created_by: user!.id })
+          .insert(clientPayload)
           .select("id")
           .single();
         if (error) throw error;
