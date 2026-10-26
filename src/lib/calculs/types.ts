@@ -341,10 +341,7 @@ export function resolveLineMargePct(
 ): number {
   const cellMarge = getMargeParQuantite(line, quantityIndex);
   const lineMarge =
-    line.margePct !== null &&
-    line.margePct !== undefined &&
-    !Number.isNaN(line.margePct) &&
-    Number(line.margePct) !== Number(defaultMarge)
+    line.margePct !== null && line.margePct !== undefined && !Number.isNaN(line.margePct)
       ? line.margePct
       : null;
   return resolveMargePct(cellMarge, lineMarge, resolveMargePct(null, quantiteMarge, defaultMarge));
