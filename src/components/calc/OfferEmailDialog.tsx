@@ -40,6 +40,7 @@ import {
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { calculateCarbonEstimate, type CarbonEstimateResult } from "@/lib/carbon";
 import { fmtEUR } from "@/lib/format";
+import { isStandsOptionSection } from "@/lib/calculs/stands";
 
 type OfferRow = {
   rowKey?: string;
@@ -371,10 +372,6 @@ function normalizeSearch(value: unknown) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-}
-
-function isOptionLabel(value: unknown) {
-  return /\boptions?\b/.test(normalizeSearch(value));
 }
 
 function cleanDetails(details: string[] = []) {
@@ -727,7 +724,7 @@ function buildStandRows(
       group?.libelle || payload?.sections?.[index]?.libelle,
       `Groupe ${index + 1}`,
     );
-    const groupIsOption = isOptionLabel(groupLabel);
+    const groupIsOption = isStandsOptionSection(payload?.sections?.[index], groupLabel);
 
     if (detailedMainRows && hasInputLines) {
       for (const [lineIndex, line] of sectionLines.entries()) {

@@ -13,6 +13,7 @@ import {
   resolveMargePct,
 } from "@/lib/calculs/types";
 import { saveFileToDossierWorkspace } from "@/lib/dossier-workspace";
+import { isStandsOptionSection } from "@/lib/calculs/stands";
 
 export type SageExportRow = {
   reference: string;
@@ -110,10 +111,6 @@ function csvNumber(value: unknown, decimals = 2, decimalSeparator: "comma" | "do
     maximumFractionDigits: decimals,
   });
   return decimalSeparator === "dot" ? formatted.replace(",", ".") : formatted;
-}
-
-function isOptionLabel(value: unknown) {
-  return cleanText(value).toLowerCase().includes("option");
 }
 
 function selectedScenario(output: any, scenarioIndex: number) {
@@ -530,7 +527,7 @@ function buildStandRows(params: {
     const hasLines = Array.isArray(section?.lignes) && section.lignes.length > 0;
     if (!hasLines && Math.abs(unitPrice) < 0.005) return;
 
-    const isOption = isOptionLabel(group?.libelle || section?.libelle);
+    const isOption = isStandsOptionSection(section, group?.libelle);
     addCalculatedRow(isOption ? optionRows : mainRows, {
       dossier,
       meta,

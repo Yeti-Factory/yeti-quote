@@ -23,6 +23,8 @@ export type StandsSectionLine = {
 export type StandsSection = {
   libelle: string;
   lignes: StandsSectionLine[];
+  /** Displays this section separately in the Options section of client and Sage offers. */
+  isOption?: boolean;
   /** Marge groupe (%) — overrides default coef_marge_pct when set. */
   margePct?: number | null;
 };
@@ -61,6 +63,18 @@ export function resolveStandsSectionLabel(section: Pick<StandsSection, "libelle"
   if (isGenericStandSectionLabel(label))
     return STANDS_SECTIONS_DEFAUT[index] || `Groupe ${index + 1}`;
   return label;
+}
+
+export function isStandsOptionSection(
+  section: Pick<StandsSection, "isOption" | "libelle"> | null | undefined,
+  resolvedLabel?: unknown,
+) {
+  if (typeof section?.isOption === "boolean") return section.isOption;
+  const label = String(resolvedLabel ?? section?.libelle ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return /\boptions?\b/.test(label);
 }
 
 export type StandsGroupResult = {

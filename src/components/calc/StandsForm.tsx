@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Trash2,
@@ -20,6 +21,7 @@ import type { StandsInput, StandsParams } from "@/lib/calculs/stands";
 import {
   calculerStands,
   isGenericStandSectionLabel,
+  isStandsOptionSection,
   resolveStandsSectionLabel,
   STANDS_SECTIONS_DEFAUT,
 } from "@/lib/calculs/stands";
@@ -164,6 +166,25 @@ export function StandsForm({
                 >
                   Suppr.
                 </Button>
+              </div>
+            </div>
+            <div
+              className={`mb-3 flex items-center gap-2 rounded-md border px-3 py-2 ${isStandsOptionSection(sec, groupTitle) ? "border-primary/50 bg-primary/5" : "bg-muted/30"}`}
+            >
+              <Checkbox
+                checked={isStandsOptionSection(sec, groupTitle)}
+                aria-label="Afficher ce groupe dans les options de l'offre"
+                onCheckedChange={(checked) => {
+                  const next = [...value.sections];
+                  next[si] = { ...sec, isOption: checked === true };
+                  onChange({ ...value, sections: next });
+                }}
+              />
+              <div>
+                <div className="text-xs font-semibold">Option dans l’offre</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Ce groupe apparaîtra séparément après l’offre principale.
+                </div>
               </div>
             </div>
             <div className="border-2 rounded-md overflow-x-auto calc-table">
