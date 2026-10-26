@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { z } from "zod";
 import { backend } from "@/integrations/native/client";
-import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,8 +30,6 @@ export const Route = createFileRoute("/_authenticated/dossiers/new")({
 function NewDossier() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { user } = useAuth();
-
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
     queryFn: async () => {
@@ -74,7 +71,6 @@ function NewDossier() {
           email: client?.email ?? null,
           type,
           statut: "brouillon",
-          created_by: user!.id,
           ...workspaceFields(workspace),
         })
         .select("id")
@@ -140,15 +136,11 @@ function NewDossier() {
         <div className="rounded-md border p-4 space-y-2">
           <Label>Dossier de travail partagé *</Label>
           <p className="text-sm text-muted-foreground">
-            Choisissez ou créez le dossier client/projet dans l’espace Microsoft 365 commun. Tous les
-            utilisateurs de YetiQuote retrouveront le même emplacement.
+            Choisissez ou créez le dossier client/projet dans l’espace Microsoft 365 commun. Tous
+            les utilisateurs de YetiQuote retrouveront le même emplacement.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setWorkspacePickerOpen(true)}
-            >
+            <Button type="button" variant="outline" onClick={() => setWorkspacePickerOpen(true)}>
               <FolderOpen className="w-4 h-4 mr-1.5" />
               {workspace ? "Changer de dossier" : "Choisir ou créer le dossier"}
             </Button>

@@ -170,6 +170,7 @@ async function handle(request: Request, params: { dataset: string; operation: st
       const inserted: unknown[] = [];
       for (const raw of values) {
         const clean = writableValues(table, raw);
+        if (table === "clients" || table === "dossiers") clean.created_by = identity.id;
         if (table === "dossiers" && !String(clean.reference ?? "").trim()) delete clean.reference;
         const columns = Object.keys(clean);
         const sql = columns.length

@@ -99,7 +99,7 @@ function DossiersList() {
   }
 
   async function importPendingDossier(workspace: DossierWorkspace) {
-    if (!pendingImport || !user) return;
+    if (!pendingImport) return;
     setImporting(true);
     try {
       const importedId = await restoreDossierBackup(pendingImport, workspace);
@@ -116,8 +116,6 @@ function DossiersList() {
   }
 
   async function restoreDossierBackup(backup: DossierBackup, workspace: DossierWorkspace) {
-    if (!user) throw new Error("Utilisateur non connecte");
-
     const clientFields = {
       entreprise: backup.client.entreprise,
       contact: backup.client.contact ?? null,
@@ -168,7 +166,6 @@ function DossiersList() {
         .insert({
           id: backup.client.id,
           ...clientFields,
-          created_by: user.id,
           created_at: backup.client.created_at,
           updated_at: backup.client.updated_at,
         })
@@ -234,7 +231,6 @@ function DossiersList() {
       .insert({
         id: backup.dossier.id,
         ...dossierFields,
-        created_by: user.id,
         created_at: backup.dossier.created_at,
         updated_at: backup.dossier.updated_at,
       })
