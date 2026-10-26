@@ -723,16 +723,23 @@ function buildStandRows(
     const sectionLines = payload?.sections?.[index]?.lignes ?? [];
     const hasInputLines = sectionLines.length > 0;
     if (!hasInputLines && !(Number(group?.pvTotal) > 0)) continue;
-    const groupLabel =
-      group?.libelle || payload?.sections?.[index]?.libelle || `Groupe ${index + 1}`;
+    const groupLabel = cleanLabel(
+      group?.libelle || payload?.sections?.[index]?.libelle,
+      `Groupe ${index + 1}`,
+    );
     const groupIsOption = isOptionLabel(groupLabel);
 
     if (detailedMainRows && hasInputLines) {
       for (const [lineIndex, line] of sectionLines.entries()) {
         const result = group?.lignes?.[lineIndex];
+        const lineLabel = cleanLabel(line?.libelle, `Ligne ${lineIndex + 1}`);
+        const designation =
+          normalizeSearch(lineLabel) === normalizeSearch(groupLabel)
+            ? groupLabel
+            : `${groupLabel} — ${lineLabel}`;
         addRow(
           rows,
-          cleanLabel(line?.libelle, `${groupLabel} - ligne ${lineIndex + 1}`),
+          designation,
           quantite,
           Number(result?.pvTotalHorsFrais ?? result?.pvTotal) || 0,
           buildOptionRowDetails(line),
