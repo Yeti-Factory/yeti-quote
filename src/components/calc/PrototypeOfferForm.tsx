@@ -65,6 +65,7 @@ export function PrototypeOfferForm({ value, onChange }: PrototypeOfferFormProps)
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="offer-prototype-description">Descriptif du prototype</Label>
             <Textarea
+              autoResize
               id="offer-prototype-description"
               rows={3}
               value={prototype.description}
@@ -75,6 +76,7 @@ export function PrototypeOfferForm({ value, onChange }: PrototypeOfferFormProps)
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="offer-prototype-comment">Commentaire</Label>
             <Textarea
+              autoResize
               id="offer-prototype-comment"
               rows={2}
               value={prototype.comment}

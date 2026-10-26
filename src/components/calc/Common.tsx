@@ -368,12 +368,14 @@ export function LinesTable({
                 </div>
               </div>
               <Textarea
+                autoResize
                 value={l.descriptif ?? ""}
                 placeholder="Descriptif client : visible dans l'offre mail si rempli..."
                 className="col-span-full min-h-14 text-sm"
                 onChange={(e) => update(i, "descriptif", e.target.value)}
               />
               <Textarea
+                autoResize
                 value={l.commentaire ?? ""}
                 placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
                 className="col-span-full min-h-16 text-sm"
@@ -700,6 +702,7 @@ export function LinesGridTable({
                     <div />
                     <div />
                     <Textarea
+                      autoResize
                       value={l.descriptif ?? ""}
                       placeholder="Descriptif client : visible dans l'offre mail si rempli..."
                       className="min-h-14 text-sm"
@@ -707,6 +710,7 @@ export function LinesGridTable({
                       onChange={(e) => update(i, { descriptif: e.target.value })}
                     />
                     <Textarea
+                      autoResize
                       value={l.commentaire ?? ""}
                       placeholder="Commentaire interne : note de calcul, hypothèse, rappel..."
                       className="min-h-16 text-sm"

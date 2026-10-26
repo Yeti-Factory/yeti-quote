@@ -317,6 +317,7 @@ function ArticleEditor({
       <div>
         <Label>Descriptif fournisseur</Label>
         <Textarea
+          autoResize
           rows={3}
           value={article.description ?? ""}
           placeholder="Le descriptif de la ligne du devis est repris automatiquement."
