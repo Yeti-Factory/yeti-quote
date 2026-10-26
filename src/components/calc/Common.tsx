@@ -35,6 +35,11 @@ import {
  */
 export type MargeGuard = { standardPct: number };
 
+function inheritedMarginPlaceholder(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return "Marge héritée";
+  return `Héritée : ${Number(value).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
+}
+
 export function GuardedMargeInput({
   margePct,
   margeConfirmed,
@@ -137,7 +142,7 @@ export function QuantitesRow({
       ...quantites,
       margeGuard
         ? { qty: 0, margePct: margeGuard.standardPct, margeConfirmed: false }
-        : { qty: 0, margePct: defaultMargePct ?? null },
+        : { qty: 0, margePct: null },
     ]);
   }
   function remove(i: number) {
@@ -195,8 +200,8 @@ export function QuantitesRow({
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="Marge %"
-                  value={q.margePct ?? defaultMargePct ?? ""}
+                  placeholder={inheritedMarginPlaceholder(defaultMargePct)}
+                  value={q.margePct ?? ""}
                   onChange={(e) =>
                     updateMarge(i, e.target.value === "" ? null : Number(e.target.value))
                   }
@@ -333,8 +338,8 @@ export function LinesTable({
                 <Input
                   type="number"
                   step="0.01"
-                  value={l.margePct ?? defaultMargePct ?? ""}
-                  placeholder="marge %"
+                  value={l.margePct ?? ""}
+                  placeholder={inheritedMarginPlaceholder(defaultMargePct)}
                   className="text-right tabular-nums"
                   onChange={(e) =>
                     update(i, "margePct", e.target.value === "" ? null : Number(e.target.value))
@@ -456,7 +461,7 @@ export function LinesGridTable({
       l.margePct !== null && l.margePct !== undefined && !Number.isNaN(l.margePct)
         ? Number(l.margePct)
         : null;
-    const lineMarge = rawLineMarge !== defaultMargePct ? rawLineMarge : null;
+    const lineMarge = rawLineMarge;
     const quantityMarge = quantites[col]?.margePct;
     return (
       lineMarge ??
@@ -596,8 +601,8 @@ export function LinesGridTable({
                       <Input
                         type="number"
                         step="0.01"
-                        value={l.margePct ?? defaultMargePct ?? ""}
-                        placeholder="marge %"
+                        value={l.margePct ?? ""}
+                        placeholder={inheritedMarginPlaceholder(defaultMargePct)}
                         className="text-right tabular-nums"
                         onChange={(e) =>
                           update(i, {
@@ -679,8 +684,8 @@ export function LinesGridTable({
                           key={col}
                           type="number"
                           step="0.01"
-                          value={v ?? effectiveFallbackMarge(l, col)}
-                          placeholder="marge %"
+                          value={v ?? ""}
+                          placeholder={inheritedMarginPlaceholder(effectiveFallbackMarge(l, col))}
                           className="text-right tabular-nums"
                           onChange={(e) =>
                             updateMargeForQuantity(
@@ -716,7 +721,8 @@ export function LinesGridTable({
         </div>
       )}
       <p className="text-xs text-muted-foreground mt-2">
-        Chaque quantité utilise son propre prix d’achat.
+        Chaque quantité utilise son propre prix d’achat. Une marge vide hérite de la marge de la
+        ligne, de la quantité, puis du dossier.
       </p>
     </div>
   );

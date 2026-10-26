@@ -51,7 +51,8 @@ function Header({ meta }: { meta: Meta }) {
         <div>
           <h1>Feuille de calcul — {TypeLabel(meta.type)}</h1>
           <div style={{ fontSize: "9pt", color: "#333" }}>
-            <strong>{meta.reference || "(sans dossier)"}</strong> · {meta.objet || "(sans référence)"}
+            <strong>{meta.reference || "(sans dossier)"}</strong> ·{" "}
+            {meta.objet || "(sans référence)"}
           </div>
         </div>
       </div>
@@ -830,7 +831,7 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
         return (
           <section key={si}>
             <h2>
-              {sec.libelle} — Marge groupe{" "}
+              {sec.libelle} — Marge héritée du groupe{" "}
               {(g?.margePct ?? p.coef_marge_pct).toLocaleString("fr-FR", {
                 maximumFractionDigits: 2,
               })}{" "}
@@ -844,6 +845,9 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                   <th className="num" style={{ width: "14%" }}>
                     Prix achat
                   </th>
+                  <th className="num" style={{ width: "12%" }}>
+                    Marge
+                  </th>
                   <th className="num" style={{ width: "14%" }}>
                     Prix vente HT
                   </th>
@@ -852,7 +856,7 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
               <tbody>
                 {sec.lignes.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", color: "#666" }}>
+                    <td colSpan={5} style={{ textAlign: "center", color: "#666" }}>
                       Aucune ligne.
                     </td>
                   </tr>
@@ -862,16 +866,18 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                     <td className="strong">{l.libelle}</td>
                     <td>{l.fournisseur ?? ""}</td>
                     <td className="num">{fmtEUR(Number(l.prixUnitaire) || 0)}</td>
+                    <td className="num">{fmtPct((g?.lignes?.[li]?.margePct ?? 0) / 100)}</td>
                     <td className="num">{fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}</td>
                   </tr>
                 ))}
                 <tr className="total-row">
                   <td colSpan={2}>Total groupe</td>
                   <td className="num">{fmtEUR(g?.achatTotal ?? 0)}</td>
+                  <td />
                   <td className="num">{fmtEUR(g?.pvTotal ?? 0)}</td>
                 </tr>
                 <tr className="total-row">
-                  <td colSpan={3}>Marge groupe</td>
+                  <td colSpan={4}>Marge héritée du groupe</td>
                   <td className="num">{fmtPct((g?.margePct ?? p.coef_marge_pct) / 100)}</td>
                 </tr>
               </tbody>
@@ -891,6 +897,9 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
               <th className="num" style={{ width: "14%" }}>
                 Prix achat
               </th>
+              <th className="num" style={{ width: "12%" }}>
+                Marge
+              </th>
               <th className="num" style={{ width: "14%" }}>
                 Prix vente HT
               </th>
@@ -906,6 +915,7 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
                     <td className="strong">{line.libelle}</td>
                     <td>{line.fournisseur ?? ""}</td>
                     <td className="num">{fmtEUR(Number(line.prixUnitaire) || 0)}</td>
+                    <td className="num">{fmtPct((g?.lignes?.[li]?.margePct ?? 0) / 100)}</td>
                     <td className="num strong" style={{ color: "#E65100" }}>
                       {fmtEUR(g?.lignes?.[li]?.pvTotal ?? 0)}
                     </td>
@@ -916,6 +926,7 @@ function StandsPrint({ payload }: { payload: StandsInput }) {
             <tr className="total-row">
               <td colSpan={3}>Total stand</td>
               <td className="num">{fmtEUR(out.extra.totalAchatGroupes)}</td>
+              <td />
               <td className="num">{fmtEUR(out.extra.totalPvGroupes)}</td>
             </tr>
           </tbody>

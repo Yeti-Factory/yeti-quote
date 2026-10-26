@@ -16,6 +16,8 @@ export type StandsSectionLine = {
   /** Internal note saved with the dossier, never used in calculations. */
   commentaire?: string;
   prixUnitaire: number; // achat unitaire
+  /** Marge propre à la ligne (%). Vide : hérite de la marge du groupe, puis du dossier. */
+  margePct?: number | null;
 };
 
 export type StandsSection = {
@@ -73,6 +75,7 @@ export type StandsGroupResult = {
   pvTotal: number;
   lignes: Array<{
     achat: number;
+    margePct: number;
     pvTotalHorsFrais: number;
     fraisFixes: number;
     pvTotal: number;
@@ -95,16 +98,18 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   const baseGroupes = sections.map((sec, index) => {
     const achatTotal = sec.lignes.reduce((a, l) => a + (Number(l.prixUnitaire) || 0), 0);
     const margePct = resolveMargePct(sec.margePct, null, params.coef_marge_pct);
-    // creation extra applies globally
-    const facteur = (1 + margePct / 100) * (1 + params.marge_crea_pct / 100);
-    const pvTotalHorsFrais = achatTotal * facteur;
+    // Une ligne hérite du groupe, lequel hérite du dossier. La création reste globale.
     const lignes = sec.lignes.map((l) => {
       const achat = Number(l.prixUnitaire) || 0;
+      const lineMargePct = resolveMargePct(l.margePct, null, margePct);
+      const facteur = (1 + lineMargePct / 100) * (1 + params.marge_crea_pct / 100);
       return {
         achat,
+        margePct: lineMargePct,
         pvTotalHorsFrais: achat * facteur,
       };
     });
+    const pvTotalHorsFrais = lignes.reduce((sum, line) => sum + line.pvTotalHorsFrais, 0);
     return {
       libelle: resolveStandsSectionLabel(sec, index),
       achatTotal,

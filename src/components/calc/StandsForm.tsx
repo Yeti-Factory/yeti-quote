@@ -61,6 +61,7 @@ export function StandsForm({
       {value.sections.map((sec, si) => {
         const groupe = out.extra.groupes[si];
         const groupTitle = resolveStandsSectionLabel(sec, si);
+        const inheritedGroupMargin = sec.margePct ?? value.params.coef_marge_pct;
         return (
           <Card key={si} className="p-4 calc-section">
             <SectionHeader
@@ -85,15 +86,13 @@ export function StandsForm({
                 <div className="font-medium tabular-nums">{fmtEUR(groupe?.achatTotal ?? 0)}</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase text-muted-foreground">
-                  Coef. marge groupe %
-                </div>
+                <div className="text-[10px] uppercase text-muted-foreground">Marge groupe %</div>
                 <Input
                   type="number"
                   step="0.01"
                   className="h-8"
-                  placeholder="Coef. marge groupe %"
-                  value={sec.margePct ?? value.params.coef_marge_pct ?? ""}
+                  placeholder={`Héritée : ${Number(value.params.coef_marge_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`}
+                  value={sec.margePct ?? ""}
                   onChange={(e) => {
                     const next = [...value.sections];
                     next[si] = {
@@ -146,6 +145,7 @@ export function StandsForm({
                           descriptif: "",
                           commentaire: "",
                           prixUnitaire: 0,
+                          margePct: null,
                         },
                       ],
                     };
@@ -167,10 +167,11 @@ export function StandsForm({
               </div>
             </div>
             <div className="border-2 rounded-md overflow-x-auto calc-table">
-              <div className="grid min-w-[780px] grid-cols-[1fr_160px_140px_140px_36px] gap-2 px-2 py-1.5 border-b-2 bg-muted/40 text-xs uppercase font-bold text-primary">
+              <div className="grid min-w-[920px] grid-cols-[1fr_160px_140px_130px_140px_36px] gap-2 px-2 py-1.5 border-b-2 bg-muted/40 text-xs uppercase font-bold text-primary">
                 <div>Libellé</div>
                 <div>Fournisseur</div>
                 <div className="text-right">Prix achat</div>
+                <div className="text-right">Marge ligne %</div>
                 <div className="text-right">Prix vente HT</div>
                 <div />
               </div>
@@ -183,7 +184,7 @@ export function StandsForm({
                 {sec.lignes.map((l, li) => (
                   <div
                     key={li}
-                    className="calc-row grid min-w-[780px] grid-cols-[1fr_160px_140px_140px_36px] gap-2 px-2 py-1.5 items-center border-b-2 last:border-b-0"
+                    className="calc-row grid min-w-[920px] grid-cols-[1fr_160px_140px_130px_140px_36px] gap-2 px-2 py-1.5 items-center border-b-2 last:border-b-0"
                   >
                     <Input
                       value={l.libelle}
@@ -218,6 +219,23 @@ export function StandsForm({
                         const next = [...value.sections];
                         const lignes = [...sec.lignes];
                         lignes[li] = { ...l, prixUnitaire: Number(e.target.value) || 0 };
+                        next[si] = { ...sec, lignes };
+                        onChange({ ...value, sections: next });
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={l.margePct ?? ""}
+                      placeholder={`Héritée : ${Number(inheritedGroupMargin).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`}
+                      className="text-right tabular-nums"
+                      onChange={(e) => {
+                        const next = [...value.sections];
+                        const lignes = [...sec.lignes];
+                        lignes[li] = {
+                          ...l,
+                          margePct: e.target.value === "" ? null : Number(e.target.value),
+                        };
                         next[si] = { ...sec, lignes };
                         onChange({ ...value, sections: next });
                       }}
@@ -266,6 +284,10 @@ export function StandsForm({
                 ))}
               </div>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Une marge de ligne vide hérite de la marge du groupe ; une marge de groupe vide hérite
+              de la marge générique du dossier.
+            </p>
           </Card>
         );
       })}
@@ -277,7 +299,7 @@ export function StandsForm({
             ...value,
             sections: [
               ...value.sections,
-              { libelle: "Nouvelle section", lignes: [], margePct: value.params.coef_marge_pct },
+              { libelle: "Nouvelle section", lignes: [], margePct: null },
             ],
           })
         }
