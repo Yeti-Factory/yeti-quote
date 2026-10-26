@@ -140,7 +140,12 @@ function defaultPayload(type: string, params: any) {
   // stands
   return {
     quantites: [{ qty: 1, margePct: null }],
-    sections: STANDS_SECTIONS_DEFAUT.map((l) => ({ libelle: l, lignes: [], margePct: null })),
+    sections: STANDS_SECTIONS_DEFAUT.map((l) => ({
+      libelle: l,
+      lignes: [],
+      isOption: l === "Options",
+      margePct: null,
+    })),
     params: { ...STANDS_DEFAULTS, ...(params ?? {}) },
   } satisfies StandsInput;
 }
