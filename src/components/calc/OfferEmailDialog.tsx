@@ -709,7 +709,12 @@ function buildContraRows(
   return rows;
 }
 
-function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
+function buildStandRows(
+  payload: any,
+  output: any,
+  scenario: any,
+  detailedMainRows = false,
+): OfferRow[] {
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
   const groups = output?.extra?.groupes ?? [];
@@ -721,6 +726,24 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
     const groupLabel =
       group?.libelle || payload?.sections?.[index]?.libelle || `Groupe ${index + 1}`;
     const groupIsOption = isOptionLabel(groupLabel);
+
+    if (detailedMainRows && hasInputLines) {
+      for (const [lineIndex, line] of sectionLines.entries()) {
+        const result = group?.lignes?.[lineIndex];
+        addRow(
+          rows,
+          cleanLabel(line?.libelle, `${groupLabel} - ligne ${lineIndex + 1}`),
+          quantite,
+          Number(result?.pvTotalHorsFrais ?? result?.pvTotal) || 0,
+          buildOptionRowDetails(line),
+          groupIsOption,
+          Number(result?.achat) || 0,
+          `stands-${index}-${lineIndex}`,
+        );
+      }
+      continue;
+    }
+
     const details = hasInputLines
       ? sectionLines.map((line: any, lineIndex: number) =>
           buildLineDetail(line, `${groupLabel} - ligne ${lineIndex + 1}`),
@@ -735,6 +758,7 @@ function buildStandRows(payload: any, output: any, scenario: any): OfferRow[] {
       details,
       groupIsOption,
       Number(group?.achatTotal) || 0,
+      `stands-group-${index}`,
     );
   }
 
@@ -767,7 +791,7 @@ function buildOfferRows(
     );
   if (type === "contra")
     return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
-  if (type === "stands") return buildStandRows(payload, output, scenario);
+  if (type === "stands") return buildStandRows(payload, output, scenario, detailedMainRows);
   return [];
 }
 
@@ -1998,8 +2022,17 @@ export function OfferEmailDialog({
 
     if (!scenario || !selectedItem) return null;
 
-    const rawRows = buildOfferRows(dossier?.type, payload, output, scenario, selectedItem.index);
-    const rows = reconcileRows(rawRows, scenario);
+    const detailedMainRows = !showGlobalTotals && showLineSubtotals;
+    const rawRows = buildOfferRows(
+      dossier?.type,
+      payload,
+      output,
+      scenario,
+      selectedItem.index,
+      "Base",
+      detailedMainRows,
+    );
+    const rows = reconcileRows(distributeFixedFees(rawRows, scenario), scenario);
     const mainRows = rows.filter((row) => !row.isOption);
     const optionRows = rows.filter((row) => row.isOption);
     const mainTotalHT = rowsTotal(mainRows);
