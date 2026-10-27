@@ -849,8 +849,8 @@ function DossierDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 mb-4">
-          <Card className="p-4 space-y-3 xl:col-span-1">
+        <div className="mb-4 space-y-4">
+          <Card className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
             <div>
               <Label>Dossier</Label>
               <Input
@@ -905,7 +905,7 @@ function DossierDetail() {
                 Conversion directe disponible entre Standard et Contra.
               </p>
             </div>
-            <div>
+            <div className="xl:col-span-2">
               <Label>Dossier de travail partagé</Label>
               <div className="mt-1 rounded-md border p-3 space-y-2">
                 <div className={workspace ? "text-sm font-medium" : "text-sm text-destructive"}>
@@ -935,7 +935,7 @@ function DossierDetail() {
                 </p>
               </div>
             </div>
-            <div>
+            <div className="xl:col-span-2">
               <Label>Note / lien dossier OneDrive</Label>
               <Textarea
                 autoResize
@@ -946,7 +946,7 @@ function DossierDetail() {
             </div>
           </Card>
 
-          <div className="xl:col-span-3 space-y-4">
+          <div className="space-y-4">
             <CommonOfferInfoForm
               value={payload.offerCommonInfo}
               onChange={(offerCommonInfo) => setPayload({ ...payload, offerCommonInfo })}
