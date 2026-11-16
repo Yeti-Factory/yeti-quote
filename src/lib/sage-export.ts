@@ -736,6 +736,46 @@ function combineRows(
   };
 }
 
+function roundCurrency(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Sage accepts only two decimals for the imported unit price. For quantities
+ * greater than one, that can move the line total by a few cents compared with
+ * YetiQuote's internal calculation. Add one transparent balancing line so the
+ * final Sage quote keeps the exact same total as the offer.
+ */
+function addSageRoundingAdjustment(rows: SageExportRow[]) {
+  if (rows.length === 0) return rows;
+
+  const expectedTotal = roundCurrency(rows.reduce((sum, row) => sum + row.montantHT, 0));
+  const sageTotal = roundCurrency(
+    rows.reduce(
+      (sum, row) => sum + roundCurrency(roundCurrency(row.prixUnitaireHT) * row.quantite),
+      0,
+    ),
+  );
+  const adjustment = roundCurrency(expectedTotal - sageTotal);
+  if (Math.abs(adjustment) < 0.005) return rows;
+
+  const template = rows.find((row) => row.option !== "Oui") ?? rows[0];
+  return [
+    ...rows,
+    {
+      ...template,
+      numeroLigne: rows.length + 1,
+      codeArticle: "YQ-ARRONDI",
+      designation: "Ajustement d'arrondi",
+      description: "",
+      quantite: 1,
+      prixUnitaireHT: adjustment,
+      montantHT: adjustment,
+      option: "Non",
+    },
+  ];
+}
+
 export function prepareSageQuoteRows(params: {
   dossier: any;
   meta: { reference: string; objet: string };
@@ -751,7 +791,9 @@ export function prepareSageQuoteRows(params: {
     : allRows;
   const lineMode = params.options?.lineMode ?? "detailed";
 
-  if (lineMode === "detailed") return renumberRows(selectedRows);
+  if (lineMode === "detailed") {
+    return renumberRows(addSageRoundingAdjustment(selectedRows));
+  }
 
   const quoteReference = cleanText(params.meta.objet || params.dossier?.objet || "Prestation");
   if (lineMode === "single_total") {
@@ -821,9 +863,7 @@ export function makeSageQuoteCsv(params: {
       depotCode,
       cleanText(row.designation),
       csvNumber(row.quantite, 3, "dot"),
-      // Sage displays two decimals but calculates line totals from the imported
-      // unit price. Keep four decimals so its rounded totals match YetiQuote.
-      csvNumber(row.prixUnitaireHT, 4, "dot"),
+      csvNumber(row.prixUnitaireHT, 2, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
       "",
       "",
