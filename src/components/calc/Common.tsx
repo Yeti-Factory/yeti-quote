@@ -25,6 +25,8 @@ import {
   reshapeTransportParQuantite,
   reshapeMargeParQuantite,
   reshapeMargeParQuantiteConfirmed,
+  reshapeQuantitesActives,
+  isLineActiveForQuantity,
   isOptionLine,
 } from "@/lib/calculs/types";
 
@@ -426,6 +428,10 @@ export function LinesGridTable({
     return reshapeMargeParQuantiteConfirmed(l, qCount);
   }
 
+  function ensureActiveArr(l: LineItem): boolean[] {
+    return reshapeQuantitesActives(l, qCount);
+  }
+
   function update(i: number, patch: Partial<LineItem>) {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
@@ -456,6 +462,12 @@ export function LinesGridTable({
     arr[col] = margePct;
     confirmedArr[col] = margeConfirmed;
     update(i, { margeParQuantite: arr, margeParQuantiteConfirmed: confirmedArr });
+  }
+
+  function toggleQuantity(i: number, col: number, checked: boolean) {
+    const arr = ensureActiveArr(lines[i]);
+    arr[col] = checked;
+    update(i, { quantitesActives: arr });
   }
 
   function effectiveFallbackMarge(l: LineItem, col: number) {
@@ -506,6 +518,7 @@ export function LinesGridTable({
         transportParQuantite: Array.from({ length: qCount }, () => 0),
         margeParQuantite: Array.from({ length: qCount }, () => null),
         margeParQuantiteConfirmed: Array.from({ length: qCount }, () => false),
+        quantitesActives: Array.from({ length: qCount }, () => true),
         margePct: margeGuard ? margeGuard.standardPct : null,
         ...(margeGuard ? { margeConfirmed: false } : {}),
       },
@@ -560,6 +573,7 @@ export function LinesGridTable({
                 const transportArr = ensureTransportArr(l);
                 const margeArr = ensureMargeArr(l);
                 const margeConfirmedArr = ensureMargeConfirmedArr(l);
+                const activeArr = ensureActiveArr(l);
                 return (
                   <div
                     key={i}
@@ -586,6 +600,7 @@ export function LinesGridTable({
                         value={v || ""}
                         placeholder="—"
                         className="text-right tabular-nums"
+                        disabled={!isLineActiveForQuantity(l, col)}
                         onChange={(e) =>
                           updatePrice(i, col, e.target.value === "" ? 0 : Number(e.target.value))
                         }
@@ -622,6 +637,30 @@ export function LinesGridTable({
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
                     <div
+                      className="flex flex-wrap items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2"
+                      style={{ gridColumn: "1 / -1" }}
+                    >
+                      <div className="mr-2">
+                        <div className="text-xs font-semibold">Quantités de cet article</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Seules les quantités cochées seront proposées et exportées.
+                        </div>
+                      </div>
+                      {quantites.map((q, col) => (
+                        <label
+                          key={col}
+                          className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold ${activeArr[col] ? "border-primary bg-background text-primary" : "bg-muted/50 text-muted-foreground"}`}
+                        >
+                          <Checkbox
+                            checked={activeArr[col]}
+                            aria-label={`Proposer la quantité ${q.qty} pour cet article`}
+                            onCheckedChange={(checked) => toggleQuantity(i, col, checked === true)}
+                          />
+                          Qté {(Number(q.qty) || 0).toLocaleString("fr-FR")}
+                        </label>
+                      ))}
+                    </div>
+                    <div
                       className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
                       style={{ gridColumn: "1 / -1" }}
                     >
@@ -651,6 +690,7 @@ export function LinesGridTable({
                         value={v || ""}
                         placeholder="0"
                         className="text-right tabular-nums"
+                        disabled={!isLineActiveForQuantity(l, col)}
                         onChange={(e) =>
                           updateTransport(
                             i,
@@ -679,6 +719,7 @@ export function LinesGridTable({
                           clearValue={null}
                           placeholder="marge %"
                           className="text-right tabular-nums"
+                          disabled={!isLineActiveForQuantity(l, col)}
                           onCommit={(m, c) => updateMargeForQuantity(i, col, m, c)}
                         />
                       ) : (
@@ -689,6 +730,7 @@ export function LinesGridTable({
                           value={v ?? ""}
                           placeholder={inheritedMarginPlaceholder(effectiveFallbackMarge(l, col))}
                           className="text-right tabular-nums"
+                          disabled={!isLineActiveForQuantity(l, col)}
                           onChange={(e) =>
                             updateMargeForQuantity(
                               i,
@@ -725,15 +767,16 @@ export function LinesGridTable({
         </div>
       )}
       <p className="text-xs text-muted-foreground mt-2">
-        Chaque quantité utilise son propre prix d’achat. Une marge vide hérite de la marge de la
-        ligne, de la quantité, puis du dossier.
+        Les quantités sont choisies article par article. Chaque quantité active utilise son propre
+        prix d’achat ; une marge vide hérite de la marge de la ligne, de la quantité, puis du
+        dossier.
       </p>
     </div>
   );
 }
 
 /**
- * Transport / Packaging block: one global amount per quantity column.
+ * Global transport block: one amount for the whole quote per quantity column.
  * Displays computed unit cost read-only. Optional margin (%) override.
  */
 export function TransportPackagingBlock({
@@ -785,13 +828,17 @@ export function TransportPackagingBlock({
     <div>
       <div className="flex items-center justify-between mb-2 gap-2">
         <div>
-          <Label className="text-sm font-semibold">Transport / Packaging</Label>
+          <Label className="text-sm font-semibold">Transport global</Label>
           <p className="text-xs text-muted-foreground">
             {margeGuard
               ? `Participe au partage Contra/Yeti — marge standard ${margeGuard.standardPct} %.`
               : useDefaultMarginWhenEmpty
                 ? "Marge vide : priorité marge quantité, puis marge par défaut."
-                : "Marge optionnelle — laissée vide, T/P est refacturé sans marge."}
+                : "Marge optionnelle — laissée vide, le transport est refacturé sans marge."}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Un seul montant pour l’ensemble des articles ; l’offre affiche une seule ligne «
+            Transport ».
           </p>
         </div>
 
@@ -802,7 +849,7 @@ export function TransportPackagingBlock({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="global">Transport à chiffrer</SelectItem>
+                <SelectItem value="global">Transport global à chiffrer</SelectItem>
                 <SelectItem value="inclus">Transport inclus</SelectItem>
                 <SelectItem value="depart_ateliers">Prix départ ateliers</SelectItem>
               </SelectContent>
@@ -880,7 +927,7 @@ export function TransportPackagingBlock({
       </div>
       {qCount === 0 ? (
         <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
-          Ajoutez au moins une quantité pour saisir le Transport / Packaging.
+          Ajoutez au moins une quantité pour saisir le transport global.
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">

@@ -9,6 +9,7 @@ import {
   getTransportLigneGlobal,
   getTransportLigneUnit,
   resolveLineMargePct,
+  isLineActiveForQuantity,
   type Quantite,
   type TransportPackaging,
   type Outillage,
@@ -183,7 +184,12 @@ function LineTable({
           {lines.map((l, i) => {
             const globalAmount = Number(l.montantGlobal) || 0;
             const hasLineTransport =
-              isGrid && qs.some((_q, qi) => Math.abs(getTransportLigneGlobal(l, qi)) > 0.005);
+              isGrid &&
+              qs.some(
+                (_q, qi) =>
+                  isLineActiveForQuantity(l, qi) &&
+                  Math.abs(getTransportLigneGlobal(l, qi)) > 0.005,
+              );
             return (
               <Fragment key={i}>
                 <tr>
@@ -192,7 +198,7 @@ function LineTable({
                   {isGrid ? (
                     qs.map((_q, qi) => (
                       <td key={`a${qi}`} className="num">
-                        {fmtEUR(getPrixAchat(l, qi))}
+                        {isLineActiveForQuantity(l, qi) ? fmtEUR(getPrixAchat(l, qi)) : "—"}
                       </td>
                     ))
                   ) : (
@@ -205,6 +211,13 @@ function LineTable({
                     %
                   </td>
                   {qs.map((q, qi) => {
+                    if (isGrid && !isLineActiveForQuantity(l, qi)) {
+                      return (
+                        <td key={`pv${qi}`} className="num">
+                          —
+                        </td>
+                      );
+                    }
                     const m = isContra
                       ? resolveContraLineMargePct(l, qi, q.margePct, q.margeConfirmed)
                       : isGrid
@@ -232,13 +245,17 @@ function LineTable({
                     <td />
                     {qs.map((_q, qi) => (
                       <td key={`tl${qi}`} className="num" style={{ color: "#666" }}>
-                        {fmtEUR(getTransportLigneGlobal(l, qi))}
+                        {isLineActiveForQuantity(l, qi)
+                          ? fmtEUR(getTransportLigneGlobal(l, qi))
+                          : "—"}
                       </td>
                     ))}
                     <td />
                     {qs.map((q, qi) => (
                       <td key={`tlu${qi}`} className="num" style={{ color: "#666" }}>
-                        {q.qty > 0 ? fmtEUR(getTransportLigneUnit(l, qi, q.qty)) + " /u" : "—"}
+                        {isLineActiveForQuantity(l, qi) && q.qty > 0
+                          ? fmtEUR(getTransportLigneUnit(l, qi, q.qty)) + " /u"
+                          : "—"}
                       </td>
                     ))}
                   </tr>
@@ -283,7 +300,7 @@ function TransportPackagingTable({
       : "Sans marge (refacturé au coût)";
   return (
     <section>
-      <h2>Transport / Packaging — {marginLabel}</h2>
+      <h2>Transport global — {marginLabel}</h2>
       <table>
         <thead>
           <tr>
@@ -451,7 +468,7 @@ function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: num
             ))}
           </tr>
           <tr>
-            <td>Transport / Packaging /u</td>
+            <td>Transport global /u</td>
             {scenarios.map((s: any, i: number) => (
               <td key={i} className="num">
                 {fmtEUR(s.contraTransportUnit ?? 0)}
@@ -501,10 +518,10 @@ function BonCommandeContraTable({ output, coefPct }: { output: any; coefPct: num
         </tbody>
       </table>
       <div style={{ fontSize: "8pt", color: "#555", marginTop: "3pt" }}>
-        Base unitaire = achat brut + forfaits + Transport / Packaging + outillage. Prix facturé
-        Contra = base × {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}.
-        Ce prix facturé est le prix d'achat final utilisé par Yeti pour calculer le prix de vente
-        client (marge résiduelle Yeti).
+        Base unitaire = achat brut + forfaits + transport global + outillage. Prix facturé Contra =
+        base × {(1 + coefPct / 100).toLocaleString("fr-FR", { maximumFractionDigits: 4 })}. Ce prix
+        facturé est le prix d'achat final utilisé par Yeti pour calculer le prix de vente client
+        (marge résiduelle Yeti).
       </div>
     </section>
   );
@@ -538,7 +555,7 @@ function ResultsTable({ output }: { output: any }) {
   }[] = [
     { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR },
     {
-      label: "Transport / Packaging /u",
+      label: "Transport global /u",
       key: "transportPackagingUnit",
       fmt: fmtEUR,
       optional: true,
@@ -681,7 +698,11 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
   const fixedFeeBasisUnit = (qi: number) => {
     const q = qs[qi]?.qty ?? 0;
     const achats = (payload.achatsPrincipaux ?? []).reduce(
-      (sum, line) => sum + getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q),
+      (sum, line) =>
+        sum +
+        (isLineActiveForQuantity(line, qi)
+          ? getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q)
+          : 0),
       0,
     );
     const tpUnit = q > 0 ? (Number(tp.montantsGlobaux[qi]) || 0) / q : 0;
@@ -745,7 +766,10 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
     const q = qs[qi]?.qty ?? 0;
     const achats = (payload.achatsContra ?? []).reduce(
       (sum, line) =>
-        sum + (getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q)) * contraFactor,
+        sum +
+        (isLineActiveForQuantity(line, qi)
+          ? (getPrixAchat(line, qi) + getTransportLigneUnit(line, qi, q)) * contraFactor
+          : 0),
       0,
     );
     const forfaits =

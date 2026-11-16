@@ -12,6 +12,7 @@ import {
   normalizeTransportPackaging,
   normalizeOutillage,
   getPrixAchat,
+  isLineActiveForQuantity,
   getMargeParQuantite,
   getMargeParQuantiteConfirmed,
   getTransportLigneGlobal,
@@ -209,13 +210,16 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     const mqConfirmed = quant.margeConfirmed;
 
     // 1) Bases BRUTES transmises par Contra
-    const rawAchatUnit = achatsContra.reduce((s, l) => s + getPrixAchat(l, qi), 0);
+    const rawAchatUnit = achatsContra.reduce(
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getPrixAchat(l, qi) : 0),
+      0,
+    );
     const transportLignesGlobal = achatsContra.reduce(
-      (s, l) => s + getTransportLigneGlobal(l, qi),
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getTransportLigneGlobal(l, qi) : 0),
       0,
     );
     const transportLignesUnit = achatsContra.reduce(
-      (s, l) => s + getTransportLigneUnit(l, qi, Q),
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getTransportLigneUnit(l, qi, Q) : 0),
       0,
     );
     const rawForfaitUnit = Q > 0 ? sumForfaitsGlobal / Q : 0;
@@ -245,6 +249,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
     //    Par ligne : brut × coefficient global Contra/Yeti tronqué à 3 décimales.
     let pvUnitAchats = 0;
     for (const l of achatsContra) {
+      if (!isLineActiveForQuantity(l, qi)) continue;
       const raw = getPrixAchat(l, qi) + getTransportLigneUnit(l, qi, Q);
       const mYeti = resolveContraLineMargePct(l, qi, mq, mqConfirmed);
       pvUnitAchats += pvFromContraSharedRaw(raw, coefContra, mYeti);

@@ -4,6 +4,7 @@ import {
   reshapeTransportParQuantite,
   reshapeMargeParQuantite,
   reshapeMargeParQuantiteConfirmed,
+  reshapeQuantitesActives,
   normalizeTransportPackaging,
 } from "@/lib/calculs/types";
 
@@ -19,14 +20,21 @@ export function syncLinesWithQuantites<T extends LineItem>(
   lines: T[],
 ): T[] {
   if (newQ.length > oldQ.length) {
-    // Add: extend each line's array to the new length (fill with last known).
-    return lines.map((l) => ({
-      ...l,
-      prixParQuantite: reshapePrixParQuantite(l, newQ.length),
-      transportParQuantite: reshapeTransportParQuantite(l, newQ.length),
-      margeParQuantite: reshapeMargeParQuantite(l, newQ.length),
-      margeParQuantiteConfirmed: reshapeMargeParQuantiteConfirmed(l, newQ.length),
-    }));
+    // A newly added dossier quantity does not silently attach itself to lines
+    // that already had an explicit selection. Legacy lines keep all selected.
+    return lines.map((l) => {
+      const quantitesActives = Array.isArray(l.quantitesActives)
+        ? [...reshapeQuantitesActives(l, oldQ.length), false]
+        : Array.from({ length: newQ.length }, () => true);
+      return {
+        ...l,
+        prixParQuantite: reshapePrixParQuantite(l, newQ.length),
+        transportParQuantite: reshapeTransportParQuantite(l, newQ.length),
+        margeParQuantite: reshapeMargeParQuantite(l, newQ.length),
+        margeParQuantiteConfirmed: reshapeMargeParQuantiteConfirmed(l, newQ.length),
+        quantitesActives,
+      };
+    });
   }
   if (newQ.length < oldQ.length) {
     // Remove: find the first differing index by reference — that's the removed slot.
@@ -42,16 +50,19 @@ export function syncLinesWithQuantites<T extends LineItem>(
       const transportArr = reshapeTransportParQuantite(l, oldQ.length);
       const margeArr = reshapeMargeParQuantite(l, oldQ.length);
       const margeConfirmedArr = reshapeMargeParQuantiteConfirmed(l, oldQ.length);
+      const quantitesActives = reshapeQuantitesActives(l, oldQ.length);
       arr.splice(removed, 1);
       transportArr.splice(removed, 1);
       margeArr.splice(removed, 1);
       margeConfirmedArr.splice(removed, 1);
+      quantitesActives.splice(removed, 1);
       return {
         ...l,
         prixParQuantite: arr,
         transportParQuantite: transportArr,
         margeParQuantite: margeArr,
         margeParQuantiteConfirmed: margeConfirmedArr,
+        quantitesActives,
       };
     });
   }

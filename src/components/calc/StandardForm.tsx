@@ -48,7 +48,12 @@ export function StandardForm({
   return (
     <div className="space-y-5">
       <Card className="p-4 calc-section emphasis">
-        <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
+        <SectionHeader
+          title="Quantités disponibles"
+          subtitle="à rattacher ensuite à chaque article"
+          tone="orange"
+          icon={<Layers className="w-3.5 h-3.5" />}
+        />
         <QuantitesRow
           quantites={value.quantites}
           onChange={handleQuantitesChange}
@@ -75,7 +80,7 @@ export function StandardForm({
         </div>
         <div>
           <SectionHeader
-            title="Transport / Packaging"
+            title="Transport global"
             subtitle="montant global par quantité, divisé automatiquement"
             tone="muted"
             icon={<Truck className="w-3.5 h-3.5" />}

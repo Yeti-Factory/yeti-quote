@@ -16,6 +16,7 @@ import {
   getPrixAchat,
   getTransportLigneGlobal,
   getTransportLigneUnit,
+  isLineActiveForQuantity,
 } from "./types";
 
 export type StandardParams = {
@@ -58,14 +59,17 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     const Q = Number(quant.qty) || 0;
     const mq = quant.margePct;
     const transportLignesGlobal = achatsPrincipaux.reduce(
-      (s, l) => s + getTransportLigneGlobal(l, qi),
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getTransportLigneGlobal(l, qi) : 0),
       0,
     );
     const transportLignesUnit = achatsPrincipaux.reduce(
-      (s, l) => s + getTransportLigneUnit(l, qi, Q),
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getTransportLigneUnit(l, qi, Q) : 0),
       0,
     );
-    const sumPrincipaux = achatsPrincipaux.reduce((s, l) => s + getPrixAchat(l, qi), 0);
+    const sumPrincipaux = achatsPrincipaux.reduce(
+      (s, l) => s + (isLineActiveForQuantity(l, qi) ? getPrixAchat(l, qi) : 0),
+      0,
+    );
     const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
     const outillageGlobal = Number(outillage.montantGlobal) || 0;
@@ -87,6 +91,7 @@ export function calculerStandard(input: StandardInput): CalcOutput {
     // Per-line PV using effective margin (line > quantity > default).
     let pvUnit = 0;
     for (const l of achatsPrincipaux) {
+      if (!isLineActiveForQuantity(l, qi)) continue;
       const m = resolveLineMargePct(l, qi, mq, params.coef_marge_pct);
       const lineBase = getPrixAchat(l, qi) + getTransportLigneUnit(l, qi, Q);
       pvUnit += lineBase * (1 + m / 100);

@@ -8,12 +8,13 @@ import {
   getPrixAchat,
   getTransportLigneUnit,
   isOptionLine,
+  isLineActiveForQuantity,
   normalizeTransportPackaging,
   resolveLineMargePct,
   resolveMargePct,
 } from "@/lib/calculs/types";
 import { saveFileToDossierWorkspace } from "@/lib/dossier-workspace";
-import { isStandsOptionSection } from "@/lib/calculs/stands";
+import { isStandsOptionSection, isStandsTransportSection } from "@/lib/calculs/stands";
 
 export type SageExportRow = {
   reference: string;
@@ -118,17 +119,6 @@ function selectedScenario(output: any, scenarioIndex: number) {
   return (
     scenarios[scenarioIndex] ?? scenarios.find((scenario: any) => Number(scenario?.quantite) > 0)
   );
-}
-
-function lineDetails(lines: any[]) {
-  return lines
-    .map((line) => {
-      const label = cleanText(line?.libelle);
-      const description = cleanText(line?.descriptif);
-      return [label, description].filter(Boolean).join(" : ");
-    })
-    .filter(Boolean)
-    .join(" | ");
 }
 
 function scenarioQuantity(scenario: any) {
@@ -283,6 +273,7 @@ function buildStandardRows(params: {
   const optionRows: SageExportRow[] = [];
 
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
+    if (!isLineActiveForQuantity(line, scenarioIndex)) continue;
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
     const lineBase = achat + transportLigneUnit;
@@ -307,7 +298,7 @@ function buildStandardRows(params: {
     dossier,
     meta,
     codeArticle: "YQ-TRANSPORT",
-    designation: "Transport / Packaging",
+    designation: "Transport",
     description: "",
     quantity,
     unitPrice: tpUnit * (1 + tpMarge / 100),
@@ -393,6 +384,7 @@ function buildContraRows(params: {
   const optionRows: SageExportRow[] = [];
 
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
+    if (!isLineActiveForQuantity(line, scenarioIndex)) continue;
     const raw = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantity);
     const lineBase = raw + transportLigneUnit;
@@ -447,7 +439,7 @@ function buildContraRows(params: {
     dossier,
     meta,
     codeArticle: "YQ-TRANSPORT",
-    designation: "Transport / Packaging",
+    designation: "Transport",
     description: "",
     quantity,
     unitPrice: pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
@@ -517,25 +509,67 @@ function buildStandRows(params: {
   const scenario = selectedScenario(output, scenarioIndex);
   if (!scenario) return [];
   const quantity = Number(scenario.quantite) || 1;
-  const groups = Array.isArray(output?.extra?.groupes) ? output.extra.groupes : [];
+  const scenarioGroups = output?.extra?.groupesParQuantite?.[scenarioIndex];
+  const groups = Array.isArray(scenarioGroups)
+    ? scenarioGroups
+    : Array.isArray(output?.extra?.groupes)
+      ? output.extra.groupes
+      : [];
   let mainRows: SageExportRow[] = [];
   const optionRows: SageExportRow[] = [];
 
   groups.forEach((group: any, index: number) => {
-    const unitPrice = Number(group?.pvTotal) || 0;
     const section = payload?.sections?.[index];
     const hasLines = Array.isArray(section?.lignes) && section.lignes.length > 0;
-    if (!hasLines && Math.abs(unitPrice) < 0.005) return;
-
     const isOption = isStandsOptionSection(section, group?.libelle);
+    const isGlobalTransport =
+      section?.transportGlobal === true && isStandsTransportSection(section, group?.libelle);
+    const groupLabel = cleanText(group?.libelle || section?.libelle || `Section ${index + 1}`);
+    if (isGlobalTransport) {
+      addCalculatedRow(isOption ? optionRows : mainRows, {
+        dossier,
+        meta,
+        codeArticle: isOption ? "YQ-OPTION" : "YQ-TRANSPORT",
+        designation: "Transport",
+        description: "",
+        quantity,
+        unitPrice: Number(group?.pvTotal) || 0,
+        option: isOption,
+      });
+      return;
+    }
+
+    if (hasLines) {
+      section.lignes.forEach((line: any, lineIndex: number) => {
+        const result = group?.lignes?.[lineIndex];
+        if (result?.active === false) return;
+        const lineLabel = cleanText(line?.libelle || `Ligne ${lineIndex + 1}`);
+        const designation =
+          lineLabel.toLocaleLowerCase("fr-FR") === groupLabel.toLocaleLowerCase("fr-FR")
+            ? groupLabel
+            : `${groupLabel} — ${lineLabel}`;
+        addCalculatedRow(isOption ? optionRows : mainRows, {
+          dossier,
+          meta,
+          codeArticle: isOption ? "YQ-OPTION" : "YQ-STAND",
+          designation,
+          description: cleanText(line?.descriptif),
+          quantity,
+          unitPrice: Number(result?.pvTotal) || 0,
+          option: isOption,
+        });
+      });
+      return;
+    }
+
     addCalculatedRow(isOption ? optionRows : mainRows, {
       dossier,
       meta,
       codeArticle: isOption ? "YQ-OPTION" : "YQ-STAND",
-      designation: cleanText(group?.libelle || section?.libelle || `Section ${index + 1}`),
-      description: lineDetails(section?.lignes ?? []),
+      designation: groupLabel,
+      description: "",
       quantity,
-      unitPrice,
+      unitPrice: Number(group?.pvTotal) || 0,
       option: isOption,
     });
   });

@@ -66,6 +66,11 @@ export type LineItem = {
   margePct?: number | null;
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
   margeConfirmed?: boolean;
+  /**
+   * Quantity columns proposed for this article, aligned with `quantites`.
+   * Missing on legacy dossiers means every quantity remains available.
+   */
+  quantitesActives?: boolean[];
 };
 
 export type LineForfait = {
@@ -109,6 +114,25 @@ export function getPrixAchat(line: LineItem, index: number): number {
   }
   const legacy = Number(line.prixUnitaire);
   return Number.isFinite(legacy) ? legacy : 0;
+}
+
+/** Legacy lines without an explicit selection are available for every quantity. */
+export function isLineActiveForQuantity(
+  line: Pick<LineItem, "quantitesActives"> | null | undefined,
+  index: number,
+): boolean {
+  if (!Array.isArray(line?.quantitesActives)) return true;
+  return line.quantitesActives[index] === true;
+}
+
+/** Align a line's quantity selection with the dossier quantity columns. */
+export function reshapeQuantitesActives(line: LineItem, count: number): boolean[] {
+  if (!Array.isArray(line.quantitesActives)) {
+    return Array.from({ length: count }, () => true);
+  }
+  const arr = line.quantitesActives.slice(0, count).map((value) => value === true);
+  while (arr.length < count) arr.push(false);
+  return arr;
 }
 
 /**

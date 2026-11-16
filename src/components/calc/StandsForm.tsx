@@ -18,10 +18,12 @@ import { QuantitesRow } from "@/components/calc/Common";
 import { SectionHeader } from "@/components/calc/SectionHeader";
 import { fmtEUR, fmtPct } from "@/lib/format";
 import type { StandsInput, StandsParams } from "@/lib/calculs/stands";
+import type { Quantite } from "@/lib/calculs/types";
 import {
   calculerStands,
   isGenericStandSectionLabel,
   isStandsOptionSection,
+  isStandsTransportSection,
   resolveStandsSectionLabel,
   STANDS_SECTIONS_DEFAUT,
 } from "@/lib/calculs/stands";
@@ -45,16 +47,52 @@ export function StandsForm({
     onChange({ ...value, sections: next });
   }
 
+  function handleQuantitesChange(nextQuantites: Quantite[]) {
+    const oldQuantites = value.quantites;
+    let removedIndex = -1;
+    if (nextQuantites.length < oldQuantites.length) {
+      removedIndex = oldQuantites.length - 1;
+      for (let index = 0; index < nextQuantites.length; index += 1) {
+        if (oldQuantites[index] !== nextQuantites[index]) {
+          removedIndex = index;
+          break;
+        }
+      }
+    }
+    const sections = value.sections.map((section) => ({
+      ...section,
+      lignes: section.lignes.map((line) => {
+        const wasExplicit = Array.isArray(line.quantitesActives);
+        const active = wasExplicit
+          ? line.quantitesActives!.slice(0, oldQuantites.length).map((item) => item === true)
+          : Array.from({ length: oldQuantites.length }, () => true);
+        if (nextQuantites.length > oldQuantites.length) {
+          while (active.length < nextQuantites.length) active.push(wasExplicit ? false : true);
+        } else if (removedIndex >= 0) {
+          active.splice(removedIndex, 1);
+        }
+        active.length = nextQuantites.length;
+        return { ...line, quantitesActives: active };
+      }),
+    }));
+    onChange({ ...value, quantites: nextQuantites, sections });
+  }
+
   const out = calculerStands(value);
   const primaryScenario = out.scenarios.find((s) => s.quantite > 0);
 
   return (
     <div className="space-y-4">
       <Card className="p-4 calc-section emphasis">
-        <SectionHeader title="Quantités" tone="orange" icon={<Layers className="w-3.5 h-3.5" />} />
+        <SectionHeader
+          title="Quantités disponibles"
+          subtitle="à rattacher ensuite à chaque article"
+          tone="orange"
+          icon={<Layers className="w-3.5 h-3.5" />}
+        />
         <QuantitesRow
           quantites={value.quantites}
-          onChange={(q) => onChange({ ...value, quantites: q })}
+          onChange={handleQuantitesChange}
           defaultMargePct={value.params.coef_marge_pct}
           scenarios={out.scenarios}
         />
@@ -63,6 +101,7 @@ export function StandsForm({
       {value.sections.map((sec, si) => {
         const groupe = out.extra.groupes[si];
         const groupTitle = resolveStandsSectionLabel(sec, si);
+        const isTransportSection = isStandsTransportSection(sec, groupTitle);
         const inheritedGroupMargin = sec.margePct ?? value.params.coef_marge_pct;
         return (
           <Card key={si} className="p-4 calc-section">
@@ -148,6 +187,10 @@ export function StandsForm({
                           commentaire: "",
                           prixUnitaire: 0,
                           margePct: null,
+                          quantitesActives: Array.from(
+                            { length: value.quantites.length },
+                            () => true,
+                          ),
                         },
                       ],
                     };
@@ -187,6 +230,28 @@ export function StandsForm({
                 </div>
               </div>
             </div>
+            {isTransportSection && (
+              <div
+                className={`mb-3 flex items-center gap-2 rounded-md border px-3 py-2 ${sec.transportGlobal === true ? "border-primary/50 bg-primary/5" : "bg-muted/30"}`}
+              >
+                <Checkbox
+                  checked={sec.transportGlobal === true}
+                  aria-label="Afficher un transport global"
+                  onCheckedChange={(checked) => {
+                    const next = [...value.sections];
+                    next[si] = { ...sec, transportGlobal: checked === true };
+                    onChange({ ...value, sections: next });
+                  }}
+                />
+                <div>
+                  <div className="text-xs font-semibold">Transport global</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Additionne toutes les lignes de ce groupe et affiche une seule ligne « Transport
+                    » dans l’offre et dans Sage.
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="border-2 rounded-md overflow-x-auto calc-table">
               <div className="grid min-w-[920px] grid-cols-[1fr_160px_140px_130px_140px_36px] gap-2 px-2 py-1.5 border-b-2 bg-muted/40 text-xs uppercase font-bold text-primary">
                 <div>Libellé</div>
@@ -275,6 +340,47 @@ export function StandsForm({
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
+                    <div
+                      className="flex flex-wrap items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2"
+                      style={{ gridColumn: "1 / -1" }}
+                    >
+                      <div className="mr-2">
+                        <div className="text-xs font-semibold">Quantités de cet article</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Seules les quantités cochées seront proposées et exportées.
+                        </div>
+                      </div>
+                      {value.quantites.map((quantity, quantityIndex) => {
+                        const active =
+                          !Array.isArray(l.quantitesActives) ||
+                          l.quantitesActives[quantityIndex] === true;
+                        return (
+                          <label
+                            key={quantityIndex}
+                            className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold ${active ? "border-primary bg-background text-primary" : "bg-muted/50 text-muted-foreground"}`}
+                          >
+                            <Checkbox
+                              checked={active}
+                              aria-label={`Proposer la quantité ${quantity.qty} pour cet article`}
+                              onCheckedChange={(checked) => {
+                                const next = [...value.sections];
+                                const lignes = [...sec.lignes];
+                                const quantitesActives = Array.isArray(l.quantitesActives)
+                                  ? l.quantitesActives
+                                      .slice(0, value.quantites.length)
+                                      .map((item) => item === true)
+                                  : Array.from({ length: value.quantites.length }, () => true);
+                                quantitesActives[quantityIndex] = checked === true;
+                                lignes[li] = { ...l, quantitesActives };
+                                next[si] = { ...sec, lignes };
+                                onChange({ ...value, sections: next });
+                              }}
+                            />
+                            Qté {(Number(quantity.qty) || 0).toLocaleString("fr-FR")}
+                          </label>
+                        );
+                      })}
+                    </div>
                     <Textarea
                       autoResize
                       value={l.descriptif ?? ""}
@@ -308,8 +414,8 @@ export function StandsForm({
               </div>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              Une marge de ligne vide hérite de la marge du groupe ; une marge de groupe vide hérite
-              de la marge générique du dossier.
+              Les quantités sont choisies article par article. Une marge de ligne vide hérite de la
+              marge du groupe ; une marge de groupe vide hérite de la marge générique du dossier.
             </p>
           </Card>
         );
