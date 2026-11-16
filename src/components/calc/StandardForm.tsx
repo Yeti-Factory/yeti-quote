@@ -13,7 +13,11 @@ import { Layers, ShoppingCart, Truck, Wrench, Settings2 } from "lucide-react";
 import { calculerStandard, type StandardInput, type StandardParams } from "@/lib/calculs/standard";
 import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
 import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
-import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
+import {
+  syncLinesWithQuantites,
+  syncOutillageWithQuantites,
+  syncTransportWithQuantites,
+} from "@/lib/calculs/quantitySync";
 
 export function StandardForm({
   value,
@@ -23,7 +27,7 @@ export function StandardForm({
   onChange: (v: StandardInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
-  const outillage = normalizeOutillage(value.outillage);
+  const outillage = normalizeOutillage(value.outillage, value.quantites.length);
   function setParams(p: Partial<StandardParams>) {
     onChange({ ...value, params: { ...value.params, ...p } });
   }
@@ -37,6 +41,7 @@ export function StandardForm({
         newQ,
         value.transportPackaging,
       ),
+      outillage: syncOutillageWithQuantites(value.quantites, newQ, value.outillage),
     });
   }
   function setTP(next: TransportPackaging) {
@@ -80,8 +85,8 @@ export function StandardForm({
         </div>
         <div>
           <SectionHeader
-            title="Transport global"
-            subtitle="montant global par quantité, divisé automatiquement"
+            title="Transport"
+            subtitle="montant unique ou détail par quantité"
             tone="muted"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
@@ -95,7 +100,7 @@ export function StandardForm({
         <div>
           <SectionHeader
             title="Outillage"
-            subtitle="frais fixe unique, divisé par la quantité"
+            subtitle="montant unique ou détail par quantité"
             tone="muted"
             icon={<Wrench className="w-3.5 h-3.5" />}
           />

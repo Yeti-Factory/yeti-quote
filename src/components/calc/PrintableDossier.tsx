@@ -10,6 +10,8 @@ import {
   getTransportLigneUnit,
   resolveLineMargePct,
   isLineActiveForQuantity,
+  getTransportPackagingGlobal,
+  getOutillageGlobal,
   type Quantite,
   type TransportPackaging,
   type Outillage,
@@ -300,7 +302,11 @@ function TransportPackagingTable({
       : "Sans marge (refacturé au coût)";
   return (
     <section>
-      <h2>Transport global — {marginLabel}</h2>
+      <h2>
+        Transport {tp.pricingMode === "global" ? "— montant global" : "— détaillé par quantité"}
+        {" — "}
+        {marginLabel}
+      </h2>
       <table>
         <thead>
           <tr>
@@ -316,7 +322,7 @@ function TransportPackagingTable({
         </thead>
         <tbody>
           {qs.map((q, i) => {
-            const g = Number(tp.montantsGlobaux[i]) || 0;
+            const g = getTransportPackagingGlobal(tp, i);
             const unit = q.qty > 0 ? g / q.qty : 0;
             const effectiveMargin = useDefaultMarginWhenEmpty
               ? resolveMargePct(tp.margePct, q.margePct, defaultMargin)
@@ -361,8 +367,12 @@ function OutillageTable({
   fixedFeeUnitShare?: (quantityIndex: number, baseUnit: number) => number;
 }) {
   const qs = normalizeQuantites(quantites);
-  const out = normalizeOutillage(outillage);
-  if (qs.length === 0 || Math.abs(Number(out.montantGlobal) || 0) < 0.005) return null;
+  const out = normalizeOutillage(outillage, qs.length);
+  if (
+    qs.length === 0 ||
+    !qs.some((_quantity, index) => Math.abs(getOutillageGlobal(out, index)) >= 0.005)
+  )
+    return null;
   const hasMargin = out.margePct !== null && out.margePct !== undefined;
   const isContra = contraCoefPct !== undefined;
   const defaultMargin = defaultMargePct ?? 0;
@@ -393,14 +403,14 @@ function OutillageTable({
             <td>Montant global fixe</td>
             {qs.map((_q, i) => (
               <td key={i} className="num">
-                {fmtEUR(out.montantGlobal)}
+                {fmtEUR(getOutillageGlobal(out, i))}
               </td>
             ))}
           </tr>
           <tr>
             <td>Coût unitaire</td>
             {qs.map((q, i) => {
-              const unit = q.qty > 0 ? out.montantGlobal / q.qty : 0;
+              const unit = q.qty > 0 ? getOutillageGlobal(out, i) / q.qty : 0;
               return (
                 <td key={i} className="num">
                   {q.qty > 0 ? fmtEUR(unit) : "—"}
@@ -411,7 +421,7 @@ function OutillageTable({
           <tr>
             <td>PV unitaire répercuté</td>
             {qs.map((q, i) => {
-              const unit = q.qty > 0 ? out.montantGlobal / q.qty : 0;
+              const unit = q.qty > 0 ? getOutillageGlobal(out, i) / q.qty : 0;
               const effectiveMargin = useDefaultMarginWhenEmpty
                 ? resolveMargePct(out.margePct, q.margePct, defaultMargin)
                 : hasMargin
@@ -694,7 +704,7 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
   const output = calculerStandard(payload);
   const qs = normalizeQuantites(payload.quantites);
   const tp = normalizeTransportPackaging(payload.transportPackaging, qs.length);
-  const outillage = normalizeOutillage(payload.outillage);
+  const outillage = normalizeOutillage(payload.outillage, qs.length);
   const fixedFeeBasisUnit = (qi: number) => {
     const q = qs[qi]?.qty ?? 0;
     const achats = (payload.achatsPrincipaux ?? []).reduce(
@@ -705,8 +715,8 @@ function StandardPrint({ payload }: { payload: StandardInput }) {
           : 0),
       0,
     );
-    const tpUnit = q > 0 ? (Number(tp.montantsGlobaux[qi]) || 0) / q : 0;
-    const outillageUnit = q > 0 ? (Number(outillage.montantGlobal) || 0) / q : 0;
+    const tpUnit = q > 0 ? getTransportPackagingGlobal(tp, qi) / q : 0;
+    const outillageUnit = q > 0 ? getOutillageGlobal(outillage, qi) / q : 0;
     return achats + tpUnit + outillageUnit;
   };
   return (
@@ -760,7 +770,7 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
   const output = calculerContra(payload);
   const qs = normalizeQuantites(payload.quantites);
   const tp = normalizeTransportPackaging(payload.transportPackaging, qs.length);
-  const outillage = normalizeOutillage(payload.outillage);
+  const outillage = normalizeOutillage(payload.outillage, qs.length);
   const contraFactor = 1 + (Number(p.coef_contra_pct) || 0) / 100;
   const fixedFeeBasisUnit = (qi: number) => {
     const q = qs[qi]?.qty ?? 0;
@@ -779,8 +789,8 @@ function ContraPrint({ payload: rawPayload }: { payload: ContraInput }) {
             0,
           )
         : 0;
-    const tpUnit = q > 0 ? ((Number(tp.montantsGlobaux[qi]) || 0) / q) * contraFactor : 0;
-    const outillageUnit = q > 0 ? ((Number(outillage.montantGlobal) || 0) / q) * contraFactor : 0;
+    const tpUnit = q > 0 ? (getTransportPackagingGlobal(tp, qi) / q) * contraFactor : 0;
+    const outillageUnit = q > 0 ? (getOutillageGlobal(outillage, qi) / q) * contraFactor : 0;
     return achats + forfaits + tpUnit + outillageUnit;
   };
 

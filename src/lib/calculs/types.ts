@@ -221,12 +221,15 @@ export function reshapeMargeParQuantiteConfirmed(line: LineItem, count: number):
   return arr;
 }
 
-/**
- * Transport / Packaging: a global amount per quantity column.
- * Unit cost = montantsGlobaux[i] / quantite[i].
- */
+export type AmountPricingMode = "global" | "per_quantity";
+
+/** Transport / Packaging: one quote-wide amount or one amount per quantity scenario. */
 export type TransportPackaging = {
   montantsGlobaux: number[];
+  /** One amount for the whole quote, reused and divided by each scenario quantity. */
+  montantGlobal?: number;
+  /** Legacy dossiers without this field remain in per-quantity mode. */
+  pricingMode?: AmountPricingMode;
   /** Client-facing flag: transport is already included in supplier prices. */
   transportInclus?: boolean;
   /** Client-facing condition. Legacy dossiers with transportInclus=true resolve to "inclus". */
@@ -256,9 +259,21 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
   });
   while (arr.length < count) arr.push(0);
   arr.length = count;
+  const globalRaw = Number(o.montantGlobal);
+  const hasLegacyDetailedAmounts = arr.some((value) => Math.abs(value) >= 0.005);
+  const pricingMode: AmountPricingMode =
+    o.pricingMode === "global" || o.pricingMode === "per_quantity"
+      ? o.pricingMode
+      : Number.isFinite(globalRaw)
+        ? "global"
+        : hasLegacyDetailedAmounts
+          ? "per_quantity"
+          : "global";
   const m = o.margePct;
   return {
-    montantsGlobaux: mode === "depart_ateliers" ? Array.from({ length: count }, () => 0) : arr,
+    montantsGlobaux: arr,
+    montantGlobal: Number.isFinite(globalRaw) ? globalRaw : 0,
+    pricingMode,
     transportInclus:
       mode === "inclus" || o.transportInclus === true || o.transportInclus === "true",
     mode,
@@ -268,12 +283,23 @@ export function normalizeTransportPackaging(input: unknown, count: number): Tran
   };
 }
 
+/** Total transport amount to use for one scenario before division by its quantity. */
+export function getTransportPackagingGlobal(value: TransportPackaging, index: number): number {
+  if (value.mode && value.mode !== "global") return 0;
+  const raw =
+    value.pricingMode === "global"
+      ? Number(value.montantGlobal)
+      : Number(value.montantsGlobaux[index]);
+  return Number.isFinite(raw) ? raw : 0;
+}
+
 /**
- * Outillage: one fixed global amount, identical for every quantity scenario.
- * Unit cost = montantGlobal / quantite[i].
+ * Outillage: one fixed quote-wide amount or one total amount per quantity scenario.
  */
 export type Outillage = {
   montantGlobal: number;
+  montantsParQuantite?: number[];
+  pricingMode?: AmountPricingMode;
   /** Optional margin override (%). Each calculator defines the empty-value fallback. */
   margePct?: number | null;
   /** Contra: true when the user explicitly confirmed a margin different from the standard. */
@@ -281,15 +307,34 @@ export type Outillage = {
 };
 
 /** Backward-compat + shape normalization. */
-export function normalizeOutillage(input: unknown): Outillage {
+export function normalizeOutillage(input: unknown, count = 0): Outillage {
   const o = input && typeof input === "object" ? (input as any) : {};
   const raw = Number(o.montantGlobal);
+  const perQuantity = Array.isArray(o.montantsParQuantite)
+    ? o.montantsParQuantite.map((value: unknown) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : 0;
+      })
+    : [];
+  while (perQuantity.length < count) perQuantity.push(0);
+  if (count > 0) perQuantity.length = count;
   const m = o.margePct;
   return {
     montantGlobal: Number.isFinite(raw) ? raw : 0,
+    montantsParQuantite: perQuantity,
+    pricingMode: o.pricingMode === "per_quantity" ? "per_quantity" : "global",
     margePct: m === undefined || m === null || m === "" ? null : Number(m),
     margeConfirmed: o.margeConfirmed === true,
   };
+}
+
+/** Total tooling amount to use for one scenario before division by its quantity. */
+export function getOutillageGlobal(value: Outillage, index: number): number {
+  const raw =
+    value.pricingMode === "per_quantity"
+      ? Number(value.montantsParQuantite?.[index])
+      : Number(value.montantGlobal);
+  return Number.isFinite(raw) ? raw : 0;
 }
 
 export type QuantityResult = {

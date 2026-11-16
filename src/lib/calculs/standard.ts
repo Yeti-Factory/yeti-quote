@@ -17,6 +17,8 @@ import {
   getTransportLigneGlobal,
   getTransportLigneUnit,
   isLineActiveForQuantity,
+  getTransportPackagingGlobal,
+  getOutillageGlobal,
 } from "./types";
 
 export type StandardParams = {
@@ -53,7 +55,7 @@ export function calculerStandard(input: StandardInput): CalcOutput {
   const { achatsPrincipaux, params } = input;
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
-  const outillage = normalizeOutillage(input.outillage);
+  const outillage = normalizeOutillage(input.outillage, quantites.length);
 
   const scenarios: QuantityResult[] = quantites.map((quant, qi) => {
     const Q = Number(quant.qty) || 0;
@@ -70,9 +72,9 @@ export function calculerStandard(input: StandardInput): CalcOutput {
       (s, l) => s + (isLineActiveForQuantity(l, qi) ? getPrixAchat(l, qi) : 0),
       0,
     );
-    const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
+    const tpGlobal = getTransportPackagingGlobal(tp, qi);
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
-    const outillageGlobal = Number(outillage.montantGlobal) || 0;
+    const outillageGlobal = getOutillageGlobal(outillage, qi);
     const outillageUnit = Q > 0 ? outillageGlobal / Q : 0;
     const baseAchatUnit = sumPrincipaux + transportLignesUnit + tpUnit + outillageUnit;
 

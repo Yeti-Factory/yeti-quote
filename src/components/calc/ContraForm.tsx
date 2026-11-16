@@ -18,7 +18,11 @@ import { CONTRA_STANDARD_MARGE_PCT, effectiveContraCoefPct } from "@/lib/calculs
 import { calculerContra } from "@/lib/calculs/contra";
 import type { Quantite, TransportPackaging, Outillage } from "@/lib/calculs/types";
 import { normalizeOutillage, normalizeTransportPackaging } from "@/lib/calculs/types";
-import { syncLinesWithQuantites, syncTransportWithQuantites } from "@/lib/calculs/quantitySync";
+import {
+  syncLinesWithQuantites,
+  syncOutillageWithQuantites,
+  syncTransportWithQuantites,
+} from "@/lib/calculs/quantitySync";
 
 const GUARD: MargeGuard = { standardPct: CONTRA_STANDARD_MARGE_PCT };
 
@@ -30,7 +34,7 @@ export function ContraForm({
   onChange: (v: ContraInput) => void;
 }) {
   const tp = normalizeTransportPackaging(value.transportPackaging, value.quantites.length);
-  const outillage = normalizeOutillage(value.outillage);
+  const outillage = normalizeOutillage(value.outillage, value.quantites.length);
   const coefEffectif = effectiveContraCoefPct(value.params);
   const [coefDraft, setCoefDraft] = useState<string>(String(coefEffectif));
   useEffect(() => {
@@ -68,6 +72,7 @@ export function ContraForm({
         newQ,
         value.transportPackaging,
       ),
+      outillage: syncOutillageWithQuantites(value.quantites, newQ, value.outillage),
     });
   }
   function setTP(next: TransportPackaging) {
@@ -126,8 +131,8 @@ export function ContraForm({
         </div>
         <div>
           <SectionHeader
-            title="Transport global"
-            subtitle="montant global par quantité, divisé automatiquement"
+            title="Transport"
+            subtitle="montant unique ou détail par quantité"
             tone="accent"
             icon={<Truck className="w-3.5 h-3.5" />}
           />
@@ -142,7 +147,7 @@ export function ContraForm({
         <div>
           <SectionHeader
             title="Outillage"
-            subtitle="frais fixe unique, divisé par la quantité"
+            subtitle="montant unique ou détail par quantité"
             tone="accent"
             icon={<Wrench className="w-3.5 h-3.5" />}
           />

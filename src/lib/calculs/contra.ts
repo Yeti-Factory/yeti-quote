@@ -17,6 +17,8 @@ import {
   getMargeParQuantiteConfirmed,
   getTransportLigneGlobal,
   getTransportLigneUnit,
+  getTransportPackagingGlobal,
+  getOutillageGlobal,
 } from "./types";
 
 export type ContraParams = {
@@ -131,11 +133,15 @@ export function sanitizeContraInput(input: ContraInput): ContraInput {
     transportPackaging: {
       ...(tp ?? { montantsGlobaux: [] }),
       montantsGlobaux: tp?.montantsGlobaux ?? [],
+      montantGlobal: tp?.montantGlobal,
+      pricingMode: tp?.pricingMode,
       margePct: keep(tp?.margePct, tp?.margeConfirmed),
     },
     outillage: {
       ...(outillage ?? { montantGlobal: 0 }),
       montantGlobal: outillage?.montantGlobal ?? 0,
+      montantsParQuantite: outillage?.montantsParQuantite ?? [],
+      pricingMode: outillage?.pricingMode,
       margePct: keep(outillage?.margePct, outillage?.margeConfirmed),
     },
   };
@@ -199,7 +205,7 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
 
   const quantites = normalizeQuantites(input.quantites);
   const tp = normalizeTransportPackaging(input.transportPackaging, quantites.length);
-  const outillage = normalizeOutillage(input.outillage);
+  const outillage = normalizeOutillage(input.outillage, quantites.length);
   const sumForfaitsGlobal = forfaitsContra.reduce((s, l) => s + (Number(l.montantGlobal) || 0), 0);
   const coefContra = params.coef_contra_pct; // markup Contra
   const contraFactor = 1 + coefContra / 100;
@@ -223,9 +229,9 @@ export function calculerContra(rawInput: ContraInput): CalcOutput {
       0,
     );
     const rawForfaitUnit = Q > 0 ? sumForfaitsGlobal / Q : 0;
-    const tpGlobal = Number(tp.montantsGlobaux[qi]) || 0;
+    const tpGlobal = getTransportPackagingGlobal(tp, qi);
     const tpUnit = Q > 0 ? tpGlobal / Q : 0;
-    const outillageGlobal = Number(outillage.montantGlobal) || 0;
+    const outillageGlobal = getOutillageGlobal(outillage, qi);
     const outillageUnit = Q > 0 ? outillageGlobal / Q : 0;
 
     // 2) Bon de commande Contra — Contra prend sa marge sur (achats + forfaits + TP + outillage)
