@@ -1,4 +1,4 @@
-import type { LineItem, Quantite, TransportPackaging } from "@/lib/calculs/types";
+import type { LineItem, Outillage, Quantite, TransportPackaging } from "@/lib/calculs/types";
 import {
   reshapePrixParQuantite,
   reshapeTransportParQuantite,
@@ -6,6 +6,7 @@ import {
   reshapeMargeParQuantiteConfirmed,
   reshapeQuantitesActives,
   normalizeTransportPackaging,
+  normalizeOutillage,
 } from "@/lib/calculs/types";
 
 /**
@@ -94,4 +95,28 @@ export function syncTransportWithQuantites(
   }
   arr.length = newQ.length;
   return { ...normalized, montantsGlobaux: arr };
+}
+
+/** Keep detailed tooling amounts aligned when quantity columns are added or removed. */
+export function syncOutillageWithQuantites(
+  oldQ: Quantite[],
+  newQ: Quantite[],
+  value: Outillage | undefined,
+): Outillage {
+  const normalized = normalizeOutillage(value, oldQ.length);
+  const amounts = [...(normalized.montantsParQuantite ?? [])];
+  if (newQ.length > oldQ.length) {
+    while (amounts.length < newQ.length) amounts.push(0);
+  } else if (newQ.length < oldQ.length) {
+    let removed = oldQ.length - 1;
+    for (let index = 0; index < newQ.length; index += 1) {
+      if (oldQ[index] !== newQ[index]) {
+        removed = index;
+        break;
+      }
+    }
+    amounts.splice(removed, 1);
+  }
+  amounts.length = newQ.length;
+  return { ...normalized, montantsParQuantite: amounts };
 }

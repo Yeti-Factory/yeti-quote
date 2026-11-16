@@ -88,12 +88,19 @@ function defaultPayload(type: string, params: any) {
       ],
       transportPackaging: {
         montantsGlobaux: [],
+        montantGlobal: 0,
+        pricingMode: "global",
         transportInclus: false,
         mode: "global",
         departementDepart: "",
         margePct: null,
       },
-      outillage: { montantGlobal: 0, margePct: null },
+      outillage: {
+        montantGlobal: 0,
+        montantsParQuantite: [],
+        pricingMode: "global",
+        margePct: null,
+      },
       params: { ...STANDARD_DEFAULTS, ...(params ?? {}) },
     } satisfies StandardInput;
   }
@@ -117,12 +124,19 @@ function defaultPayload(type: string, params: any) {
       ],
       transportPackaging: {
         montantsGlobaux: [],
+        montantGlobal: 0,
+        pricingMode: "global",
         transportInclus: false,
         mode: "global",
         departementDepart: "",
         margePct: null,
       },
-      outillage: { montantGlobal: 0, margePct: null },
+      outillage: {
+        montantGlobal: 0,
+        montantsParQuantite: [],
+        pricingMode: "global",
+        margePct: null,
+      },
       params: { ...CONTRA_DEFAULTS, ...(params ?? {}) },
     } satisfies ContraInput;
   }
@@ -213,12 +227,19 @@ function contraToStandardPayload(input: ContraInput, standardDefaults: any): Sta
         : [{ fournisseur: "", libelle: "", commentaire: "", prixUnitaire: 0, margePct: null }],
     transportPackaging: input.transportPackaging ?? {
       montantsGlobaux: Array.from({ length: qCount }, () => 0),
+      montantGlobal: 0,
+      pricingMode: "global",
       transportInclus: false,
       mode: "global",
       departementDepart: "",
       margePct: null,
     },
-    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
+    outillage: input.outillage ?? {
+      montantGlobal: 0,
+      montantsParQuantite: Array.from({ length: qCount }, () => 0),
+      pricingMode: "global",
+      margePct: null,
+    },
     params,
   };
 }
@@ -272,12 +293,19 @@ function standardToContraPayload(input: StandardInput, contraDefaults: any): Con
     forfaitsContra: [],
     transportPackaging: input.transportPackaging ?? {
       montantsGlobaux: Array.from({ length: qCount }, () => 0),
+      montantGlobal: 0,
+      pricingMode: "global",
       transportInclus: false,
       mode: "global",
       departementDepart: "",
       margePct: null,
     },
-    outillage: input.outillage ?? { montantGlobal: 0, margePct: null },
+    outillage: input.outillage ?? {
+      montantGlobal: 0,
+      montantsParQuantite: Array.from({ length: qCount }, () => 0),
+      pricingMode: "global",
+      margePct: null,
+    },
     params,
   };
 }
@@ -424,8 +452,9 @@ function DossierDetail() {
       const existingTP = nextPayload.transportPackaging;
       const tpEmpty =
         !existingTP ||
-        !Array.isArray(existingTP.montantsGlobaux) ||
-        existingTP.montantsGlobaux.every((v: any) => !Number(v));
+        (!Number(existingTP.montantGlobal) &&
+          (!Array.isArray(existingTP.montantsGlobaux) ||
+            existingTP.montantsGlobaux.every((v: any) => !Number(v))));
 
       // Per-quantity global amount to inject into T/P.
       const montants = Array.from({ length: qCount }, () => 0);
@@ -462,6 +491,8 @@ function DossierDetail() {
           ...nextPayload,
           transportPackaging: {
             montantsGlobaux: montants,
+            montantGlobal: 0,
+            pricingMode: "per_quantity",
             transportInclus: existingTP?.transportInclus === true,
             margePct: existingTP?.margePct ?? null,
           },
@@ -473,6 +504,8 @@ function DossierDetail() {
           ...nextPayload,
           transportPackaging: {
             montantsGlobaux: Array.from({ length: qCount }, () => 0),
+            montantGlobal: 0,
+            pricingMode: "global",
             transportInclus: false,
             margePct: null,
           },

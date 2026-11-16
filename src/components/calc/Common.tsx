@@ -796,8 +796,11 @@ export function TransportPackagingBlock({
 }) {
   const qCount = quantites.length;
   const arr = Array.from({ length: qCount }, (_, i) => Number(value?.montantsGlobaux?.[i]) || 0);
+  const montantGlobal = Number(value?.montantGlobal) || 0;
+  const pricingMode = value?.pricingMode ?? "per_quantity";
   const mode = value?.mode ?? (value?.transportInclus ? "inclus" : "global");
   const isDepartAteliers = mode === "depart_ateliers";
+  const isPricingDisabled = mode !== "global";
 
   function updateMontant(i: number, montant: number) {
     const next = [...arr];
@@ -810,8 +813,7 @@ export function TransportPackagingBlock({
       ...value,
       mode: nextMode,
       transportInclus: nextMode === "inclus",
-      montantsGlobaux:
-        nextMode === "depart_ateliers" ? Array.from({ length: qCount }, () => 0) : arr,
+      montantsGlobaux: arr,
     });
   }
 
@@ -828,7 +830,7 @@ export function TransportPackagingBlock({
     <div>
       <div className="flex items-center justify-between mb-2 gap-2">
         <div>
-          <Label className="text-sm font-semibold">Transport global</Label>
+          <Label className="text-sm font-semibold">Transport</Label>
           <p className="text-xs text-muted-foreground">
             {margeGuard
               ? `Participe au partage Contra/Yeti — marge standard ${margeGuard.standardPct} %.`
@@ -837,19 +839,21 @@ export function TransportPackagingBlock({
                 : "Marge optionnelle — laissée vide, le transport est refacturé sans marge."}
           </p>
           <p className="text-xs text-muted-foreground">
-            Un seul montant pour l’ensemble des articles ; l’offre affiche une seule ligne «
-            Transport ».
+            {pricingMode === "global"
+              ? "Un seul montant pour l’ensemble des articles."
+              : "Un montant distinct peut être saisi pour chaque quantité."}{" "}
+            L’offre affiche toujours une seule ligne « Transport ».
           </p>
         </div>
 
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start justify-end gap-3">
           <div className="w-56 space-y-1">
             <Select value={mode} onValueChange={(v) => updateMode(v as any)}>
               <SelectTrigger className="h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="global">Transport global à chiffrer</SelectItem>
+                <SelectItem value="global">Transport à chiffrer</SelectItem>
                 <SelectItem value="inclus">Transport inclus</SelectItem>
                 <SelectItem value="depart_ateliers">Prix départ ateliers</SelectItem>
               </SelectContent>
@@ -863,13 +867,52 @@ export function TransportPackagingBlock({
                   onChange({
                     ...value,
                     mode,
-                    montantsGlobaux: Array.from({ length: qCount }, () => 0),
+                    montantsGlobaux: arr,
                     departementDepart: e.target.value,
                   })
                 }
               />
             )}
           </div>
+          {mode === "global" && (
+            <div className="w-52 space-y-1">
+              <Select
+                value={pricingMode}
+                onValueChange={(next) =>
+                  onChange({
+                    ...value,
+                    montantsGlobaux: arr,
+                    pricingMode: next as "global" | "per_quantity",
+                  })
+                }
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">Montant global</SelectItem>
+                  <SelectItem value="per_quantity">Détaillé par quantité</SelectItem>
+                </SelectContent>
+              </Select>
+              {pricingMode === "global" && (
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={montantGlobal || ""}
+                  placeholder="Montant global (€)"
+                  className="text-right tabular-nums"
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      montantsGlobaux: arr,
+                      montantGlobal: e.target.value === "" ? 0 : Number(e.target.value),
+                      pricingMode: "global",
+                    })
+                  }
+                />
+              )}
+            </div>
+          )}
           <div className="w-48">
             {margeGuard ? (
               <>
@@ -879,7 +922,7 @@ export function TransportPackagingBlock({
                   guard={margeGuard}
                   placeholder="Marge %"
                   className="text-right tabular-nums"
-                  disabled={isDepartAteliers}
+                  disabled={isPricingDisabled}
                   onCommit={(m, c) =>
                     onChange({
                       ...value,
@@ -902,7 +945,7 @@ export function TransportPackagingBlock({
                   step="0.01"
                   placeholder="Marge % (facultatif)"
                   value={value?.margePct ?? ""}
-                  disabled={isDepartAteliers}
+                  disabled={isPricingDisabled}
                   onChange={(e) =>
                     onChange({
                       ...value,
@@ -925,9 +968,39 @@ export function TransportPackagingBlock({
           </div>
         </div>
       </div>
-      {qCount === 0 ? (
+      {mode !== "global" ? (
+        <div className="rounded-md border-2 bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+          {mode === "inclus"
+            ? "Aucun montant à saisir : le transport est déjà inclus."
+            : "Aucun montant à saisir : l’offre est établie départ ateliers."}
+        </div>
+      ) : qCount === 0 ? (
         <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
           Ajoutez au moins une quantité pour saisir le transport global.
+        </div>
+      ) : pricingMode === "global" ? (
+        <div className="border-2 rounded-md overflow-hidden calc-table">
+          <div className="grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
+            <div>Quantité</div>
+            <div className="text-right">Coût unitaire calculé</div>
+          </div>
+          {quantites.map((q, index) => {
+            const quantity = Number(q.qty) || 0;
+            const unit = quantity > 0 ? montantGlobal / quantity : 0;
+            return (
+              <div
+                key={index}
+                className="calc-row grid grid-cols-[1fr_1fr] gap-2 px-3 py-2 items-center border-b last:border-b-0"
+              >
+                <div className="text-sm tabular-nums">
+                  {quantity ? quantity.toLocaleString("fr-FR") : "—"}
+                </div>
+                <div className="text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  {quantity > 0 ? fmtEuro(unit) : "—"}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
@@ -952,7 +1025,6 @@ export function TransportPackagingBlock({
                   value={montant || ""}
                   placeholder="0"
                   className="text-right tabular-nums"
-                  disabled={isDepartAteliers}
                   onChange={(e) =>
                     updateMontant(i, e.target.value === "" ? 0 : Number(e.target.value))
                   }
@@ -965,16 +1037,20 @@ export function TransportPackagingBlock({
           })}
         </div>
       )}
-      <p className="text-xs text-muted-foreground mt-2">
-        Le montant global est divisé automatiquement par la quantité et ajouté au prix de vente
-        unitaire.
-      </p>
+      {mode === "global" && (
+        <p className="text-xs text-muted-foreground mt-2">
+          {pricingMode === "global"
+            ? "Le montant unique est divisé automatiquement par chaque quantité."
+            : "Chaque montant de scénario est divisé par sa quantité."}{" "}
+          Le coût unitaire obtenu est ajouté au prix de vente.
+        </p>
+      )}
     </div>
   );
 }
 
 /**
- * Outillage block: one fixed global amount shared by every quantity scenario.
+ * Outillage block: one global amount or one amount per quantity scenario.
  * Displays computed unit cost read-only. Optional margin (%) override.
  */
 export function OutillageBlock({
@@ -993,6 +1069,17 @@ export function OutillageBlock({
   margeGuard?: MargeGuard;
 }) {
   const montantGlobal = Number(value?.montantGlobal) || 0;
+  const pricingMode = value?.pricingMode ?? "global";
+  const amounts = Array.from(
+    { length: quantites.length },
+    (_, index) => Number(value?.montantsParQuantite?.[index]) || 0,
+  );
+
+  function updateDetailedAmount(index: number, amount: number) {
+    const next = [...amounts];
+    next[index] = amount;
+    onChange({ ...value, pricingMode: "per_quantity", montantsParQuantite: next });
+  }
 
   function fmtEuro(n: number) {
     if (!Number.isFinite(n)) return "—";
@@ -1017,24 +1104,43 @@ export function OutillageBlock({
           </p>
         </div>
 
-        <div className="flex items-start gap-3">
-          <div className="w-52">
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Montant global (€)"
-              value={montantGlobal || ""}
-              onChange={(e) =>
+        <div className="flex flex-wrap items-start justify-end gap-3">
+          <div className="w-52 space-y-1">
+            <Select
+              value={pricingMode}
+              onValueChange={(next) =>
                 onChange({
                   ...value,
-                  montantGlobal: e.target.value === "" ? 0 : Number(e.target.value),
+                  pricingMode: next as "global" | "per_quantity",
+                  montantsParQuantite: amounts,
                 })
               }
-              className="text-right tabular-nums"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">
-              Même valeur pour toutes les quantités.
-            </p>
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="global">Montant global</SelectItem>
+                <SelectItem value="per_quantity">Détaillé par quantité</SelectItem>
+              </SelectContent>
+            </Select>
+            {pricingMode === "global" && (
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Montant global (€)"
+                value={montantGlobal || ""}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    pricingMode: "global",
+                    montantGlobal: e.target.value === "" ? 0 : Number(e.target.value),
+                    montantsParQuantite: amounts,
+                  })
+                }
+                className="text-right tabular-nums"
+              />
+            )}
           </div>
           <div className="w-48">
             {margeGuard ? (
@@ -1049,6 +1155,7 @@ export function OutillageBlock({
                     onChange({
                       ...value,
                       montantGlobal,
+                      montantsParQuantite: amounts,
                       margePct: m,
                       margeConfirmed: c,
                     })
@@ -1071,6 +1178,7 @@ export function OutillageBlock({
                     onChange({
                       ...value,
                       montantGlobal,
+                      montantsParQuantite: amounts,
                       margePct: e.target.value === "" ? null : Number(e.target.value),
                     })
                   }
@@ -1093,6 +1201,42 @@ export function OutillageBlock({
       {quantites.length === 0 ? (
         <div className="border-2 rounded-md px-3 py-4 text-xs text-muted-foreground text-center bg-muted/30">
           Ajoutez au moins une quantité pour calculer le coût unitaire de l'outillage.
+        </div>
+      ) : pricingMode === "per_quantity" ? (
+        <div className="border-2 rounded-md overflow-hidden calc-table">
+          <div className="grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 border-b-2 bg-muted text-primary text-[11px] uppercase font-bold tracking-wider">
+            <div>Quantité</div>
+            <div className="text-right">Montant outillage (€)</div>
+            <div className="text-right">Coût unitaire</div>
+          </div>
+          {quantites.map((q, index) => {
+            const quantity = Number(q.qty) || 0;
+            const amount = amounts[index] || 0;
+            const unit = quantity > 0 ? amount / quantity : 0;
+            return (
+              <div
+                key={index}
+                className="calc-row grid grid-cols-[110px_1fr_1fr] gap-2 px-3 py-2 items-center border-b last:border-b-0"
+              >
+                <div className="text-sm tabular-nums">
+                  {quantity ? quantity.toLocaleString("fr-FR") : "—"}
+                </div>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={amount || ""}
+                  placeholder="0"
+                  className="text-right tabular-nums"
+                  onChange={(e) =>
+                    updateDetailedAmount(index, e.target.value === "" ? 0 : Number(e.target.value))
+                  }
+                />
+                <div className="text-right text-sm font-medium tabular-nums text-muted-foreground">
+                  {quantity > 0 ? fmtEuro(unit) : "—"}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="border-2 rounded-md overflow-hidden calc-table">
@@ -1120,8 +1264,10 @@ export function OutillageBlock({
         </div>
       )}
       <p className="text-xs text-muted-foreground mt-2">
-        Le montant global fixe est divisé automatiquement par chaque quantité et intégré au prix
-        unitaire.
+        {pricingMode === "global"
+          ? "Le montant unique est divisé automatiquement par chaque quantité."
+          : "Chaque montant d’outillage est divisé par la quantité correspondante."}{" "}
+        Le coût obtenu est intégré au prix unitaire.
       </p>
     </div>
   );
