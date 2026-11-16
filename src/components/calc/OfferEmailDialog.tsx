@@ -873,6 +873,58 @@ function isToolingRow(row: OfferRow) {
   return normalizeSearch(row.designation) === "outillage";
 }
 
+function isTransportPackagingRow(row: OfferRow) {
+  return (
+    row.rowKey === "standard-transport-packaging" || row.rowKey === "contra-transport-packaging"
+  );
+}
+
+function prepareGlobalTransportSummaries(
+  summaries: OfferScenarioSummary[],
+  globalPresentation: boolean,
+) {
+  if (!globalPresentation) {
+    return { summaries, globalTransportHT: 0 };
+  }
+
+  const transportTotals = summaries.map((summary) =>
+    rowsTotal(summary.mainRows.filter(isTransportPackagingRow)),
+  );
+  const globalTransportHT = transportTotals.find((value) => Math.abs(value) > 0.005) ?? 0;
+  const adjusted = summaries.map((summary, index) => {
+    const transportHT = transportTotals[index] || 0;
+    const totalHT = summary.totalHT - transportHT;
+    return {
+      ...summary,
+      mainRows: summary.mainRows.filter((row) => !isTransportPackagingRow(row)),
+      mainTotalHT: summary.mainTotalHT - transportHT,
+      totalHT,
+      vat: totalHT * 0.2,
+      totalTTC: totalHT * 1.2,
+    };
+  });
+
+  return { summaries: adjusted, globalTransportHT };
+}
+
+function buildGlobalTransportPlainText(amount: number) {
+  return Math.abs(amount) > 0.005 ? `Transport : montant global HT ${fmtEUR(amount)}` : "";
+}
+
+function buildGlobalTransportHtmlRow(amount: number) {
+  if (Math.abs(amount) <= 0.005) return "";
+  return `<tr>
+    <td style="padding:0 0 14px 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:4px solid ${YETI_ORANGE};background:#fffaf6;font-family:${FONT};">
+        <tr>
+          <td style="padding:10px 12px;color:${MAIL_TEXT};font-size:12px;font-weight:700;">Transport — montant global HT</td>
+          <td style="padding:10px 12px;text-align:right;color:${YETI_ORANGE};font-size:15px;font-weight:800;white-space:nowrap;">${escapeHtml(fmtEUR(amount))}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
 function prepareToolingSummaries(
   summaries: OfferScenarioSummary[],
   presentation: ToolingPresentation,
@@ -1414,6 +1466,7 @@ function buildPlainTextMultiQuantityEmail(params: {
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
   toolingPresentation: ToolingPresentation;
+  globalTransportPresentation: boolean;
 }) {
   const {
     clientName,
@@ -1428,9 +1481,12 @@ function buildPlainTextMultiQuantityEmail(params: {
     showGlobalTotals,
     showLineSubtotals,
     toolingPresentation,
+    globalTransportPresentation,
   } = params;
+  const { summaries: summariesWithoutGlobalTransport, globalTransportHT } =
+    prepareGlobalTransportSummaries(sourceSummaries, globalTransportPresentation);
   const { summaries, globalToolingHT } = prepareToolingSummaries(
-    sourceSummaries,
+    summariesWithoutGlobalTransport,
     toolingPresentation,
   );
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
@@ -1464,6 +1520,7 @@ function buildPlainTextMultiQuantityEmail(params: {
           ];
         })
       : [objet, ...buildPlainDetailLines(mainDetails)]),
+    buildGlobalTransportPlainText(globalTransportHT),
     toolingPresentation === "global" ? buildGlobalToolingPlainText(globalToolingHT) : "",
     hasOptions ? "" : "",
     hasOptions ? "Options :" : "",
@@ -1530,6 +1587,7 @@ function buildHtmlMultiQuantityEmail(params: {
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
   toolingPresentation: ToolingPresentation;
+  globalTransportPresentation: boolean;
 }) {
   const {
     clientName,
@@ -1546,9 +1604,12 @@ function buildHtmlMultiQuantityEmail(params: {
     showGlobalTotals,
     showLineSubtotals,
     toolingPresentation,
+    globalTransportPresentation,
   } = params;
+  const { summaries: summariesWithoutGlobalTransport, globalTransportHT } =
+    prepareGlobalTransportSummaries(sourceSummaries, globalTransportPresentation);
   const { summaries, globalToolingHT } = prepareToolingSummaries(
-    sourceSummaries,
+    summariesWithoutGlobalTransport,
     toolingPresentation,
   );
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
@@ -1776,6 +1837,7 @@ function buildHtmlMultiQuantityEmail(params: {
     ${buildMailImageRow(image)}
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${showDetailedLines ? mainLinePriceTable() : descriptionBlock(objet || "Offre principale", mainDetails)}
+    ${buildGlobalTransportHtmlRow(globalTransportHT)}
     ${toolingPresentation === "global" ? buildGlobalToolingHtmlRow(globalToolingHT) : ""}
     ${hasOptions ? optionPriceTable() : ""}
     ${showDetailedLines ? "" : pricingTable}
@@ -1988,6 +2050,11 @@ export function OfferEmailDialog({
       const summaries = scenarioItems.map((item) =>
         buildScenarioSummary(dossier?.type, payload, output, item, "Base", detailedMainRows),
       );
+      const transportPackaging = normalizeTransportPackaging(
+        payload?.transportPackaging,
+        scenarioItems.length,
+      );
+      const globalTransportPresentation = transportPackaging.pricingMode === "global";
       const transportCondition = buildTransportCondition(payload, scenarioItems);
       const outillageIncluded =
         Math.abs(Number(payload?.outillage?.montantGlobal) || 0) > 0.005 ||
@@ -2009,6 +2076,7 @@ export function OfferEmailDialog({
         showGlobalTotals,
         showLineSubtotals,
         toolingPresentation,
+        globalTransportPresentation,
       });
       const html = buildHtmlMultiQuantityEmail({
         clientName,
@@ -2025,6 +2093,7 @@ export function OfferEmailDialog({
         showGlobalTotals,
         showLineSubtotals,
         toolingPresentation,
+        globalTransportPresentation,
       });
       const { mailWidth: previewWidth } = getMultiQuantityMailLayout(scenarioItems.length);
 
