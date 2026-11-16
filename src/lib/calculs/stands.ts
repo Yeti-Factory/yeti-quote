@@ -18,6 +18,8 @@ export type StandsSectionLine = {
   prixUnitaire: number; // achat unitaire
   /** Marge propre à la ligne (%). Vide : hérite de la marge du groupe, puis du dossier. */
   margePct?: number | null;
+  /** Quantity scenarios proposed for this article. Missing means all (legacy dossiers). */
+  quantitesActives?: boolean[];
 };
 
 export type StandsSection = {
@@ -25,6 +27,8 @@ export type StandsSection = {
   lignes: StandsSectionLine[];
   /** Displays this section separately in the Options section of client and Sage offers. */
   isOption?: boolean;
+  /** Combines every transport cost in this section into one client-facing "Transport" row. */
+  transportGlobal?: boolean;
   /** Marge groupe (%) — overrides default coef_marge_pct when set. */
   margePct?: number | null;
 };
@@ -77,6 +81,18 @@ export function isStandsOptionSection(
   return /\boptions?\b/.test(label);
 }
 
+export function isStandsTransportSection(
+  section: Pick<StandsSection, "libelle"> | null | undefined,
+  resolvedLabel?: unknown,
+) {
+  const label = String(resolvedLabel ?? section?.libelle ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+  return /\btransport\b/.test(label);
+}
+
 export type StandsGroupResult = {
   libelle: string;
   achatTotal: number;
@@ -88,6 +104,7 @@ export type StandsGroupResult = {
   /** Prix vente affiché au client, frais fixes inclus. */
   pvTotal: number;
   lignes: Array<{
+    active: boolean;
     achat: number;
     margePct: number;
     pvTotalHorsFrais: number;
@@ -98,6 +115,8 @@ export type StandsGroupResult = {
 
 export type StandsExtra = {
   groupes: StandsGroupResult[];
+  /** Scenario-specific groups after applying each article's selected quantities. */
+  groupesParQuantite: StandsGroupResult[][];
   totalAchatGroupes: number;
   totalPvGroupesHorsFrais: number;
   totalFraisFixesGroupes: number;
@@ -108,67 +127,67 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
   const { sections, params } = input;
   const quantites = normalizeQuantites(input.quantites);
 
-  // Per-group results (independent of quantity — stands are typically 1 unit)
-  const baseGroupes = sections.map((sec, index) => {
-    const achatTotal = sec.lignes.reduce((a, l) => a + (Number(l.prixUnitaire) || 0), 0);
-    const margePct = resolveMargePct(sec.margePct, null, params.coef_marge_pct);
-    // Une ligne hérite du groupe, lequel hérite du dossier. La création reste globale.
-    const lignes = sec.lignes.map((l) => {
-      const achat = Number(l.prixUnitaire) || 0;
-      const lineMargePct = resolveMargePct(l.margePct, null, margePct);
-      const facteur = (1 + lineMargePct / 100) * (1 + params.marge_crea_pct / 100);
+  function buildGroupsForQuantity(quantityIndex: number) {
+    const baseGroupes = sections.map((sec, index) => {
+      const margePct = resolveMargePct(sec.margePct, null, params.coef_marge_pct);
+      const lignes = sec.lignes.map((line) => {
+        const active =
+          !Array.isArray(line.quantitesActives) || line.quantitesActives[quantityIndex] === true;
+        const achat = active ? Number(line.prixUnitaire) || 0 : 0;
+        const lineMargePct = resolveMargePct(line.margePct, null, margePct);
+        const facteur = (1 + lineMargePct / 100) * (1 + params.marge_crea_pct / 100);
+        return { active, achat, margePct: lineMargePct, pvTotalHorsFrais: achat * facteur };
+      });
       return {
-        achat,
-        margePct: lineMargePct,
-        pvTotalHorsFrais: achat * facteur,
+        libelle: resolveStandsSectionLabel(sec, index),
+        achatTotal: lignes.reduce((sum, line) => sum + line.achat, 0),
+        margePct,
+        pvTotalHorsFrais: lignes.reduce((sum, line) => sum + line.pvTotalHorsFrais, 0),
+        lignes,
       };
     });
-    const pvTotalHorsFrais = lignes.reduce((sum, line) => sum + line.pvTotalHorsFrais, 0);
-    return {
-      libelle: resolveStandsSectionLabel(sec, index),
-      achatTotal,
-      margePct,
-      pvTotalHorsFrais,
-      lignes,
-    };
-  });
-
-  const totalAchatGroupes = baseGroupes.reduce((s, g) => s + g.achatTotal, 0);
-  const totalPvGroupesHorsFrais = baseGroupes.reduce((s, g) => s + g.pvTotalHorsFrais, 0);
-  const totalFraisFixesGroupes = totalAchatGroupes * (params.frais_fixes_pct / 100);
-  const groupes: StandsGroupResult[] = baseGroupes.map((group) => {
-    const groupFraisFixes =
-      totalAchatGroupes > 0 ? totalFraisFixesGroupes * (group.achatTotal / totalAchatGroupes) : 0;
-    const lignes = group.lignes.map((line) => {
-      const lineFraisFixes =
-        group.achatTotal > 0 ? groupFraisFixes * (line.achat / group.achatTotal) : 0;
-      return {
-        ...line,
-        fraisFixes: lineFraisFixes,
-        pvTotal: line.pvTotalHorsFrais + lineFraisFixes,
-      };
+    const totalAchatGroupes = baseGroupes.reduce((sum, group) => sum + group.achatTotal, 0);
+    const totalPvGroupesHorsFrais = baseGroupes.reduce(
+      (sum, group) => sum + group.pvTotalHorsFrais,
+      0,
+    );
+    const totalFraisFixesGroupes = totalAchatGroupes * (params.frais_fixes_pct / 100);
+    const groupes: StandsGroupResult[] = baseGroupes.map((group) => {
+      const fraisFixes =
+        totalAchatGroupes > 0 ? totalFraisFixesGroupes * (group.achatTotal / totalAchatGroupes) : 0;
+      const lignes = group.lignes.map((line) => {
+        const lineFraisFixes =
+          group.achatTotal > 0 ? fraisFixes * (line.achat / group.achatTotal) : 0;
+        return {
+          ...line,
+          fraisFixes: lineFraisFixes,
+          pvTotal: line.pvTotalHorsFrais + lineFraisFixes,
+        };
+      });
+      return { ...group, fraisFixes, pvTotal: group.pvTotalHorsFrais + fraisFixes, lignes };
     });
     return {
-      ...group,
-      fraisFixes: groupFraisFixes,
-      pvTotal: group.pvTotalHorsFrais + groupFraisFixes,
-      lignes,
+      groupes,
+      totalAchatGroupes,
+      totalPvGroupesHorsFrais,
+      totalFraisFixesGroupes,
+      totalPvGroupes: groupes.reduce((sum, group) => sum + group.pvTotal, 0),
     };
-  });
-  const totalPvGroupes = groupes.reduce((s, g) => s + g.pvTotal, 0);
+  }
 
-  const scenarios: QuantityResult[] = (
-    quantites.length ? quantites : [{ qty: 1, margePct: null }]
-  ).map((quant) => {
+  const scenarioQuantities = quantites.length ? quantites : [{ qty: 1, margePct: null }];
+  const groupsByQuantity = scenarioQuantities.map((_, index) => buildGroupsForQuantity(index));
+  const scenarios: QuantityResult[] = scenarioQuantities.map((quant, quantityIndex) => {
+    const groupData = groupsByQuantity[quantityIndex];
     const Q = Number(quant.qty) || 0;
-    const prixUnitaireAchat = totalAchatGroupes;
-    const prixVenteNetUnit = totalPvGroupesHorsFrais;
+    const prixUnitaireAchat = groupData.totalAchatGroupes;
+    const prixVenteNetUnit = groupData.totalPvGroupesHorsFrais;
     const achatsTotal = prixUnitaireAchat * Q;
     const fraisFixes = achatsTotal * (params.frais_fixes_pct / 100);
     const budgetNet = prixVenteNetUnit * Q;
     const commRapUnit = prixVenteNetUnit * (params.commission_rapporteur_pct / 100);
     const commRapTotal = commRapUnit * Q;
-    const totalPrixUnitaire = totalPvGroupes + commRapUnit;
+    const totalPrixUnitaire = groupData.totalPvGroupes + commRapUnit;
     const totalCA = totalPrixUnitaire * Q;
     // Les frais fixes sont un bonus ajouté au prix final : ils ne dégradent pas la marge affichée.
     const totalDepenses = achatsTotal + commRapTotal;
@@ -198,11 +217,8 @@ export function calculerStands(input: StandsInput): CalcOutput & { extra: Stands
     totalMargeNet: scenarios.reduce((s, r) => s + r.margeNet, 0),
     totalCA: scenarios.reduce((s, r) => s + r.totalCA, 0),
     extra: {
-      groupes,
-      totalAchatGroupes,
-      totalPvGroupesHorsFrais,
-      totalFraisFixesGroupes,
-      totalPvGroupes,
+      ...groupsByQuantity[0],
+      groupesParQuantite: groupsByQuantity.map((groupData) => groupData.groupes),
     },
   };
 }

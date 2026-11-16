@@ -33,6 +33,7 @@ import {
   getTransportLigneGlobal,
   getTransportLigneUnit,
   isOptionLine,
+  isLineActiveForQuantity,
   normalizeTransportPackaging,
   resolveMargePct,
   resolveLineMargePct,
@@ -40,7 +41,7 @@ import {
 import { formatClientGreetingName } from "@/lib/client-contact";
 import { calculateCarbonEstimate, type CarbonEstimateResult } from "@/lib/carbon";
 import { fmtEUR } from "@/lib/format";
-import { isStandsOptionSection } from "@/lib/calculs/stands";
+import { isStandsOptionSection, isStandsTransportSection } from "@/lib/calculs/stands";
 
 type OfferRow = {
   rowKey?: string;
@@ -424,6 +425,7 @@ function buildStandardRows(
   const achatsPrincipauxDetails: string[] = [];
   const optionRows: OfferRow[] = [];
   for (const [index, line] of (payload?.achatsPrincipaux ?? []).entries()) {
+    if (!isLineActiveForQuantity(line, scenarioIndex)) continue;
     const achat = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
     const lineBase = achat + transportLigneUnit;
@@ -476,7 +478,7 @@ function buildStandardRows(
   const tpMarge = Number(scenario.transportPackagingMargePct) || 0;
   addRow(
     rows,
-    "Transport / Packaging",
+    "Transport",
     quantite,
     tpUnit * (1 + tpMarge / 100),
     [],
@@ -549,6 +551,7 @@ function buildContraRows(
   const achatsContraDetails: string[] = [];
   const optionsContraRows: OfferRow[] = [];
   for (const [index, line] of (payload?.achatsContra ?? []).entries()) {
+    if (!isLineActiveForQuantity(line, scenarioIndex)) continue;
     const raw = getPrixAchat(line, scenarioIndex);
     const transportLigneUnit = getTransportLigneUnit(line, scenarioIndex, quantite);
     const lineBase = raw + transportLigneUnit;
@@ -660,7 +663,7 @@ function buildContraRows(
   );
   addRow(
     rows,
-    "Transport / Packaging",
+    "Transport",
     quantite,
     pvFromContraSharedRaw(tpUnit, coefContra, tpMarge),
     [],
@@ -710,25 +713,30 @@ function buildStandRows(
   payload: any,
   output: any,
   scenario: any,
+  scenarioIndex: number,
   detailedMainRows = false,
 ): OfferRow[] {
   const rows: OfferRow[] = [];
   const quantite = Number(scenario.quantite) || 0;
-  const groups = output?.extra?.groupes ?? [];
+  const groups = output?.extra?.groupesParQuantite?.[scenarioIndex] ?? output?.extra?.groupes ?? [];
 
   for (const [index, group] of groups.entries()) {
-    const sectionLines = payload?.sections?.[index]?.lignes ?? [];
+    const section = payload?.sections?.[index];
+    const sectionLines = section?.lignes ?? [];
     const hasInputLines = sectionLines.length > 0;
     if (!hasInputLines && !(Number(group?.pvTotal) > 0)) continue;
     const groupLabel = cleanLabel(
       group?.libelle || payload?.sections?.[index]?.libelle,
       `Groupe ${index + 1}`,
     );
-    const groupIsOption = isStandsOptionSection(payload?.sections?.[index], groupLabel);
+    const groupIsOption = isStandsOptionSection(section, groupLabel);
+    const isGlobalTransport =
+      section?.transportGlobal === true && isStandsTransportSection(section, groupLabel);
 
-    if (detailedMainRows && hasInputLines) {
+    if (detailedMainRows && hasInputLines && !isGlobalTransport) {
       for (const [lineIndex, line] of sectionLines.entries()) {
         const result = group?.lignes?.[lineIndex];
+        if (result?.active === false) continue;
         const lineLabel = cleanLabel(line?.libelle, `Ligne ${lineIndex + 1}`);
         const designation =
           normalizeSearch(lineLabel) === normalizeSearch(groupLabel)
@@ -748,21 +756,26 @@ function buildStandRows(
       continue;
     }
 
-    const details = hasInputLines
-      ? sectionLines.map((line: any, lineIndex: number) =>
-          buildLineDetail(line, `${groupLabel} - ligne ${lineIndex + 1}`),
-        )
-      : [];
+    const details =
+      hasInputLines && !isGlobalTransport
+        ? sectionLines
+            .map((line: any, lineIndex: number) =>
+              group?.lignes?.[lineIndex]?.active === false
+                ? null
+                : buildLineDetail(line, `${groupLabel} - ligne ${lineIndex + 1}`),
+            )
+            .filter((detail: string | null): detail is string => detail !== null)
+        : [];
 
     addRow(
       rows,
-      groupLabel,
+      isGlobalTransport ? "Transport" : groupLabel,
       quantite,
       Number(group?.pvTotalHorsFrais ?? group?.pvTotal) || 0,
       details,
       groupIsOption,
       Number(group?.achatTotal) || 0,
-      `stands-group-${index}`,
+      isGlobalTransport ? "stands-global-transport" : `stands-group-${index}`,
     );
   }
 
@@ -795,7 +808,8 @@ function buildOfferRows(
     );
   if (type === "contra")
     return buildContraRows(payload, scenario, scenarioIndex, primaryDesignation, detailedMainRows);
-  if (type === "stands") return buildStandRows(payload, output, scenario, detailedMainRows);
+  if (type === "stands")
+    return buildStandRows(payload, output, scenario, scenarioIndex, detailedMainRows);
   return [];
 }
 
@@ -1315,7 +1329,11 @@ function buildHtmlEmail(params: {
 function hasLineTransport(payload: any, scenarioItems: ScenarioItem[]) {
   const lines = payload?.achatsPrincipaux ?? payload?.achatsContra ?? [];
   return lines.some((line: any) =>
-    scenarioItems.some((item) => Math.abs(getTransportLigneGlobal(line, item.index)) > 0.005),
+    scenarioItems.some(
+      (item) =>
+        isLineActiveForQuantity(line, item.index) &&
+        Math.abs(getTransportLigneGlobal(line, item.index)) > 0.005,
+    ),
   );
 }
 

@@ -16,7 +16,7 @@ const ROWS: {
 }[] = [
   { label: "Prix unitaire achat", key: "prixUnitaireAchat", fmt: fmtEUR, group: "cost" },
   {
-    label: "Transport / Packaging /u",
+    label: "Transport global /u",
     key: "transportPackagingUnit",
     fmt: fmtEUR,
     optional: true,
@@ -265,7 +265,7 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="px-3 py-2">Transport / Packaging /u</td>
+                  <td className="px-3 py-2">Transport global /u</td>
                   {scenarios.map((s, i) => (
                     <td key={i} className="px-3 py-2 text-right tabular-nums">
                       {fmtEUR(s.contraTransportUnit ?? 0)}
@@ -320,7 +320,7 @@ export function ResultsPanel({ output }: { output: CalcOutput }) {
                   className="px-3 py-2 text-[11px] italic text-muted-foreground"
                   colSpan={scenarios.length + 1}
                 >
-                  Transport / Packaging refacturé <strong>sans marge</strong> (au coût).
+                  Transport global refacturé <strong>sans marge</strong> (au coût).
                 </td>
               </tr>
             )}
