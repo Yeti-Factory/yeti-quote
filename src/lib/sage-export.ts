@@ -9,6 +9,7 @@ import {
   getTransportLigneUnit,
   isOptionLine,
   isLineActiveForQuantity,
+  normalizeOutillage,
   normalizeTransportPackaging,
   resolveLineMargePct,
   resolveMargePct,
@@ -656,7 +657,59 @@ export function buildSageQuoteRowGroups(params: {
     });
   });
 
-  return Array.from(groups.values());
+  const dossierType = params.dossier?.type;
+  const usesSharedAmounts = dossierType === "standard" || dossierType === "contra";
+  const globalFixedCodes = new Set<string>();
+  if (
+    usesSharedAmounts &&
+    normalizeTransportPackaging(params.payload?.transportPackaging, scenarios.length)
+      .pricingMode === "global"
+  ) {
+    globalFixedCodes.add("YQ-TRANSPORT");
+  }
+  if (
+    usesSharedAmounts &&
+    normalizeOutillage(params.payload?.outillage, scenarios.length).pricingMode === "global"
+  ) {
+    globalFixedCodes.add("YQ-OUTILLAGE");
+  }
+
+  const regularGroups: SageQuoteRowGroup[] = [];
+  const fixedGroups: SageQuoteRowGroup[] = [];
+  const optionGroups: SageQuoteRowGroup[] = [];
+
+  groups.forEach((group) => {
+    const firstVariant = group.variants[0];
+    const isGlobalFixedAmount =
+      firstVariant && globalFixedCodes.has(firstVariant.row.codeArticle) && !group.option;
+
+    if (isGlobalFixedAmount) {
+      const source =
+        group.variants.find((variant) => Math.abs(variant.row.montantHT) >= 0.005) ?? firstVariant;
+      const amount = source.row.montantHT;
+      fixedGroups.push({
+        ...group,
+        variants: [
+          {
+            ...source,
+            quantity: 1,
+            row: {
+              ...source.row,
+              quantite: 1,
+              prixUnitaireHT: amount,
+              montantHT: amount,
+            },
+          },
+        ],
+      });
+    } else if (group.option) {
+      optionGroups.push(group);
+    } else {
+      regularGroups.push(group);
+    }
+  });
+
+  return [...regularGroups, ...fixedGroups, ...optionGroups];
 }
 
 function combineRows(
@@ -768,7 +821,9 @@ export function makeSageQuoteCsv(params: {
       depotCode,
       cleanText(row.designation),
       csvNumber(row.quantite, 3, "dot"),
-      csvNumber(row.prixUnitaireHT, 2, "dot"),
+      // Sage displays two decimals but calculates line totals from the imported
+      // unit price. Keep four decimals so its rounded totals match YetiQuote.
+      csvNumber(row.prixUnitaireHT, 4, "dot"),
       csvNumber(row.tauxTVA, 2, "dot"),
       "",
       "",
