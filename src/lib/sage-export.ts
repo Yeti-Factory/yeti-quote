@@ -740,40 +740,15 @@ function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/**
- * Sage accepts only two decimals for the imported unit price. For quantities
- * greater than one, that can move the line total by a few cents compared with
- * YetiQuote's internal calculation. Add one transparent balancing line so the
- * final Sage quote keeps the exact same total as the offer.
- */
-function addSageRoundingAdjustment(rows: SageExportRow[]) {
-  if (rows.length === 0) return rows;
-
-  const expectedTotal = roundCurrency(rows.reduce((sum, row) => sum + row.montantHT, 0));
-  const sageTotal = roundCurrency(
-    rows.reduce(
-      (sum, row) => sum + roundCurrency(roundCurrency(row.prixUnitaireHT) * row.quantite),
-      0,
-    ),
-  );
-  const adjustment = roundCurrency(expectedTotal - sageTotal);
-  if (Math.abs(adjustment) < 0.005) return rows;
-
-  const template = rows.find((row) => row.option !== "Oui") ?? rows[0];
-  return [
-    ...rows,
-    {
-      ...template,
-      numeroLigne: rows.length + 1,
-      codeArticle: "YQ-ARRONDI",
-      designation: "Ajustement d'arrondi",
-      description: "",
-      quantite: 1,
-      prixUnitaireHT: adjustment,
-      montantHT: adjustment,
-      option: "Non",
-    },
-  ];
+function applySageCommercialRounding(rows: SageExportRow[]) {
+  return rows.map((row) => {
+    const unitPrice = roundCurrency(row.prixUnitaireHT);
+    return {
+      ...row,
+      prixUnitaireHT: unitPrice,
+      montantHT: roundCurrency(unitPrice * row.quantite),
+    };
+  });
 }
 
 export function prepareSageQuoteRows(params: {
@@ -789,20 +764,19 @@ export function prepareSageQuoteRows(params: {
   const selectedRows = Array.isArray(selectedLineNumbers)
     ? allRows.filter((row) => selectedLineNumbers.includes(row.numeroLigne))
     : allRows;
+  const commercialRows = applySageCommercialRounding(selectedRows);
   const lineMode = params.options?.lineMode ?? "detailed";
 
-  if (lineMode === "detailed") {
-    return renumberRows(addSageRoundingAdjustment(selectedRows));
-  }
+  if (lineMode === "detailed") return renumberRows(commercialRows);
 
   const quoteReference = cleanText(params.meta.objet || params.dossier?.objet || "Prestation");
   if (lineMode === "single_total") {
-    const totalRow = combineRows(selectedRows, quoteReference, false);
+    const totalRow = combineRows(commercialRows, quoteReference, false);
     return totalRow ? [totalRow] : [];
   }
 
-  const mainRows = selectedRows.filter((row) => row.option !== "Oui");
-  const optionRows = selectedRows.filter((row) => row.option === "Oui");
+  const mainRows = commercialRows.filter((row) => row.option !== "Oui");
+  const optionRows = commercialRows.filter((row) => row.option === "Oui");
   return renumberRows(
     [
       combineRows(mainRows, quoteReference, false),

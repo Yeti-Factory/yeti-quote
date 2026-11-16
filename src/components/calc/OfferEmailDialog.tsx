@@ -862,12 +862,21 @@ function reconcileRows(rows: OfferRow[], scenario: any) {
   });
 }
 
+function roundCurrency(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function rowTotal(row: OfferRow) {
-  return row.unitPrice * row.quantity;
+  const commercialUnitPrice = roundCurrency(row.unitPrice);
+  return roundCurrency(commercialUnitPrice * row.quantity);
 }
 
 function rowsTotal(rows: OfferRow[]) {
-  return rows.reduce((sum, row) => sum + rowTotal(row), 0);
+  return roundCurrency(rows.reduce((sum, row) => sum + rowTotal(row), 0));
+}
+
+function rowsRawTotal(rows: OfferRow[]) {
+  return roundCurrency(rows.reduce((sum, row) => sum + row.unitPrice * row.quantity, 0));
 }
 
 function isToolingRow(row: OfferRow) {
@@ -889,16 +898,17 @@ function prepareGlobalTransportSummaries(
   }
 
   const transportTotals = summaries.map((summary) =>
-    rowsTotal(summary.mainRows.filter(isTransportPackagingRow)),
+    rowsRawTotal(summary.mainRows.filter(isTransportPackagingRow)),
   );
   const globalTransportHT = transportTotals.find((value) => Math.abs(value) > 0.005) ?? 0;
-  const adjusted = summaries.map((summary, index) => {
-    const transportHT = transportTotals[index] || 0;
-    const totalHT = summary.totalHT - transportHT;
+  const adjusted = summaries.map((summary) => {
+    const mainRows = summary.mainRows.filter((row) => !isTransportPackagingRow(row));
+    const mainTotalHT = rowsTotal(mainRows);
+    const totalHT = mainTotalHT + summary.optionsTotalHT;
     return {
       ...summary,
-      mainRows: summary.mainRows.filter((row) => !isTransportPackagingRow(row)),
-      mainTotalHT: summary.mainTotalHT - transportHT,
+      mainRows,
+      mainTotalHT,
       totalHT,
       vat: totalHT * 0.2,
       totalTTC: totalHT * 1.2,
@@ -935,16 +945,17 @@ function prepareToolingSummaries(
   }
 
   const toolingTotals = summaries.map((summary) =>
-    rowsTotal(summary.mainRows.filter(isToolingRow)),
+    rowsRawTotal(summary.mainRows.filter(isToolingRow)),
   );
   const globalToolingHT = toolingTotals.find((value) => Math.abs(value) > 0.005) ?? 0;
-  const adjusted = summaries.map((summary, index) => {
-    const toolingHT = toolingTotals[index] || 0;
-    const totalHT = summary.totalHT - toolingHT;
+  const adjusted = summaries.map((summary) => {
+    const mainRows = summary.mainRows.filter((row) => !isToolingRow(row));
+    const mainTotalHT = rowsTotal(mainRows);
+    const totalHT = mainTotalHT + summary.optionsTotalHT;
     return {
       ...summary,
-      mainRows: summary.mainRows.filter((row) => !isToolingRow(row)),
-      mainTotalHT: summary.mainTotalHT - toolingHT,
+      mainRows,
+      mainTotalHT,
       totalHT,
       vat: totalHT * 0.2,
       totalTTC: totalHT * 1.2,
