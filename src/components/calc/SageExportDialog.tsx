@@ -45,6 +45,7 @@ type SageExportDialogProps = {
 };
 
 export function SageExportDialog({ dossier, meta, payload, output }: SageExportDialogProps) {
+  const [open, setOpen] = useState(false);
   const rowGroups = useMemo(
     () => buildSageQuoteRowGroups({ dossier, meta, payload, output }),
     [dossier, meta, output, payload],
@@ -58,6 +59,29 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   );
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode());
   const [lineMode, setLineMode] = useState<SageLineMode>("detailed");
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const embeddedClientCode = getSageClientCode(dossier);
+    setSageClientCode(embeddedClientCode);
+    const clientId = String(dossier?.client_id ?? dossier?.clients?.id ?? "").trim();
+    if (!clientId) return () => void (active = false);
+
+    void (async () => {
+      const { data, error } = await backend
+        .from("clients")
+        .select("code_sage")
+        .eq("id", clientId)
+        .single();
+      if (!active || error) return;
+      setSageClientCode(String(data?.code_sage ?? "").trim());
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [dossier, open]);
 
   useEffect(() => {
     setSelectedVariantByGroup((current) => {
@@ -172,7 +196,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
           <FileSpreadsheet className="w-4 h-4 mr-1.5" />
@@ -205,8 +229,8 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                 placeholder="Ex. 057"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Utilisez le code exact de la fiche client Sage Gestion commerciale, sans préfixe,
-                suffixe ou espace ajouté.
+                Repris automatiquement depuis la fiche client lorsqu’il y est renseigné. Vous pouvez
+                le corriger ici si nécessaire.
               </p>
             </div>
             <div>
