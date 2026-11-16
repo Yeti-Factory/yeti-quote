@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { fmtEUR } from "@/lib/format";
 import {
+  applySageCommercialRounding,
   buildSageQuoteRowGroups,
   getDefaultSageArticleCode,
   getDefaultSageDepotCode,
@@ -122,9 +123,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   );
   const selectedRows = useMemo(
     () =>
-      displayedGroups
-        .filter((item) => item.selected)
-        .map((item, index) => ({ ...item.variant.row, numeroLigne: index + 1 })),
+      applySageCommercialRounding(
+        displayedGroups.filter((item) => item.selected).map((item) => item.variant.row),
+      ).map((row, index) => ({ ...row, numeroLigne: index + 1 })),
     [displayedGroups],
   );
   const exportedRows = useMemo(
@@ -356,7 +357,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               </thead>
               <tbody>
                 {displayedGroups.map(({ group, variant, selected }) => {
-                  const row = variant.row;
+                  const row = applySageCommercialRounding([variant.row])[0];
                   return (
                     <tr
                       key={group.key}

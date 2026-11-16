@@ -154,10 +154,18 @@ function commercialConditions(payload: any, scenario: any) {
     const dept = cleanText(tp.departementDepart);
     return [dept ? `Prix depart nos ateliers (${dept})` : "Prix depart nos ateliers"];
   }
-  return [
-    hasTransport(payload, scenario) ? "Transport inclus" : "EXW depart nos ateliers",
-    hasOutillage(payload, scenario) ? "Outillage inclus" : "",
-  ].filter(Boolean);
+  const hasSeparateTransportLine =
+    tp.mode === "global" &&
+    (Math.abs(Number(scenario?.transportPackagingGlobal) || 0) > 0.005 ||
+      Math.abs(Number(scenario?.transportPackagingUnit) || 0) > 0.005);
+  const transportCondition = hasSeparateTransportLine
+    ? ""
+    : hasTransport(payload, scenario)
+      ? "Transport inclus"
+      : "EXW depart nos ateliers";
+  return [transportCondition, hasOutillage(payload, scenario) ? "Outillage inclus" : ""].filter(
+    Boolean,
+  );
 }
 
 function commonRowBase(params: {
@@ -740,7 +748,7 @@ function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function applySageCommercialRounding(rows: SageExportRow[]) {
+export function applySageCommercialRounding(rows: SageExportRow[]) {
   return rows.map((row) => {
     const unitPrice = roundCurrency(row.prixUnitaireHT);
     return {
