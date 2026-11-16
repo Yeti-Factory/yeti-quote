@@ -34,6 +34,7 @@ import {
   getTransportLigneUnit,
   isOptionLine,
   isLineActiveForQuantity,
+  normalizeOutillage,
   normalizeTransportPackaging,
   resolveMargePct,
   resolveLineMargePct,
@@ -1112,6 +1113,42 @@ function collectMainRows(summaries: OfferScenarioSummary[]) {
   return [...rowsByKey.values()];
 }
 
+function collectCombinedRows(
+  rowsByScenario: OfferRow[][],
+  kind: "main" | "option",
+  takeOnce: (row: OfferRow) => boolean = () => false,
+) {
+  const rowsByKey = new Map<string, OfferRow>();
+  for (const rows of rowsByScenario) {
+    rows.forEach((row, index) => {
+      const key = row.rowKey ?? `${kind}-${normalizeSearch(row.designation)}-${index}`;
+      const existing = rowsByKey.get(key);
+      if (!existing) {
+        rowsByKey.set(key, { ...row, rowKey: key });
+        return;
+      }
+      if (takeOnce(row)) {
+        rowsByKey.set(key, {
+          ...existing,
+          quantity: 1,
+          unitPrice: rowTotal(existing),
+          fixedFeesBasisUnit: 0,
+        });
+        return;
+      }
+      const details = cleanDetails([...(existing.details ?? []), ...(row.details ?? [])]);
+      rowsByKey.set(key, {
+        ...existing,
+        quantity: 1,
+        unitPrice: rowTotal(existing) + rowTotal(row),
+        details,
+        fixedFeesBasisUnit: 0,
+      });
+    });
+  }
+  return [...rowsByKey.values()];
+}
+
 function findMainForScenario(summary: OfferScenarioSummary, mainRow: OfferRow) {
   return summary.mainRows.find((row, index) => {
     const key = row.rowKey ?? `main-${normalizeSearch(row.designation)}-${index}`;
@@ -1135,8 +1172,13 @@ function buildPlainTextEmail(params: {
   carbon: CarbonEstimateResult | null;
   commonInfo: OfferCommonInfo | null;
   quantity: number;
+  carbonQuantities?: Array<{ label: string; quantity: number }>;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  globalTransportHT?: number;
+  globalToolingHT?: number;
+  transportCondition?: string;
+  outillageIncluded?: boolean;
 }) {
   const {
     clientName,
@@ -1153,8 +1195,13 @@ function buildPlainTextEmail(params: {
     carbon,
     commonInfo,
     quantity,
+    carbonQuantities,
     showGlobalTotals,
     showLineSubtotals,
+    globalTransportHT = 0,
+    globalToolingHT = 0,
+    transportCondition,
+    outillageIncluded = false,
   } = params;
   const greeting = contactName ? `Bonjour ${contactName},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -1170,6 +1217,8 @@ function buildPlainTextEmail(params: {
     commonInfo ? "" : "",
     hasOptions ? "Offre principale :" : "Détail de l'offre :",
     ...buildPlainRows(mainRows, showLineSubtotals),
+    buildGlobalTransportPlainText(globalTransportHT),
+    buildGlobalToolingPlainText(globalToolingHT),
     hasOptions && showLineSubtotals
       ? `Sous-total offre principale HT : ${fmtEUR(mainTotalHT)}`
       : "",
@@ -1185,8 +1234,10 @@ function buildPlainTextEmail(params: {
     showGlobalTotals ? `TVA 20 % : ${fmtEUR(vat)}` : "",
     showGlobalTotals ? `Total TTC : ${fmtEUR(totalTTC)}` : "",
     "",
-    ...buildCarbonPlainText(carbon, [{ label: `Qté ${quantity}`, quantity }]),
+    ...buildCarbonPlainText(carbon, carbonQuantities ?? [{ label: `Qté ${quantity}`, quantity }]),
     "Cette offre est indicative et valable 8 jours, sous réserve de validation technique et de disponibilité.",
+    transportCondition ?? "",
+    outillageIncluded ? "Outillage inclus." : "",
     "Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.",
     "",
     "Le Yeti vous remercie pour votre confiance.",
@@ -1212,8 +1263,13 @@ function buildHtmlEmail(params: {
   carbon: CarbonEstimateResult | null;
   commonInfo: OfferCommonInfo | null;
   quantity: number;
+  carbonQuantities?: Array<{ label: string; quantity: number }>;
   showGlobalTotals: boolean;
   showLineSubtotals: boolean;
+  globalTransportHT?: number;
+  globalToolingHT?: number;
+  transportCondition?: string;
+  outillageIncluded?: boolean;
 }) {
   const {
     clientName,
@@ -1232,8 +1288,13 @@ function buildHtmlEmail(params: {
     carbon,
     commonInfo,
     quantity,
+    carbonQuantities,
     showGlobalTotals,
     showLineSubtotals,
+    globalTransportHT = 0,
+    globalToolingHT = 0,
+    transportCondition,
+    outillageIncluded = false,
   } = params;
   const greeting = contactName ? `Bonjour ${escapeHtml(contactName)},` : "Bonjour,";
   const hasOptions = optionRows.length > 0;
@@ -1332,7 +1393,7 @@ function buildHtmlEmail(params: {
         <p style="margin:0;">Suite à votre demande, vous trouverez ci-dessous notre offre de prix simplifiée.</p>
       </td>
     </tr>
-    ${buildCarbonHtmlRow(carbon, [{ label: `Qté ${quantity}`, quantity }])}
+    ${buildCarbonHtmlRow(carbon, carbonQuantities ?? [{ label: `Qté ${quantity}`, quantity }])}
     <tr>
       <td style="padding:0 0 14px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};">
@@ -1364,12 +1425,16 @@ function buildHtmlEmail(params: {
     ${buildMailImageRow(image)}
     ${buildCommonOfferInfoHtmlRow(commonInfo)}
     ${offerTable(hasOptions ? "Offre principale" : "Détail de l'offre", mainRows)}
+    ${buildGlobalTransportHtmlRow(globalTransportHT)}
+    ${buildGlobalToolingHtmlRow(globalToolingHT)}
     ${offerTable("Options", optionRows)}
     ${showGlobalTotals ? globalTotalsTable : ""}
     <tr>
       <td style="padding:10px 12px;border:1px solid ${MAIL_BORDER};border-left:3px solid ${YETI_ORANGE};background:#fffaf6;color:${MAIL_TEXT};font-size:12px;">
         <p style="margin:0 0 6px 0;color:${YETI_ORANGE};font-weight:700;">Conditions</p>
         <p style="margin:0 0 5px 0;">Offre indicative valable 8 jours, sous réserve de validation technique et de disponibilité.</p>
+        ${transportCondition ? `<p style="margin:0 0 5px 0;">${escapeHtml(transportCondition)}</p>` : ""}
+        ${outillageIncluded ? `<p style="margin:0 0 5px 0;">Outillage inclus.</p>` : ""}
         <p style="margin:0 0 5px 0;">Si cette proposition vous convient, nous vous transmettrons ensuite le devis officiel.</p>
         <p style="margin:0;">Le Yeti vous remercie pour votre confiance.</p>
       </td>
@@ -1407,6 +1472,36 @@ function buildTransportCondition(payload: any, scenarioItems: ScenarioItem[]) {
     return "Transport inclus.";
   }
   return "EXW (départ) nos ateliers.";
+}
+
+function usesQuantitiesSelectedPerArticle(
+  type: string,
+  payload: any,
+  scenarioItems: ScenarioItem[],
+) {
+  if ((type !== "standard" && type !== "contra") || scenarioItems.length < 2) return false;
+  const lines =
+    type === "contra" ? (payload?.achatsContra ?? []) : (payload?.achatsPrincipaux ?? []);
+  const pricedLines = lines.filter((line: any) =>
+    scenarioItems.some(
+      (item) =>
+        isLineActiveForQuantity(line, item.index) &&
+        Math.abs(getPrixAchat(line, item.index)) > 0.005,
+    ),
+  );
+  if (pricedLines.length === 0) return false;
+  const hasExplicitSelection = pricedLines.some((line: any) =>
+    Array.isArray(line?.quantitesActives),
+  );
+  if (!hasExplicitSelection) return false;
+  return pricedLines.every((line: any) => {
+    const activePricedQuantities = scenarioItems.filter(
+      (item) =>
+        isLineActiveForQuantity(line, item.index) &&
+        Math.abs(getPrixAchat(line, item.index)) > 0.005,
+    );
+    return activePricedQuantities.length <= 1;
+  });
 }
 
 function buildPlainPricingRows(
@@ -1981,6 +2076,11 @@ export function OfferEmailDialog({
     .map((scenario: any, index: number) => ({ scenario, index }))
     .filter((item: ScenarioItem) => Number(item.scenario.quantite) > 0);
   const isStandOffer = dossier?.type === "stands";
+  const isCombinedLineQuantityOffer = usesQuantitiesSelectedPerArticle(
+    dossier?.type,
+    payload,
+    scenarioItems,
+  );
   const [scenarioIndex, setScenarioIndex] = useState("0");
   const savedMailImage = useMemo(
     () => normalizeMailImage(payload?.offerMailImage),
@@ -2063,6 +2163,95 @@ export function OfferEmailDialog({
           const outillageUnit = Number(item.scenario.outillageUnit) || 0;
           return Math.abs(outillageGlobal) > 0.005 || Math.abs(outillageUnit) > 0.005;
         });
+      if (isCombinedLineQuantityOffer) {
+        const { summaries: summariesWithoutGlobalTransport, globalTransportHT } =
+          prepareGlobalTransportSummaries(summaries, globalTransportPresentation);
+        const outillage = normalizeOutillage(payload?.outillage, scenarioItems.length);
+        const combinedToolingPresentation =
+          outillage.pricingMode === "global" ? "global" : toolingPresentation;
+        const { summaries: combinedSummaries, globalToolingHT } = prepareToolingSummaries(
+          summariesWithoutGlobalTransport,
+          combinedToolingPresentation,
+        );
+        const takeGlobalRowOnce = (row: OfferRow) =>
+          row.rowKey?.startsWith("contra-forfait-") === true ||
+          row.rowKey?.startsWith("forfait-option-") === true;
+        const mainRows = collectCombinedRows(
+          combinedSummaries.map((summary) => summary.mainRows),
+          "main",
+          takeGlobalRowOnce,
+        );
+        const optionRows = collectCombinedRows(
+          combinedSummaries.map((summary) => summary.optionRows),
+          "option",
+          takeGlobalRowOnce,
+        );
+        const mainTotalHT = rowsTotal(mainRows) + globalTransportHT + globalToolingHT;
+        const optionsTotalHT = rowsTotal(optionRows);
+        const totalHT = mainTotalHT + optionsTotalHT;
+        const vat = totalHT * 0.2;
+        const totalTTC = totalHT + vat;
+        const carbonQuantities = scenarioItems.map((item) => ({
+          label: `Qté ${Number(item.scenario.quantite).toLocaleString("fr-FR")}`,
+          quantity: Number(item.scenario.quantite) || 0,
+        }));
+        const totalQuantity = mainRows.reduce((sum, row) => sum + row.quantity, 0);
+        const plainText = buildPlainTextEmail({
+          subject,
+          clientName,
+          contactName,
+          reference,
+          objet,
+          mainRows,
+          optionRows,
+          mainTotalHT,
+          optionsTotalHT,
+          totalHT,
+          vat,
+          totalTTC,
+          carbon,
+          commonInfo,
+          quantity: totalQuantity,
+          carbonQuantities,
+          showGlobalTotals,
+          showLineSubtotals,
+          globalTransportHT,
+          globalToolingHT,
+          transportCondition,
+          outillageIncluded,
+        });
+        const html = buildHtmlEmail({
+          clientName,
+          contactName,
+          clientEmail,
+          reference,
+          objet,
+          image: imageEnabled ? mailImage : null,
+          mainRows,
+          optionRows,
+          mainTotalHT,
+          optionsTotalHT,
+          totalHT,
+          vat,
+          totalTTC,
+          carbon,
+          commonInfo,
+          quantity: totalQuantity,
+          carbonQuantities,
+          showGlobalTotals,
+          showLineSubtotals,
+          globalTransportHT,
+          globalToolingHT,
+          transportCondition,
+          outillageIncluded,
+        });
+        return {
+          subject,
+          plainText: appendPrototypePlainText(plainText, prototype),
+          html: appendPrototypeHtml(html, prototype),
+          previewWidth: 760,
+        };
+      }
       const plainText = buildPlainTextMultiQuantityEmail({
         clientName,
         contactName,
@@ -2176,6 +2365,7 @@ export function OfferEmailDialog({
     dossier,
     mailImage,
     imageEnabled,
+    isCombinedLineQuantityOffer,
     meta,
     output,
     payload,
@@ -2290,8 +2480,9 @@ export function OfferEmailDialog({
               </div>
             ) : (
               <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                Toutes les quantités saisies seront intégrées dans l’offre, avec une colonne par
-                quantité.
+                {isCombinedLineQuantityOffer
+                  ? "Chaque article utilise sa quantité retenue. L’offre présente un seul total pour l’ensemble des lignes."
+                  : "Toutes les quantités saisies seront intégrées dans l’offre, avec une colonne par quantité."}
               </div>
             )}
 
