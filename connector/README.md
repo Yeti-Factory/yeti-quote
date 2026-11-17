@@ -1,9 +1,12 @@
 # Connecteur clients Sage 50
 
 Ce connecteur Windows lit les fiches clients de Sage 50 via l'interface COM installée avec
-Gestion Commerciale. Il ne modifie aucune donnée Sage. Toutes les cinq minutes, il récupère dans
-YetiQuote la liste des codes clients utiles, lit uniquement ces fiches et envoie un instantané à
-YetiQuote par HTTPS.
+Gestion Commerciale. Il ne modifie aucune donnée Sage. Il attend en arrière-plan sans ouvrir Sage.
+Lorsqu'un utilisateur clique sur « Récupérer la fiche Sage » dans YetiQuote, il lit uniquement la
+fiche demandée et renvoie l'instantané à YetiQuote par HTTPS.
+
+Une fiche YetiQuote peut rester un simple prospect sans code Sage. Le code et la récupération Sage
+peuvent être ajoutés plus tard, lorsque le prospect devient réellement client.
 
 Les informations synchronisées sont les adresses de facturation et de livraison, les coordonnées,
 le SIRET, le numéro de TVA, le mode et le délai de règlement, le contact et le représentant.

@@ -14,6 +14,7 @@ import { Route as InstallRouteImport } from './routes/install'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSageSyncRouteImport } from './routes/api/sage-sync'
 import { Route as ApiSageConnectorRouteImport } from './routes/api/sage-connector'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -51,6 +52,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSageSyncRoute = ApiSageSyncRouteImport.update({
+  id: '/api/sage-sync',
+  path: '/api/sage-sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSageConnectorRoute = ApiSageConnectorRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dossiers': typeof AuthenticatedDossiersRouteWithChildren
   '/api/sage-connector': typeof ApiSageConnectorRoute
+  '/api/sage-sync': typeof ApiSageSyncRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/sage-connector': typeof ApiSageConnectorRoute
+  '/api/sage-sync': typeof ApiSageSyncRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/dossiers/new': typeof AuthenticatedDossiersNewRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRouteWithChildren
   '/api/sage-connector': typeof ApiSageConnectorRoute
+  '/api/sage-sync': typeof ApiSageSyncRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/dossiers/$id': typeof AuthenticatedDossiersIdRoute
   '/_authenticated/dossiers/new': typeof AuthenticatedDossiersNewRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dossiers'
     | '/api/sage-connector'
+    | '/api/sage-sync'
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/api/sage-connector'
+    | '/api/sage-sync'
     | '/clients/$id'
     | '/dossiers/$id'
     | '/dossiers/new'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/dossiers'
     | '/api/sage-connector'
+    | '/api/sage-sync'
     | '/_authenticated/clients/$id'
     | '/_authenticated/dossiers/$id'
     | '/_authenticated/dossiers/new'
@@ -256,6 +268,7 @@ export interface RootRouteChildren {
   InstallRoute: typeof InstallRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiSageConnectorRoute: typeof ApiSageConnectorRoute
+  ApiSageSyncRoute: typeof ApiSageSyncRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiM365FoldersRoute: typeof ApiM365FoldersRoute
   ApiDataDatasetOperationRoute: typeof ApiDataDatasetOperationRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sage-sync': {
+      id: '/api/sage-sync'
+      path: '/api/sage-sync'
+      fullPath: '/api/sage-sync'
+      preLoaderRoute: typeof ApiSageSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sage-connector': {
@@ -454,6 +474,7 @@ const rootRouteChildren: RootRouteChildren = {
   InstallRoute: InstallRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiSageConnectorRoute: ApiSageConnectorRoute,
+  ApiSageSyncRoute: ApiSageSyncRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiM365FoldersRoute: ApiM365FoldersRoute,
   ApiDataDatasetOperationRoute: ApiDataDatasetOperationRoute,
