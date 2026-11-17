@@ -10,6 +10,8 @@ peuvent être ajoutés plus tard, lorsque le prospect devient réellement client
 
 Les informations synchronisées sont les adresses de facturation et de livraison, les coordonnées,
 le SIRET, le numéro de TVA, le mode et le délai de règlement, le contact et le représentant.
+Quand la fiche Sage n'a aucun représentant, YetiQuote utilise **Yovan Nalovic** comme commercial par
+défaut. Un représentant renseigné dans Sage reste toujours prioritaire.
 
 ## Installation
 
