@@ -1,5 +1,5 @@
 param(
-    [string]$ApiBaseUrl = "https://yeti-quote.yeti-factory.com",
+    [string]$ApiBaseUrl = "https://yeti-quote.yeti-lab.fr",
     [string]$SageDataFile = "C:\ProgramData\Ciel\Applications\Ciel Gestion Commerciale\YETI FACTORY\CDMDATA",
     [securestring]$Token
 )

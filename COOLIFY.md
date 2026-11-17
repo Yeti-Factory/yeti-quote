@@ -6,7 +6,7 @@ Ce dépôt contient désormais l’application et son backend PostgreSQL natif. 
 
 1. Créer une ressource Docker Compose dans Coolify à partir de ce dépôt.
 2. Utiliser `compose.ovh.yaml`.
-3. Associer le domaine `yeti-quote.yeti-factory.com` au service `app`, port `3000`.
+3. Associer le domaine `yeti-quote.yeti-lab.fr` au service `app`, port `3000`.
 4. Le point de contrôle est `GET /`.
 
 ## Variables obligatoires
