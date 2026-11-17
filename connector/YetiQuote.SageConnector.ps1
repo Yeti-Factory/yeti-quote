@@ -39,7 +39,8 @@ function Send-SageResult {
 
 if (-not (Test-Path -LiteralPath $ConfigPath)) { throw "Configuration introuvable : $ConfigPath" }
 $config = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not (Test-Path -LiteralPath $config.sageDataFile)) {
+$isMobileDataSource = ([string]$config.sageDataFile).StartsWith("!Srv!", [StringComparison]::OrdinalIgnoreCase)
+if (-not $isMobileDataSource -and -not (Test-Path -LiteralPath $config.sageDataFile)) {
     throw "Dossier Sage introuvable : $($config.sageDataFile)"
 }
 $secureToken = ConvertTo-SecureString ([string]$config.encryptedToken)
@@ -68,7 +69,10 @@ while ($true) {
             $application = New-Object -ComObject CielGestionCommerciale.Application
             $application.UIEnabled = $false
             $document = $application.OpenFile([string]$config.sageDataFile, "", "", 0)
-            $engine = $application.CreateEngine(97004)
+            # The client engine must belong to the document that was just opened.
+            # An application-level engine is not attached to the Data Mobiles file
+            # and consequently reports every otherwise valid client code as absent.
+            $engine = $document.CreateEngine(97004)
             if (-not $engine.Exist($code)) { throw "Le code client $code n'existe pas dans Sage." }
             $null = $engine.Load($code)
 
