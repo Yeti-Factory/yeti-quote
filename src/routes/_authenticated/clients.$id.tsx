@@ -11,7 +11,7 @@ import { formatClientContact } from "@/lib/client-contact";
 import { StatusBadge } from "./dashboard";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
-import { ArrowLeft, Database, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Database, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -36,6 +36,7 @@ function ClientDetail() {
   const { user } = useAuth();
   const { isAdmin } = useIsAdmin(user?.id);
   const [edit, setEdit] = useState(false);
+  const [sageSyncing, setSageSyncing] = useState(false);
 
   const { data: client } = useQuery({
     queryKey: ["client", id],
@@ -63,6 +64,37 @@ function ClientDetail() {
     if (error) return toast.error(error.message);
     toast.success("Client supprimé");
     navigate({ to: "/clients" });
+  }
+
+  async function syncSage() {
+    setSageSyncing(true);
+    try {
+      const created = await fetch("/api/sage-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: id }),
+      });
+      const request = await created.json();
+      if (!created.ok) throw new Error(request.error || "Demande Sage impossible");
+
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const checked = await fetch(`/api/sage-sync?id=${encodeURIComponent(request.id)}`);
+        const status = await checked.json();
+        if (!checked.ok) throw new Error(status.error || "Suivi Sage impossible");
+        if (status.status === "completed") {
+          await qc.invalidateQueries({ queryKey: ["client", id] });
+          toast.success(`Fiche Sage récupérée depuis ${status.source || "le poste disponible"}`);
+          return;
+        }
+        if (status.status === "failed") throw new Error(status.error || "Lecture Sage impossible");
+      }
+      toast.info("Demande enregistrée. Aucun connecteur Sage n’a répondu pour le moment.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Lecture Sage impossible");
+    } finally {
+      setSageSyncing(false);
+    }
   }
 
   if (!client) return <div className="text-sm text-muted-foreground">Chargement…</div>;
@@ -156,9 +188,15 @@ function ClientDetail() {
                   : "En attente de la première synchronisation depuis un poste équipé de Sage."}
               </p>
             </div>
-            <Badge variant={sage ? "default" : "outline"}>
-              {sage ? "Synchronisée" : "En attente"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={sage ? "default" : "outline"}>
+                {sage ? "Synchronisée" : "En attente"}
+              </Badge>
+              <Button size="sm" variant="outline" onClick={syncSage} disabled={sageSyncing}>
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${sageSyncing ? "animate-spin" : ""}`} />
+                {sageSyncing ? "Lecture de Sage…" : "Récupérer la fiche Sage"}
+              </Button>
+            </div>
           </div>
           {sage && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">

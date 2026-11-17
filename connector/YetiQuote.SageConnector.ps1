@@ -11,13 +11,10 @@ function Read-SageField {
     try {
         $value = ""
         $null = $Engine.GetFieldValStr($Name, [ref]$value, 0, 0)
-        $text = [string]$value
-        if ([string]::IsNullOrWhiteSpace($text)) { return $null }
-        return $text.Trim()
+        if ([string]::IsNullOrWhiteSpace([string]$value)) { return $null }
+        return ([string]$value).Trim()
     }
-    catch {
-        return $null
-    }
+    catch { return $null }
 }
 
 function Release-ComObject {
@@ -30,50 +27,52 @@ function Release-ComObject {
 function Write-ConnectorLog {
     param([string]$Message)
     $logPath = Join-Path (Split-Path -Parent $ConfigPath) "connector.log"
-    $line = "{0:s} {1}" -f (Get-Date), $Message
-    Add-Content -LiteralPath $logPath -Value $line -Encoding UTF8
+    Add-Content -LiteralPath $logPath -Value ("{0:s} {1}" -f (Get-Date), $Message) -Encoding UTF8
 }
 
-$application = $null
-$document = $null
-$engine = $null
+function Send-SageResult {
+    param([string]$Endpoint, [hashtable]$Headers, [System.Collections.IDictionary]$Payload)
+    $body = $Payload | ConvertTo-Json -Depth 8
+    Invoke-RestMethod -Uri $Endpoint -Headers $Headers -Method Post `
+        -ContentType "application/json; charset=utf-8" -Body $body -TimeoutSec 60 | Out-Null
+}
 
-try {
-    if (-not (Test-Path -LiteralPath $ConfigPath)) {
-        throw "Configuration introuvable : $ConfigPath"
-    }
-    $config = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (-not (Test-Path -LiteralPath $config.sageDataFile)) {
-        throw "Dossier Sage introuvable : $($config.sageDataFile)"
-    }
+if (-not (Test-Path -LiteralPath $ConfigPath)) { throw "Configuration introuvable : $ConfigPath" }
+$config = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if (-not (Test-Path -LiteralPath $config.sageDataFile)) {
+    throw "Dossier Sage introuvable : $($config.sageDataFile)"
+}
+$secureToken = ConvertTo-SecureString ([string]$config.encryptedToken)
+$credential = New-Object System.Management.Automation.PSCredential("token", $secureToken)
+$headers = @{
+    Authorization = "Bearer $($credential.GetNetworkCredential().Password)"
+    "X-Sage-Connector-Source" = [string]$config.sourceName
+}
+$endpoint = "{0}/api/sage-connector" -f ([string]$config.apiBaseUrl).TrimEnd("/")
 
-    $secureToken = ConvertTo-SecureString ([string]$config.encryptedToken)
-    $credential = New-Object System.Management.Automation.PSCredential("token", $secureToken)
-    $token = $credential.GetNetworkCredential().Password
-    $headers = @{ Authorization = "Bearer $token" }
-    $endpoint = "{0}/api/sage-connector" -f ([string]$config.apiBaseUrl).TrimEnd("/")
+Write-ConnectorLog "Connecteur prêt ; Sage ne sera consulté qu'à la demande."
+while ($true) {
+    try {
+        $response = Invoke-RestMethod -Uri $endpoint -Headers $headers -Method Get -TimeoutSec 30
+        $request = $response.request
+        if ($null -eq $request) {
+            Start-Sleep -Seconds 5
+            continue
+        }
 
-    $request = Invoke-RestMethod -Uri $endpoint -Headers $headers -Method Get -TimeoutSec 30
-    $codes = @($request.codes | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ })
-    if ($codes.Count -eq 0) {
-        Write-ConnectorLog "Aucun code client Sage à synchroniser."
-        exit 0
-    }
-
-    $application = New-Object -ComObject CielGestionCommerciale.Application
-    $application.UIEnabled = $false
-    $document = $application.OpenFile([string]$config.sageDataFile, "", "", 0)
-    $engine = $application.CreateEngine(97004)
-
-    $clients = @()
-    foreach ($code in $codes) {
+        $application = $null
+        $document = $null
+        $engine = $null
         try {
-            if (-not $engine.Exist($code)) {
-                Write-ConnectorLog "Code client absent de Sage : $code"
-                continue
-            }
+            $code = ([string]$request.code_sage).Trim()
+            $application = New-Object -ComObject CielGestionCommerciale.Application
+            $application.UIEnabled = $false
+            $document = $application.OpenFile([string]$config.sageDataFile, "", "", 0)
+            $engine = $application.CreateEngine(97004)
+            if (-not $engine.Exist($code)) { throw "Le code client $code n'existe pas dans Sage." }
             $null = $engine.Load($code)
-            $clients += [ordered]@{
+
+            $sageClient = [ordered]@{
                 code = $code
                 name = [string]$engine.Name
                 billingAddress = [ordered]@{
@@ -118,29 +117,32 @@ try {
                     mobile = Read-SageField $engine "PortableCtc"
                 }
             }
+            Send-SageResult $endpoint $headers ([ordered]@{
+                requestId = [string]$request.id
+                source = [string]$config.sourceName
+                syncedAt = (Get-Date).ToUniversalTime().ToString("o")
+                client = $sageClient
+            })
+            Write-ConnectorLog "Fiche $code synchronisée à la demande."
         }
         catch {
-            Write-ConnectorLog "Lecture impossible pour $code : $($_.Exception.Message)"
+            Send-SageResult $endpoint $headers ([ordered]@{
+                requestId = [string]$request.id
+                source = [string]$config.sourceName
+                error = $_.Exception.Message
+            })
+            Write-ConnectorLog "Lecture demandée impossible : $($_.Exception.Message)"
+        }
+        finally {
+            Release-ComObject $engine
+            Release-ComObject $document
+            Release-ComObject $application
+            [GC]::Collect()
+            [GC]::WaitForPendingFinalizers()
         }
     }
-
-    $payload = [ordered]@{
-        source = [string]$config.sourceName
-        syncedAt = (Get-Date).ToUniversalTime().ToString("o")
-        clients = $clients
-    } | ConvertTo-Json -Depth 8
-
-    $response = Invoke-RestMethod -Uri $endpoint -Headers $headers -Method Post -ContentType "application/json; charset=utf-8" -Body $payload -TimeoutSec 60
-    Write-ConnectorLog "Synchronisation terminée : $($response.updated) fiche(s) YetiQuote mise(s) à jour."
-}
-catch {
-    Write-ConnectorLog "ERREUR : $($_.Exception.Message)"
-    throw
-}
-finally {
-    Release-ComObject $engine
-    Release-ComObject $document
-    Release-ComObject $application
-    [GC]::Collect()
-    [GC]::WaitForPendingFinalizers()
+    catch {
+        Write-ConnectorLog "Serveur temporairement inaccessible : $($_.Exception.Message)"
+        Start-Sleep -Seconds 10
+    }
 }

@@ -280,8 +280,8 @@ export function ClientDialog({
               placeholder="Ex. 057"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Code exact de la fiche client dans Sage 50. Il sera repris automatiquement dans les
-              prochains exports.
+              Facultatif : laissez vide pour un prospect. Vous pourrez l'ajouter quand sa fiche sera
+              créée dans Sage, puis récupérer ses informations depuis sa fiche YetiQuote.
             </p>
           </div>
           <div>

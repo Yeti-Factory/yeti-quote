@@ -39,15 +39,15 @@ $config | ConvertTo-Json | Set-Content -LiteralPath $configPath -Encoding UTF8
 $powerShell32 = "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
 $arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$scriptDestination`" -ConfigPath `"$configPath`""
 $action = New-ScheduledTaskAction -Execute $powerShell32 -Argument $arguments
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-    -RepetitionInterval (New-TimeSpan -Minutes 5) `
-    -RepetitionDuration (New-TimeSpan -Days 3650)
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 3)
+    -ExecutionTimeLimit (New-TimeSpan -Days 3650) -RestartCount 3 `
+    -RestartInterval (New-TimeSpan -Minutes 1)
 
 Register-ScheduledTask -TaskName $taskName -TaskPath $taskPath -Action $action -Trigger $trigger `
     -Settings $settings -Description "Lecture des fiches clients Sage 50 et synchronisation vers YetiQuote." `
     -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName -TaskPath $taskPath
 
-Write-Host "Connecteur installé. Première synchronisation prévue dans moins de deux minutes."
+Write-Host "Connecteur installé et prêt. Sage ne sera lu qu'après une demande dans YetiQuote."
 Write-Host "Journal : $installDirectory\connector.log"

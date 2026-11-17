@@ -41,10 +41,12 @@ const sageClientSchema = z.object({
     mobile: text,
   }),
 });
-const syncSchema = z.object({
+const responseSchema = z.object({
+  requestId: z.string().uuid(),
   source: z.string().trim().min(1).max(200),
   syncedAt: z.string().datetime().optional(),
-  clients: z.array(sageClientSchema).max(5000),
+  client: sageClientSchema.optional(),
+  error: z.string().trim().max(2000).optional(),
 });
 
 function tokenMatches(request: Request) {
@@ -52,9 +54,10 @@ function tokenMatches(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!expected || !supplied) return false;
-  const expectedHash = createHash("sha256").update(expected).digest();
-  const suppliedHash = createHash("sha256").update(supplied).digest();
-  return timingSafeEqual(expectedHash, suppliedHash);
+  return timingSafeEqual(
+    createHash("sha256").update(expected).digest(),
+    createHash("sha256").update(supplied).digest(),
+  );
 }
 
 async function handle(request: Request) {
@@ -62,50 +65,92 @@ async function handle(request: Request) {
     return Response.json({ error: "Connecteur non autorisé" }, { status: 401 });
 
   if (request.method === "GET") {
-    const result = await pool.query<{ code_sage: string }>(
-      `SELECT DISTINCT btrim(code_sage) AS code_sage
-       FROM clients
-       WHERE code_sage IS NOT NULL AND btrim(code_sage) <> ''
-       ORDER BY btrim(code_sage)`,
-    );
-    return Response.json({ codes: result.rows.map((row) => row.code_sage) });
-  }
-
-  try {
-    const input = syncSchema.parse(await request.json());
-    const syncedAt = input.syncedAt ? new Date(input.syncedAt) : new Date();
-    let updated = 0;
+    const source = request.headers.get("x-sage-connector-source")?.trim().slice(0, 200);
+    if (!source) return Response.json({ error: "Source manquante" }, { status: 400 });
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      for (const sageClient of input.clients) {
-        const result = await client.query(
-          `UPDATE clients
-           SET sage_data = $1::jsonb,
-               sage_synced_at = $2,
-               sage_sync_source = $3,
-               updated_at = now()
-           WHERE upper(btrim(code_sage)) = upper(btrim($4))`,
-          [JSON.stringify(sageClient), syncedAt, input.source, sageClient.code],
-        );
-        updated += result.rowCount ?? 0;
-      }
+      await client.query(
+        `UPDATE sage_sync_requests
+         SET status = 'pending', claimed_at = NULL, source = NULL
+         WHERE status = 'processing' AND claimed_at < now() - interval '10 minutes'`,
+      );
+      const result = await client.query<{ id: string; code_sage: string }>(
+        `WITH next_request AS (
+           SELECT id
+           FROM sage_sync_requests
+           WHERE status = 'pending'
+           ORDER BY requested_at
+           LIMIT 1
+           FOR UPDATE SKIP LOCKED
+         )
+         UPDATE sage_sync_requests r
+         SET status = 'processing', claimed_at = now(), source = $1
+         FROM next_request n
+         WHERE r.id = n.id
+         RETURNING r.id, r.code_sage`,
+        [source],
+      );
       await client.query("COMMIT");
+      return Response.json({ request: result.rows[0] ?? null });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
-    return Response.json({
-      received: input.clients.length,
-      updated,
-      syncedAt: syncedAt.toISOString(),
-    });
+  }
+
+  try {
+    const input = responseSchema.parse(await request.json());
+    if (!input.client && !input.error)
+      return Response.json({ error: "Résultat Sage manquant" }, { status: 400 });
+    const syncedAt = input.syncedAt ? new Date(input.syncedAt) : new Date();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const claimed = await client.query<{ client_id: string; code_sage: string }>(
+        `SELECT client_id, code_sage FROM sage_sync_requests
+         WHERE id = $1 AND status = 'processing' AND source = $2
+         FOR UPDATE`,
+        [input.requestId, input.source],
+      );
+      if (!claimed.rows[0]) throw new Error("Demande Sage expirée ou déjà traitée");
+
+      if (input.error) {
+        await client.query(
+          `UPDATE sage_sync_requests
+           SET status = 'failed', completed_at = now(), error = $2
+           WHERE id = $1`,
+          [input.requestId, input.error],
+        );
+      } else {
+        if (input.client!.code.toUpperCase() !== claimed.rows[0].code_sage.trim().toUpperCase())
+          throw new Error("Le code renvoyé par Sage ne correspond pas à la demande");
+        await client.query(
+          `UPDATE clients
+           SET sage_data = $1::jsonb, sage_synced_at = $2, sage_sync_source = $3
+           WHERE id = $4`,
+          [JSON.stringify(input.client), syncedAt, input.source, claimed.rows[0].client_id],
+        );
+        await client.query(
+          `UPDATE sage_sync_requests
+           SET status = 'completed', completed_at = now(), error = NULL
+           WHERE id = $1`,
+          [input.requestId],
+        );
+      }
+      await client.query("COMMIT");
+      return Response.json({ status: input.error ? "failed" : "completed" });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
-    console.error("Sage connector sync failed", error);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Synchronisation Sage impossible" },
+      { error: error instanceof Error ? error.message : "Réponse Sage impossible" },
       { status: 400 },
     );
   }
