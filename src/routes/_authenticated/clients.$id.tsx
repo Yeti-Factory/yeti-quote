@@ -11,7 +11,7 @@ import { formatClientContact } from "@/lib/client-contact";
 import { StatusBadge } from "./dashboard";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Database, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -66,6 +66,21 @@ function ClientDetail() {
   }
 
   if (!client) return <div className="text-sm text-muted-foreground">Chargement…</div>;
+
+  const sage =
+    client.sage_data && typeof client.sage_data === "object" && !Array.isArray(client.sage_data)
+      ? (client.sage_data as Record<string, any>)
+      : null;
+  const billing = sage?.billingAddress ?? {};
+  const sageAddress = [
+    billing.line1,
+    billing.line2,
+    billing.line3,
+    [billing.postalCode, billing.city].filter(Boolean).join(" "),
+    billing.countryName,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <div>
@@ -127,6 +142,56 @@ function ClientDetail() {
           <div className="text-sm whitespace-pre-line">{client.adresse || "—"}</div>
         </Card>
       </div>
+
+      {client.code_sage && (
+        <Card className="p-5 mb-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 font-semibold">
+                <Database className="w-4 h-4 text-primary" /> Fiche Sage {client.code_sage}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {client.sage_synced_at
+                  ? `Lue dans Sage le ${fmtDate(client.sage_synced_at)} depuis ${client.sage_sync_source || "un poste Yeti"}.`
+                  : "En attente de la première synchronisation depuis un poste équipé de Sage."}
+              </p>
+            </div>
+            <Badge variant={sage ? "default" : "outline"}>
+              {sage ? "Synchronisée" : "En attente"}
+            </Badge>
+          </div>
+          {sage && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-xs text-muted-foreground uppercase mb-1">Identité Sage</div>
+                <div className="font-medium">{sage.name || billing.company || "—"}</div>
+                <div className="whitespace-pre-line text-muted-foreground">
+                  {sageAddress || "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground uppercase mb-1">Fiscalité</div>
+                <div>TVA : {sage.vatNumber || "—"}</div>
+                <div>SIRET : {sage.siret || "—"}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground uppercase mb-1">Règlement</div>
+                <div>{sage.paymentMethodLabel || sage.paymentMethodCode || "—"}</div>
+                <div className="text-muted-foreground">
+                  {sage.paymentTermLabel || sage.paymentTermCode || "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground uppercase mb-1">Commercial</div>
+                <div>{sage.representativeName || sage.representativeCode || "—"}</div>
+                <div className="text-muted-foreground">
+                  {sage.contact?.name || sage.email || "—"}
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="p-0 overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
