@@ -127,11 +127,18 @@ async function handle(request: Request) {
       } else {
         if (input.client!.code.toUpperCase() !== claimed.rows[0].code_sage.trim().toUpperCase())
           throw new Error("Le code renvoyé par Sage ne correspond pas à la demande");
+        const sageClient = {
+          ...input.client!,
+          representativeName:
+            input.client!.representativeName || input.client!.representativeCode
+              ? input.client!.representativeName
+              : "Yovan Nalovic",
+        };
         await client.query(
           `UPDATE clients
            SET sage_data = $1::jsonb, sage_synced_at = $2, sage_sync_source = $3
            WHERE id = $4`,
-          [JSON.stringify(input.client), syncedAt, input.source, claimed.rows[0].client_id],
+          [JSON.stringify(sageClient), syncedAt, input.source, claimed.rows[0].client_id],
         );
         await client.query(
           `UPDATE sage_sync_requests
