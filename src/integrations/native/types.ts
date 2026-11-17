@@ -39,6 +39,9 @@ export type Database = {
           entreprise: string
           id: string
           notes: string | null
+          sage_data: Json | null
+          sage_synced_at: string | null
+          sage_sync_source: string | null
           telephone: string | null
           updated_at: string
         }
@@ -52,6 +55,9 @@ export type Database = {
           entreprise: string
           id?: string
           notes?: string | null
+          sage_data?: Json | null
+          sage_synced_at?: string | null
+          sage_sync_source?: string | null
           telephone?: string | null
           updated_at?: string
         }
@@ -65,6 +71,9 @@ export type Database = {
           entreprise?: string
           id?: string
           notes?: string | null
+          sage_data?: Json | null
+          sage_synced_at?: string | null
+          sage_sync_source?: string | null
           telephone?: string | null
           updated_at?: string
         }
