@@ -60,6 +60,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
   );
   const [depotCode, setDepotCode] = useState(() => getDefaultSageDepotCode());
   const [lineMode, setLineMode] = useState<SageLineMode>("detailed");
+  const [includeDescriptions, setIncludeDescriptions] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -136,9 +137,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
         payload,
         output,
         scenarioIndex: 0,
-        options: { selectedRows, lineMode },
+        options: { selectedRows, lineMode, includeDescriptions },
       }),
-    [dossier, lineMode, meta, output, payload, selectedRows],
+    [dossier, includeDescriptions, lineMode, meta, output, payload, selectedRows],
   );
   const totalHT = selectedRows.reduce((sum, row) => sum + row.montantHT, 0);
   const optionCount = rowGroups.filter((group) => group.option).length;
@@ -186,6 +187,7 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           sageClientCode,
           defaultArticleCode,
           depotCode,
+          includeDescriptions,
           selectedRows,
           lineMode,
         },
@@ -216,9 +218,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-foreground/80">
             Ce fichier reprend le format configuré dans votre Sage : une ligne <strong>E</strong>,
             puis les lignes <strong>L</strong>, séparées par des tabulations. Le dépôt reste vide et
-            Sage attribue automatiquement le prochain numéro de devis. Le descriptif de chaque
-            élément est ajouté comme commentaire sous sa ligne dans Sage. Le titre des informations
-            communes est repris dans la remarque du devis.
+            Sage attribue automatiquement le prochain numéro de devis. Les descriptifs peuvent être
+            ajoutés comme commentaires sous les lignes. Le titre des informations communes est
+            repris dans la remarque du devis.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -231,7 +233,9 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Repris automatiquement depuis la fiche client lorsqu’il y est renseigné. Vous pouvez
-                le corriger ici si nécessaire.
+                le corriger ici si nécessaire. Seul ce code est envoyé comme identité du client :
+                l’adresse, le représentant et les conditions de règlement doivent provenir de la
+                fiche client Sage.
               </p>
             </div>
             <div>
@@ -274,15 +278,32 @@ export function SageExportDialog({ dossier, meta, payload, output }: SageExportD
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="detailed">Une ligne par élément retenu</SelectItem>
-                  <SelectItem value="main_and_options">Sous-total principal + options</SelectItem>
-                  <SelectItem value="single_total">Une seule ligne avec le total</SelectItem>
+                  <SelectItem value="detailed">Détail article par article</SelectItem>
+                  <SelectItem value="main_and_options">
+                    Une ligne offre principale + une ligne options
+                  </SelectItem>
+                  <SelectItem value="single_total">Une seule ligne — budget global</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-end text-sm text-muted-foreground pb-1">
               Le fichier Sage contiendra {exportedRows.length} ligne
               {exportedRows.length > 1 ? "s" : ""} de devis.
+            </div>
+            <div className="sm:col-span-2 flex items-start gap-2 border-t pt-3">
+              <Checkbox
+                id="sage-include-descriptions"
+                checked={includeDescriptions}
+                onCheckedChange={(checked) => setIncludeDescriptions(checked === true)}
+              />
+              <div>
+                <Label htmlFor="sage-include-descriptions" className="cursor-pointer">
+                  Ajouter les descriptifs sous forme de commentaires Sage
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Décochez pour obtenir uniquement les lignes de prix, sans les textes détaillés.
+                </p>
+              </div>
             </div>
           </div>
 

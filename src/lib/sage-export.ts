@@ -41,6 +41,7 @@ export type SageExportOptions = {
   sageClientCode?: string;
   defaultArticleCode?: string;
   depotCode?: string;
+  includeDescriptions?: boolean;
   selectedLineNumbers?: number[];
   selectedRows?: SageExportRow[];
   lineMode?: SageLineMode;
@@ -819,7 +820,10 @@ export function makeSageQuoteCsv(params: {
     "",
     datePiece,
     sageClientCode,
-    cleanText(client.entreprise),
+    // The Sage customer card is the source of truth. Supplying a name here can
+    // make the import build the document header from YetiQuote instead of
+    // applying the address, payment terms and representative stored in Sage.
+    sageClientCode ? "" : cleanText(client.entreprise),
     "",
     "",
     "",
@@ -857,7 +861,7 @@ export function makeSageQuoteCsv(params: {
       )
       .join(delimiter);
     const description = cleanText(row.description);
-    if (!description) return [articleLine];
+    if (params.options?.includeDescriptions === false || !description) return [articleLine];
 
     const commentLine = [
       "L",
